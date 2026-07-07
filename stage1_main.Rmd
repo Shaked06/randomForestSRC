@@ -1,0 +1,274 @@
+---
+title: "Survival Simulation — Stage 1: Main Loop & Aggregation"
+subtitle: "Comparing Cox vs Random Survival Forest"
+author: "Shaked"
+date: "`r format(Sys.Date(), '%d/%m/%Y')`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    theme: readable
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo    = TRUE,
+  message = FALSE,
+  warning = FALSE,
+  cache   = TRUE,
+  fig.align = "center"
+)
+options(digits = 4)
+```
+
+# Background
+
+This document runs **Stage 1**: the 100-replication Monte Carlo loop and the
+final comparison. It loads `setup.rds` from Stage 0 (which fixes $\Sigma$,
+$\theta$, the RSF hyperparameters, and the time grid) and reuses the same DGP.
+
+Each replication does the following:
+
+1. Generate a fresh **training** sample of $n=5000$: $(X_i, T_i, \Delta_i)$.
+2. Fit **Cox** and **RSF**.
+3. Generate a fresh **test** sample of $m=20$ covariate vectors.
+4. Evaluate each model's $\hat S(t\mid x)$ and the **true** $S(t\mid x)$ on the
+   $m \times M$ grid.
+5. Compute $\mathrm{MAD}_{\text{Cox}}$ and $\mathrm{MAD}_{\text{RSF}}$ and store the pair.
+
+The replications are **run in parallel** across the machine's cores, then
+aggregated to compare the two estimators.
+
+```{r libs}
+suppressPackageStartupMessages({
+  library(MASS)             # mvrnorm
+  library(Matrix)           # nearPD (only if rebuilding Sigma)
+  library(survival)         # coxph, basehaz
+  library(randomForestSRC)  # rfsrc, predict
+  library(parallel)         # makeCluster, parLapply
+})
+```
+
+## Load the Stage 0 setup
+
+```{r load-setup}
+setup <- readRDS("setup.rds")
+
+MASTER_SEED <- setup$meta$master_seed
+BETA        <- setup$beta
+A0          <- 0.005
+
+N_TRAIN <- 5000L
+M_TEST  <- 20L
+N_REP   <- 100L     # set to e.g. 5 first for a fast smoke test, then 100
+
+str(setup[c("theta", "rsf_hp", "meta")])
+cat(sprintf("\ntime grid: M=%d, range (%.3f, %.3f]\n",
+            length(setup$time_grid), min(setup$time_grid), max(setup$time_grid)))
+```
+
+# DGP functions (reused from Stage 0)
+
+Identical to Stage 0 — restated here so this document runs standalone.
+
+```{r dgp}
+sample_X <- function(n, Sigma) {
+  MASS::mvrnorm(n = n, mu = rep(0, ncol(Sigma)), Sigma = Sigma)
+}
+
+sample_event_times <- function(X, beta = BETA) {
+  lp <- as.vector(X %*% beta)
+  U  <- runif(nrow(X))
+  sqrt(-log(U) / (A0 * exp(lp)))
+}
+
+make_survival_sample <- function(n, Sigma, theta, beta = BETA) {
+  X      <- sample_X(n, Sigma)
+  Ttilde <- sample_event_times(X, beta)
+  C      <- rexp(n, rate = 1 / theta)
+  Tobs   <- pmin(Ttilde, C)
+  Delta  <- as.integer(Ttilde <= C)
+  colnames(X) <- paste0("x", seq_len(ncol(X)))
+  data.frame(X, time = Tobs, status = Delta)
+}
+```
+
+# Estimating $\hat S(t\mid x)$ on the grid
+
+Both estimators are **step functions** defined on their own event times, so we
+evaluate them at our fixed grid via `findInterval` (the cumulative value at the
+largest event time $\le t$). This keeps the time axis identical across models
+and against the truth.
+
+## Cox (Breslow baseline)
+
+The estimated cumulative hazard factorizes as
+$\hat\Lambda(t\mid x)=\hat\Lambda_0(t)\,e^{\hat\beta^\top x}$, where
+$\hat\Lambda_0$ is the Breslow baseline. We pull $\hat\Lambda_0$ from
+`basehaz(fit, centered = FALSE)` (uncentered, so the linear predictor is exactly
+$\hat\beta^\top x$) and form
+$\hat S(t\mid x)=\exp\!\big(-\hat\Lambda_0(t)\,e^{\hat\beta^\top x}\big)$.
+Returns an $m \times M$ matrix.
+
+```{r est-cox}
+cox_survival_matrix <- function(fit, Xtest, tgrid) {
+  bh  <- basehaz(fit, centered = FALSE)              # columns: hazard (cum), time
+  idx <- findInterval(tgrid, bh$time)                # H0 step evaluation
+  H0  <- ifelse(idx == 0, 0, bh$hazard[idx])         # length M
+  b   <- coef(fit)
+  lp  <- as.vector(Xtest[, names(b), drop = FALSE] %*% b)  # length m
+  exp(-outer(exp(lp), H0))                           # m x M : S(t_i | x_j)
+}
+```
+
+## RSF
+
+`predict.rfsrc` returns a survival matrix over `time.interest` (the unique event
+times). We evaluate at our grid the same way; before the first event time
+$\hat S = 1$. Returns an $m \times M$ matrix.
+
+```{r est-rsf}
+rsf_survival_matrix <- function(fit, Xtest_df, tgrid) {
+  pr   <- predict(fit, newdata = Xtest_df)
+  ti   <- pr$time.interest                           # increasing, length K
+  surv <- pr$survival                                # m x K
+  idx  <- findInterval(tgrid, ti)                    # length M
+  out  <- matrix(1, nrow = nrow(surv), ncol = length(tgrid))  # S=1 before t1
+  nz   <- idx > 0
+  if (any(nz)) out[, nz] <- surv[, idx[nz], drop = FALSE]
+  out                                                # m x M
+}
+```
+
+## True survival and the MAD metric
+
+```{r est-true}
+true_survival_matrix <- function(Xtest, tgrid, beta = BETA) {
+  lp <- as.vector(Xtest %*% beta)
+  exp(-A0 * outer(exp(lp), tgrid^2))                 # m x M : true S(t_i | x_j)
+}
+
+# MAD = (1 / (m*M)) * sum |Shat - Strue|  = mean over all m*M cells
+mad_metric <- function(Shat, Strue) mean(abs(Shat - Strue))
+```
+
+# One replication
+
+Each replication is fully reproducible via a per-rep seed
+(`MASTER_SEED + 1000 + rep_id`) that controls both the data generation
+(R's RNG) and the RSF fit (passed to `rfsrc` as a negative seed), so any single
+rep can be re-run in isolation.
+
+```{r run-one}
+run_one <- function(rep_id, setup) {
+  set.seed(MASTER_SEED + 1000L + rep_id)
+
+  # 1. training sample
+  train <- make_survival_sample(N_TRAIN, setup$Sigma, setup$theta, setup$beta)
+
+  # 2. fit models
+  cox <- coxph(Surv(time, status) ~ ., data = train)
+  rsf <- rfsrc(Surv(time, status) ~ ., data = train,
+               ntree    = setup$rsf_hp$ntree,
+               mtry     = setup$rsf_hp$mtry,
+               nodesize = setup$rsf_hp$nodesize,
+               seed     = -(MASTER_SEED + 1000L + rep_id))  # rfsrc needs a negative seed
+
+  # 3. fresh test covariates
+  Xtest <- sample_X(M_TEST, setup$Sigma)
+  colnames(Xtest) <- paste0("x", seq_len(ncol(Xtest)))
+  Xtest_df <- as.data.frame(Xtest)
+
+  # 4. truth + estimates on the grid
+  Strue <- true_survival_matrix(Xtest,    setup$time_grid, setup$beta)
+  Scox  <- cox_survival_matrix(cox,       Xtest,           setup$time_grid)
+  Srsf  <- rsf_survival_matrix(rsf,       Xtest_df,        setup$time_grid)
+
+  # 5. MAD per model
+  c(mad_cox = mad_metric(Scox, Strue),
+    mad_rsf = mad_metric(Srsf, Strue))
+}
+```
+
+# The 100-replication loop (parallel)
+
+Replications are independent, so we distribute them across the machine's cores.
+Each worker runs `rfsrc` single-threaded (`rf.cores = 1`) to avoid
+oversubscription — since process-level parallelism here is what actually gives
+the speedup. Results are identical to a serial run because every replication
+seeds itself from `rep_id`, so execution order is irrelevant.
+
+The `cache.extra` key ties this chunk's cache to `setup.rds`, so changing the
+setup (e.g. new RSF hyperparameters) correctly forces a re-run.
+
+```{r loop, cache.extra = file.mtime("setup.rds")}
+n_cores <- max(1L, detectCores() - 1L)   # leave one core for the OS
+cl <- makeCluster(n_cores)
+
+# prepare workers: load packages, disable nested rfsrc threading
+clusterEvalQ(cl, {
+  suppressPackageStartupMessages({
+    library(MASS); library(survival); library(randomForestSRC)
+  })
+  options(rf.cores = 1, mc.cores = 1)
+  NULL
+})
+
+# ship functions + globals to the workers
+clusterExport(cl,
+  varlist = c("run_one", "make_survival_sample", "sample_X",
+              "sample_event_times", "cox_survival_matrix",
+              "rsf_survival_matrix", "true_survival_matrix", "mad_metric",
+              "MASTER_SEED", "BETA", "A0", "N_TRAIN", "M_TEST", "setup"),
+  envir = environment())
+
+# run in core-sized batches so we can print progress + ETA
+batches <- split(seq_len(N_REP), ceiling(seq_len(N_REP) / n_cores))
+results <- vector("list", N_REP)
+t0 <- Sys.time(); done <- 0L
+
+cat(sprintf("running %d reps on %d cores...\n", N_REP, n_cores))
+for (b in batches) {
+  results[b] <- parLapply(cl, b, run_one, setup = setup)
+  done <- done + length(b)
+  el <- as.numeric(difftime(Sys.time(), t0, units = "mins"))
+  cat(sprintf("  %3d/%d reps  (%.1f min elapsed, ~%.1f min left)\n",
+              done, N_REP, el, el / done * (N_REP - done)))
+}
+
+stopCluster(cl)
+
+results <- as.data.frame(do.call(rbind, results))
+saveRDS(results, "results.rds")
+```
+
+# Aggregation and comparison
+
+## Summary
+
+```{r agg-summary}
+summary_tbl <- data.frame(
+  model = c("Cox", "RSF"),
+  mean  = c(mean(results$mad_cox), mean(results$mad_rsf)),
+  sd    = c(sd(results$mad_cox),   sd(results$mad_rsf)),
+  median = c(median(results$mad_cox), median(results$mad_rsf))
+)
+summary_tbl
+```
+
+## Plot
+
+```{r agg-plot, fig.width=5, fig.height=4}
+boxplot(results, names = c("Cox", "RSF"),
+        col = c("#9ecae1", "#fdae6b"),
+        ylab = "MAD", main = "MAD distribution (100 reps)")
+```
+
+# What we have
+
+`results.rds` holds the 100 paired MAD values for each model. The summary table
+and boxplot give the head-to-head comparison between Cox and RSF: the model with
+the lower mean MAD is closer to the true survival curves on this DGP.

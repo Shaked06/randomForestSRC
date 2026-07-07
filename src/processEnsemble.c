@@ -57,9 +57,9 @@ void processEnsembleInSitu(char mode, char multImpFlag, uint b) {
   double **responsePtr;
   char     rImputeFlag;
   uint lo, hi;
-  ${trace.token}  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  ${trace.token}    RF_nativePrint("\nprocessEnsembleInSitu() ENTRY ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+  //    RF_nativePrint("\nprocessEnsembleInSitu() ENTRY ...\n");
+  //  }
     if ((RF_opt & OPT_PERF) ||
         (RF_opt & OPT_OENS) ||
         (RF_opt & OPT_FENS)) {
@@ -185,17 +185,17 @@ void processEnsembleInSitu(char mode, char multImpFlag, uint b) {
     }
     if (RF_opt & (OPT_VARUSED_F | OPT_VARUSED_T)) {
       getVariablesUsed(b, RF_root[b], RF_varUsedPtr[b]);
-      ${trace.token}    if (getTraceFlag(b) & SUMM_LOW_TRACE) {
-      ${trace.token}      RF_nativePrint("\nVariables Used Counts by Parameter for tree:  %10d \n", b);
-      ${trace.token}      for (uint i = 1; i <= RF_xSize; i++) {
-      ${trace.token}        RF_nativePrint(" %12d", i);
-      ${trace.token}      }
-      ${trace.token}      RF_nativePrint("\n");
-      ${trace.token}      for (uint i = 1; i <= RF_xSize; i++) {
-      ${trace.token}        RF_nativePrint(" %12d", RF_varUsedPtr[b][i]);
-      ${trace.token}      }
-      ${trace.token}      RF_nativePrint("\n");
-      ${trace.token}    }
+      //    if (getTraceFlag(b) & SUMM_LOW_TRACE) {
+      //      RF_nativePrint("\nVariables Used Counts by Parameter for tree:  %10d \n", b);
+      //      for (uint i = 1; i <= RF_xSize; i++) {
+      //        RF_nativePrint(" %12d", i);
+      //      }
+      //      RF_nativePrint("\n");
+      //      for (uint i = 1; i <= RF_xSize; i++) {
+      //        RF_nativePrint(" %12d", RF_varUsedPtr[b][i]);
+      //      }
+      //      RF_nativePrint("\n");
+      //    }
     }
     if (RF_optHigh & OPT_PART_PLOT) {
       getAndUpdatePartialMembership(b, RF_root[b]);
@@ -215,18 +215,18 @@ void processEnsembleInSitu(char mode, char multImpFlag, uint b) {
       if (RF_xMarginalSize > 0) {
         releaseMarginalMembership(mode, b);
       }
-  ${trace.token}  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  ${trace.token}    RF_nativePrint("\nprocessEnsembleInSitu() EXIT ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+  //    RF_nativePrint("\nprocessEnsembleInSitu() EXIT ...\n");
+  //  }
 }
 void processEnsemblePost(char mode) {
   char perfFlag;
   double **responsePtr;
   uint lo, hi;
   uint bb;
-  ${trace.token}  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  ${trace.token}    RF_nativePrint("\nprocessEnsemblePost() ENTRY ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+  //    RF_nativePrint("\nprocessEnsemblePost() ENTRY ...\n");
+  //  }
   if ((RF_opt & OPT_PERF) ||
       (RF_opt & OPT_OENS) ||
       (RF_opt & OPT_FENS)) {
@@ -379,17 +379,17 @@ void processEnsemblePost(char mode) {
       uint b = RF_getTreeIndex[bb];      
       if (RF_tLeafCount[b] > 0) {
         getVariablesUsed(b, RF_root[b], RF_varUsedPtr[b]);
-        ${trace.token}    if (getTraceFlag(bb) & SUMM_LOW_TRACE) {
-        ${trace.token}      RF_nativePrint("\nVariables Used Counts by Parameter for tree:  %10d \n", b);
-        ${trace.token}      for (uint i = 1; i <= RF_xSize; i++) {
-        ${trace.token}        RF_nativePrint(" %12d", i);
-        ${trace.token}      }
-        ${trace.token}      RF_nativePrint("\n");
-        ${trace.token}      for (uint i = 1; i <= RF_xSize; i++) {
-        ${trace.token}        RF_nativePrint(" %12d", RF_varUsedPtr[b][i]);
-        ${trace.token}      }
-        ${trace.token}      RF_nativePrint("\n");
-        ${trace.token}    }
+        //    if (getTraceFlag(bb) & SUMM_LOW_TRACE) {
+        //      RF_nativePrint("\nVariables Used Counts by Parameter for tree:  %10d \n", b);
+        //      for (uint i = 1; i <= RF_xSize; i++) {
+        //        RF_nativePrint(" %12d", i);
+        //      }
+        //      RF_nativePrint("\n");
+        //      for (uint i = 1; i <= RF_xSize; i++) {
+        //        RF_nativePrint(" %12d", RF_varUsedPtr[b][i]);
+        //      }
+        //      RF_nativePrint("\n");
+        //    }
       }
     }
   }
@@ -424,9 +424,9 @@ void processEnsemblePost(char mode) {
         }
     }  
   }  
-  ${trace.token}  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  ${trace.token}    RF_nativePrint("\nprocessEnsemblePost() EXIT ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+  //    RF_nativePrint("\nprocessEnsemblePost() EXIT ...\n");
+  //  }
 }
 void processEnsembleHoldout(uint xVarIdx, uint b) {
   Terminal *terminalNode;
@@ -436,9 +436,9 @@ void processEnsembleHoldout(uint xVarIdx, uint b) {
   uint   obsSize;
   uint   blockID;
   uint i, j, k, m, ii;
-  ${trace.token}  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  ${trace.token}    RF_nativePrint("\nprocessEnsembleHoldout() ENTRY ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+  //    RF_nativePrint("\nprocessEnsembleHoldout() ENTRY ...\n");
+  //  }
   obsSize = RF_observationSize;
     blockID = RF_holdoutMap[xVarIdx][b];
     if (blockID > 0) {
@@ -636,9 +636,9 @@ void processEnsembleHoldout(uint xVarIdx, uint b) {
 #endif
       }  
     }  
-  ${trace.token}  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  ${trace.token}    RF_nativePrint("\nprocessEnsembleHoldout() EXIT ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+  //    RF_nativePrint("\nprocessEnsembleHoldout() EXIT ...\n");
+  //  }
 }
 void processEnsembleHoldoutPost(uint bb) {
   if (RF_tLeafCount[RF_getTreeIndex[bb]] > 0) {

@@ -296,53 +296,53 @@ void nrerror(char error_text[]) {
 void *gblock(size_t size) {
   void *v = (void *) malloc(size);
   if (!v) nrerror("\n  Allocation Failure in gblock().");
-  ${stack.token}  increaseMemoryAllocation(size);
-  ${memor.token}  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
-  ${memor.token}    RF_nativePrint("\ngblock()      alloc:  %16x  sz = %10d usage = %20lld \n", v, size, getMinMemoryAllocation());
-  ${memor.token}  }
+  //  increaseMemoryAllocation(size);
+  //  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
+  //    RF_nativePrint("\ngblock()      alloc:  %16x  sz = %10d usage = %20lld \n", v, size, getMinMemoryAllocation());
+  //  }
   return v;
 }
 void free_gblock(void *v, size_t size) {
-  ${stack.token}  decreaseMemoryAllocation(size);
-  ${memor.token}  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
-  ${memor.token}    RF_nativePrint("\ngblock()   de-alloc:  %16x  sz = %10d usage = %20lld  ... wait for it ... ", v, size, getMinMemoryAllocation());
-  ${memor.token}  }
+  //  decreaseMemoryAllocation(size);
+  //  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
+  //    RF_nativePrint("\ngblock()   de-alloc:  %16x  sz = %10d usage = %20lld  ... wait for it ... ", v, size, getMinMemoryAllocation());
+  //  }
   free((FREE_ARG) v);
-  ${memor.token}  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
-  ${memor.token}    RF_nativePrint("successful. \n");
-  ${memor.token}  }
+  //  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
+  //    RF_nativePrint("successful. \n");
+  //  }
 }
 void *gvector(unsigned long long nl, unsigned long long nh, size_t size) {
-  ${memor.token}  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
-  ${memor.token}    RF_nativePrint("\ngvector()     alloc:   nl = %20llu  nh = %20llu ", nl, nh);
-  ${memor.token}  }
+  //  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
+  //    RF_nativePrint("\ngvector()     alloc:   nl = %20llu  nh = %20llu ", nl, nh);
+  //  }
   if (nh < nl) nrerror("\n  Illegal indices in gvector().");
   void *v = gblock((size_t) ((nh-nl+1+NR_END) * size));
   return v;
 }
 void free_gvector(void *v, unsigned long long nl, unsigned long long nh, size_t size) {
-  ${memor.token}  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
-  ${memor.token}    RF_nativePrint("\ngvector()  de-alloc:  %16x  nl = %20llu nh = %20llu ", v, nl, nh);
-  ${memor.token}  }
+  //  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
+  //    RF_nativePrint("\ngvector()  de-alloc:  %16x  nl = %20llu nh = %20llu ", v, nl, nh);
+  //  }
   if (nh < nl) nrerror("\n  Illegal indices in free_gvector().");
   free_gblock(v, (nh-nl+1+NR_END) * size);
 }
 char *cvector(unsigned long long nl, unsigned long long nh) {
-  ${memor.token}  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
-  ${memor.token}    RF_nativePrint("\ncvector()     alloc:   nl = %20llu  nh = %20llu ", nl, nh);
-  ${memor.token}  }
+  //  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
+  //    RF_nativePrint("\ncvector()     alloc:   nl = %20llu  nh = %20llu ", nl, nh);
+  //  }
   return ((char *) gvector(nl, nh, sizeof(char)) -nl+NR_END);
 }
 void free_cvector(char *v, unsigned long long nl, unsigned long long nh) {
-  ${memor.token}  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
-  ${memor.token}    RF_nativePrint("\ncvector()  de-alloc:   nl = %20llu  nh = %20llu ", nl, nh);
-  ${memor.token}  }
+  //  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
+  //    RF_nativePrint("\ncvector()  de-alloc:   nl = %20llu  nh = %20llu ", nl, nh);
+  //  }
   free_gvector(v+nl-NR_END, nl, nh, sizeof(char));
 }
 char **cmatrix(unsigned long long nrl, unsigned long long nrh, unsigned long long ncl, unsigned long long nch) {
-  ${memor.token}  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
-  ${memor.token}    RF_nativePrint("\ncmatrix()     alloc:  nrl = %20llu nrh = %20llu ncl = %20llu nch = %20llu ", nrl, nrh, ncl, nch);
-  ${memor.token}  }
+  //  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
+  //    RF_nativePrint("\ncmatrix()     alloc:  nrl = %20llu nrh = %20llu ncl = %20llu nch = %20llu ", nrl, nrh, ncl, nch);
+  //  }
   char **v = (char **) new_vvector(nrl, nrh, NRUTIL_CPTR);
   for(unsigned long long i = nrl; i <= nrh; i++) {
     v[i] = cvector(ncl, nch);
@@ -350,30 +350,30 @@ char **cmatrix(unsigned long long nrl, unsigned long long nrh, unsigned long lon
   return v;
 }
 void free_cmatrix(char **v, unsigned long long nrl, unsigned long long nrh, unsigned long long ncl, unsigned long long nch) {
-  ${memor.token}  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
-  ${memor.token}    RF_nativePrint("\ncmatrix()  de-alloc:  nrl = %20llu nrh = %20llu ncl = %20llu nch = %20llu ", nrl, nrh, ncl, nch);
-  ${memor.token}  }
+  //  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
+  //    RF_nativePrint("\ncmatrix()  de-alloc:  nrl = %20llu nrh = %20llu ncl = %20llu nch = %20llu ", nrl, nrh, ncl, nch);
+  //  }
   for(unsigned long long i = nrl; i <= nrh; i++) {
     free_cvector(v[i], ncl, nch);
   }
   free_new_vvector(v, nrl, nrh, NRUTIL_CPTR);
 }
 int *ivector(unsigned long long nl, unsigned long long nh) {
-  ${memor.token}  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
-  ${memor.token}    RF_nativePrint("\nivector()     alloc:   nl = %20llu  nh = %20llu ", nl, nh);
-  ${memor.token}  }
+  //  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
+  //    RF_nativePrint("\nivector()     alloc:   nl = %20llu  nh = %20llu ", nl, nh);
+  //  }
   return ((int *) gvector(nl, nh, sizeof(int)) -nl+NR_END);
 }
 void free_ivector(int *v, unsigned long long nl, unsigned long long nh) {
-  ${memor.token}  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
-  ${memor.token}    RF_nativePrint("\nivector()  de-alloc:   nl = %20llu  nh = %20llu ", nl, nh);
-  ${memor.token}  }
+  //  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
+  //    RF_nativePrint("\nivector()  de-alloc:   nl = %20llu  nh = %20llu ", nl, nh);
+  //  }
   free_gvector(v+nl-NR_END, nl, nh, sizeof(int));
 }
 int **imatrix(unsigned long long nrl, unsigned long long nrh, unsigned long long ncl, unsigned long long nch) {
-  ${memor.token}  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
-  ${memor.token}    RF_nativePrint("\nimatrix()     alloc:  nrl = %20llu nrh = %20llu ncl = %20llu nch = %20llu ", nrl, nrh, ncl, nch);
-  ${memor.token}  }
+  //  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
+  //    RF_nativePrint("\nimatrix()     alloc:  nrl = %20llu nrh = %20llu ncl = %20llu nch = %20llu ", nrl, nrh, ncl, nch);
+  //  }
   int **v = (int **) new_vvector(nrl, nrh, NRUTIL_IPTR);
   for(unsigned long long i = nrl; i <= nrh; i++) {
     v[i] = ivector(ncl, nch);
@@ -381,42 +381,42 @@ int **imatrix(unsigned long long nrl, unsigned long long nrh, unsigned long long
   return v;
 }
 void free_imatrix(int **v, unsigned long long nrl, unsigned long long nrh, unsigned long long ncl, unsigned long long nch) {
-  ${memor.token}  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
-  ${memor.token}    RF_nativePrint("\nimatrix()  de-alloc:  nrl = %20llu nrh = %20llu ncl = %20llu nch = %20llu ", nrl, nrh, ncl, nch);
-  ${memor.token}  }
+  //  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
+  //    RF_nativePrint("\nimatrix()  de-alloc:  nrl = %20llu nrh = %20llu ncl = %20llu nch = %20llu ", nrl, nrh, ncl, nch);
+  //  }
   for(unsigned long long i = nrl; i <= nrh; i++) {
     free_ivector(v[i], ncl, nch);
   }
   free_new_vvector(v, nrl, nrh, NRUTIL_IPTR);
 }
 unsigned int *uivector(unsigned long long nl, unsigned long long nh) {
-  ${memor.token}  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
-  ${memor.token}    RF_nativePrint("\nuivector()    alloc:   nl = %20llu  nh = %20llu ", nl, nh);
-  ${memor.token}  }
-  ${memor.token}  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
-  ${memor.token}    if ((nh == 10) && (!TRUE)) {
-  ${memor.token}      RF_nativePrint("\n probe increase");
-  ${memor.token}      increaseProbeMemoryAllocation((size_t) ((nh-nl+1+NR_END) * sizeof(unsigned int)));
-  ${memor.token}    }
-  ${memor.token}  }
+  //  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
+  //    RF_nativePrint("\nuivector()    alloc:   nl = %20llu  nh = %20llu ", nl, nh);
+  //  }
+  //  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
+  //    if ((nh == 10) && (!TRUE)) {
+  //      RF_nativePrint("\n probe increase");
+  //      increaseProbeMemoryAllocation((size_t) ((nh-nl+1+NR_END) * sizeof(unsigned int)));
+  //    }
+  //  }
   return ((unsigned int *) gvector(nl, nh, sizeof(unsigned int)) -nl+NR_END);
 }
 void free_uivector(unsigned int *v, unsigned long long nl, unsigned long long nh) {
-  ${memor.token}  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
-  ${memor.token}    RF_nativePrint("\nuivector() de-alloc:   nl = %20llu  nh = %20llu ", nl, nh);
-  ${memor.token}  }
-  ${memor.token}  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
-  ${memor.token}    if ((nh == 10) && (!TRUE)) {
-  ${memor.token}      RF_nativePrint("\n probe decrease");
-  ${memor.token}      decreaseProbeMemoryAllocation((size_t) ((nh-nl+1+NR_END) * sizeof(unsigned int)));
-  ${memor.token}    }
-  ${memor.token}  }
+  //  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
+  //    RF_nativePrint("\nuivector() de-alloc:   nl = %20llu  nh = %20llu ", nl, nh);
+  //  }
+  //  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
+  //    if ((nh == 10) && (!TRUE)) {
+  //      RF_nativePrint("\n probe decrease");
+  //      decreaseProbeMemoryAllocation((size_t) ((nh-nl+1+NR_END) * sizeof(unsigned int)));
+  //    }
+  //  }
   free_gvector(v+nl-NR_END, nl, nh, sizeof(unsigned int));
 }
 unsigned int **uimatrix(unsigned long long nrl, unsigned long long nrh, unsigned long long ncl, unsigned long long nch) {
-  ${memor.token}  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
-  ${memor.token}    RF_nativePrint("\nuimatrix()    alloc:  nrl = %20llu nrh = %20llu ncl = %20llu nch = %20llu ", nrl, nrh, ncl, nch);
-  ${memor.token}  }
+  //  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
+  //    RF_nativePrint("\nuimatrix()    alloc:  nrl = %20llu nrh = %20llu ncl = %20llu nch = %20llu ", nrl, nrh, ncl, nch);
+  //  }
   unsigned int **v = (unsigned int **) new_vvector(nrl, nrh, NRUTIL_UPTR);
   for(unsigned long long i = nrl; i <= nrh; i++) {
     v[i] = uivector(ncl, nch);
@@ -424,54 +424,54 @@ unsigned int **uimatrix(unsigned long long nrl, unsigned long long nrh, unsigned
   return v;
 }
 void free_uimatrix(unsigned int **v, unsigned long long nrl, unsigned long long nrh, unsigned long long ncl, unsigned long long nch) {
-  ${memor.token}  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
-  ${memor.token}    RF_nativePrint("\nuimatrix() de-alloc:   nrl = %20llu nrh = %20llu ncl = %20llu nch = %20llu ", nrl, nrh, ncl, nch);
-  ${memor.token}  }
+  //  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
+  //    RF_nativePrint("\nuimatrix() de-alloc:   nrl = %20llu nrh = %20llu ncl = %20llu nch = %20llu ", nrl, nrh, ncl, nch);
+  //  }
   for(unsigned long long i = nrl; i <= nrh; i++) {
     free_uivector(v[i], ncl, nch);
   }
   free_new_vvector(v, nrl, nrh, NRUTIL_UPTR);
 }
 unsigned long *ulvector(unsigned long long nl, unsigned long long nh) {
-  ${memor.token}  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
-  ${memor.token}    RF_nativePrint("\nulvector()    alloc:   nl = %20llu  nh = %20llu ", nl, nh);
-  ${memor.token}  }
+  //  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
+  //    RF_nativePrint("\nulvector()    alloc:   nl = %20llu  nh = %20llu ", nl, nh);
+  //  }
   return ((unsigned long *) gvector(nl, nh, sizeof(unsigned long)) -nl+NR_END);
 }
 void free_ulvector(unsigned long *v, unsigned long long nl, unsigned long long nh) {
-  ${memor.token}  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
-  ${memor.token}    RF_nativePrint("\nulvector() de-alloc:   nl = %20llu  nh = %20llu ", nl, nh);
-  ${memor.token}  }
+  //  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
+  //    RF_nativePrint("\nulvector() de-alloc:   nl = %20llu  nh = %20llu ", nl, nh);
+  //  }
   free_gvector(v+nl-NR_END, nl, nh, sizeof(unsigned long));
 }
 double *dvector(unsigned long long nl, unsigned long long nh) {
-  ${memor.token}  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
-  ${memor.token}    RF_nativePrint("\ndvector()     alloc:   nl = %20llu  nh = %20llu ", nl, nh);
-  ${memor.token}  }
-  ${memor.token}  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
-  ${memor.token}    if ((!TRUE)) {
-  ${memor.token}      RF_nativePrint("\n probe increase");
-  ${memor.token}      increaseProbeMemoryAllocation((size_t) ((nh-nl+1+NR_END) * sizeof(double)));
-  ${memor.token}    }
-  ${memor.token}  }
+  //  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
+  //    RF_nativePrint("\ndvector()     alloc:   nl = %20llu  nh = %20llu ", nl, nh);
+  //  }
+  //  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
+  //    if ((!TRUE)) {
+  //      RF_nativePrint("\n probe increase");
+  //      increaseProbeMemoryAllocation((size_t) ((nh-nl+1+NR_END) * sizeof(double)));
+  //    }
+  //  }
   return ((double *) gvector(nl, nh, sizeof(double)) -nl+NR_END);
 }
 void free_dvector(double *v, unsigned long long nl, unsigned long long nh) {
-  ${memor.token}  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
-  ${memor.token}    RF_nativePrint("\ndvector()  de-alloc:   nl = %20llu  nh = %20llu ", nl, nh);
-  ${memor.token}  }
-  ${memor.token}  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
-  ${memor.token}    if ((!TRUE)) {
-  ${memor.token}      RF_nativePrint("\n probe decrease");
-  ${memor.token}      decreaseProbeMemoryAllocation((size_t) ((nh-nl+1+NR_END) * sizeof(double)));
-  ${memor.token}    }
-  ${memor.token}  }
+  //  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
+  //    RF_nativePrint("\ndvector()  de-alloc:   nl = %20llu  nh = %20llu ", nl, nh);
+  //  }
+  //  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
+  //    if ((!TRUE)) {
+  //      RF_nativePrint("\n probe decrease");
+  //      decreaseProbeMemoryAllocation((size_t) ((nh-nl+1+NR_END) * sizeof(double)));
+  //    }
+  //  }
   free_gvector(v+nl-NR_END, nl, nh, sizeof(double));
 }
 double **dmatrix(unsigned long long nrl, unsigned long long nrh, unsigned long long ncl, unsigned long long nch) {
-  ${memor.token}  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
-  ${memor.token}    RF_nativePrint("\ndmatrix()     alloc:  nrl = %20llu nrh = %20llu ncl = %20llu nch = %20llu ", nrl, nrh, ncl, nch);
-  ${memor.token}  }
+  //  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
+  //    RF_nativePrint("\ndmatrix()     alloc:  nrl = %20llu nrh = %20llu ncl = %20llu nch = %20llu ", nrl, nrh, ncl, nch);
+  //  }
   double **v = (double **) new_vvector(nrl, nrh, NRUTIL_DPTR);
   for(unsigned long long i = nrl; i <= nrh; i++) {
     v[i] = dvector(ncl, nch);
@@ -479,18 +479,18 @@ double **dmatrix(unsigned long long nrl, unsigned long long nrh, unsigned long l
   return v;
 }
 void free_dmatrix(double **v, unsigned long long nrl, unsigned long long nrh, unsigned long long ncl, unsigned long long nch) {
-  ${memor.token}  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
-  ${memor.token}    RF_nativePrint("\ndmatrix()  de-alloc:  nrl = %20llu nrh = %20llu ncl = %20llu nch = %20llu ", nrl, nrh, ncl, nch);
-  ${memor.token}  }
+  //  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
+  //    RF_nativePrint("\ndmatrix()  de-alloc:  nrl = %20llu nrh = %20llu ncl = %20llu nch = %20llu ", nrl, nrh, ncl, nch);
+  //  }
   for(unsigned long long i = nrl; i <= nrh; i++) {
     free_dvector(v[i], ncl, nch);
   }
   free_new_vvector(v, nrl, nrh, NRUTIL_DPTR);
 }
 double ***dmatrix3(unsigned long long n3l, unsigned long long n3h, unsigned long long nrl, unsigned long long nrh, unsigned long long ncl, unsigned long long nch) {
-  ${memor.token}  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
-  ${memor.token}    RF_nativePrint("\ndmatrix3()    alloc:  n3l = %20llu n3h = %20llu nrl = %20llu nrh = %20llu ncl = %20llu nch = %20llu ", n3l, n3h, nrl, nrh, ncl, nch);
-  ${memor.token}  }
+  //  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
+  //    RF_nativePrint("\ndmatrix3()    alloc:  n3l = %20llu n3h = %20llu nrl = %20llu nrh = %20llu ncl = %20llu nch = %20llu ", n3l, n3h, nrl, nrh, ncl, nch);
+  //  }
   double ***v = (double ***) new_vvector(n3l, n3h, NRUTIL_DPTR2);
   for(unsigned long long i = n3l; i <= n3h; i++) {
     v[i] = dmatrix(nrl, nrh, ncl, nch);
@@ -498,18 +498,18 @@ double ***dmatrix3(unsigned long long n3l, unsigned long long n3h, unsigned long
   return v;
 }
 void free_dmatrix3(double ***v, unsigned long long n3l, unsigned long long n3h, unsigned long long nrl, unsigned long long nrh, unsigned long long ncl, unsigned long long nch) {
-  ${memor.token}  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
-  ${memor.token}    RF_nativePrint("\ndmatrix3() de-alloc:  n3l = %20llu n3h = %20llu nrl = %20llu nrh = %20llu ncl = %20llu nch = %20llu ", n3l, n3h, nrl, nrh, ncl, nch);
-  ${memor.token}  }
+  //  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
+  //    RF_nativePrint("\ndmatrix3() de-alloc:  n3l = %20llu n3h = %20llu nrl = %20llu nrh = %20llu ncl = %20llu nch = %20llu ", n3l, n3h, nrl, nrh, ncl, nch);
+  //  }
   for(unsigned long long i = n3l; i <= n3h; i++) {
     free_dmatrix(v[i], nrl, nrh, ncl, nch);
   }
   free_new_vvector(v, n3l, n3h, NRUTIL_DPTR2);
 }
 double ****dmatrix4(unsigned long long n4l, unsigned long long n4h, unsigned long long n3l, unsigned long long n3h, unsigned long long nrl, unsigned long long nrh, unsigned long long ncl, unsigned long long nch) {
-  ${memor.token}  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
-  ${memor.token}    RF_nativePrint("\ndmatrix4()    alloc:  n4l = %20llu n4h = %20llu n3l = %20llu n3h = %20llu nrl = %20llu nrh = %20llu ncl = %20llu nch = %20llu ", n4l, n4h, n3l, n3h, nrl, nrh, ncl, nch);
-  ${memor.token}  }
+  //  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
+  //    RF_nativePrint("\ndmatrix4()    alloc:  n4l = %20llu n4h = %20llu n3l = %20llu n3h = %20llu nrl = %20llu nrh = %20llu ncl = %20llu nch = %20llu ", n4l, n4h, n3l, n3h, nrl, nrh, ncl, nch);
+  //  }
   double ****v = (double ****) new_vvector(n4l, n4h, NRUTIL_DPTR3);
   for(unsigned long long i = n4l; i <= n4h; i++) {
     v[i] = dmatrix3(n3l, n3h, nrl, nrh, ncl, nch);
@@ -517,9 +517,9 @@ double ****dmatrix4(unsigned long long n4l, unsigned long long n4h, unsigned lon
   return v;
 }
 void free_dmatrix4(double ****v, unsigned long long n4l, unsigned long long n4h, unsigned long long n3l, unsigned long long n3h, unsigned long long nrl, unsigned long long nrh, unsigned long long ncl, unsigned long long nch) {
-  ${memor.token}  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
-  ${memor.token}    RF_nativePrint("\ndmatrix4() de-alloc:  n4l = %20llu n4h = %20llu n3l = %20llu n3h = %20llu nrl = %20llu nrh = %20llu ncl = %20llu nch = %20llu ", n4l, n4h, n3l, n3h, nrl, nrh, ncl, nch);
-  ${memor.token}  }
+  //  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
+  //    RF_nativePrint("\ndmatrix4() de-alloc:  n4l = %20llu n4h = %20llu n3l = %20llu n3h = %20llu nrl = %20llu nrh = %20llu ncl = %20llu nch = %20llu ", n4l, n4h, n3l, n3h, nrl, nrh, ncl, nch);
+  //  }
   for(unsigned long long i = n4l; i <= n4h; i++) {
     free_dmatrix3(v[i], n3l, n3h, nrl, nrh, ncl, nch);
   }
@@ -527,24 +527,24 @@ void free_dmatrix4(double ****v, unsigned long long n4l, unsigned long long n4h,
 }
 #ifdef _OPENMP
 omp_lock_t *ompvector(unsigned long long nl, unsigned long long nh) {
-  ${memor.token}  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
-  ${memor.token}    RF_nativePrint("\nompvector()     alloc:   nl = %20llu  nh = %20llu ", nl, nh);
-  ${memor.token}  }
+  //  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
+  //    RF_nativePrint("\nompvector()     alloc:   nl = %20llu  nh = %20llu ", nl, nh);
+  //  }
   return ((omp_lock_t *) gvector(nl, nh, sizeof(omp_lock_t)) -nl+NR_END);
 }
 void free_ompvector(omp_lock_t *v, unsigned long long nl, unsigned long long nh) {
-  ${memor.token}  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
-  ${memor.token}    RF_nativePrint("\nompvector()  de-alloc:   nl = %20llu  nh = %20llu ", nl, nh);
-  ${memor.token}  }
+  //  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
+  //    RF_nativePrint("\nompvector()  de-alloc:   nl = %20llu  nh = %20llu ", nl, nh);
+  //  }
   free_gvector(v+nl-NR_END, nl, nh, sizeof(omp_lock_t));
 }
 #endif
 void *new_vvector(unsigned long long nl, unsigned long long nh, enum alloc_type type) {
   void *v;
   v = NULL;  
-  ${memor.token}  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
-  ${memor.token}    RF_nativePrint("\nvvector()     alloc:   nl = %20llu  nh = %20llu ", nl, nh);
-  ${memor.token}  }
+  //  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
+  //    RF_nativePrint("\nvvector()     alloc:   nl = %20llu  nh = %20llu ", nl, nh);
+  //  }
   switch(type) {
   case NRUTIL_DPTR:
     v = (double **) gvector(nl, nh, sizeof(double*)) -nl+NR_END;
@@ -646,9 +646,9 @@ void *new_vvector(unsigned long long nl, unsigned long long nh, enum alloc_type 
   return v;
 }
 void free_new_vvector(void *v, unsigned long long nl, unsigned long long nh, enum alloc_type type) {
-  ${memor.token}  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
-  ${memor.token}    RF_nativePrint("\nvvector()  de-alloc:   nl = %20llu  nh = %20llu ", nl, nh);
-  ${memor.token}  }
+  //  if (getTraceFlag(0) & NUMR_DEF_TRACE) {
+  //    RF_nativePrint("\nvvector()  de-alloc:   nl = %20llu  nh = %20llu ", nl, nh);
+  //  }
   switch(type) {
   case NRUTIL_DPTR:
     free_gvector((double**) v +nl-NR_END, nl, nh, sizeof(double*));

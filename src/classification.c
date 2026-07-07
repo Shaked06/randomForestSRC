@@ -23,9 +23,9 @@ void getMultiClassProb (uint       treeID,
   uint  membershipSize;
   double maxValue, maxClass;
   uint i, j, k;
-  ${trace.token}  if (getTraceFlag(treeID) & SUMM_MED_TRACE) {
-  ${trace.token}    RF_nativePrint("\ngetMultiClassProb() ENTRY ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(treeID) & SUMM_MED_TRACE) {
+  //    RF_nativePrint("\ngetMultiClassProb() ENTRY ...\n");
+  //  }
   if ( !(RF_opt & OPT_BOOT_TYP1) && (RF_opt & OPT_BOOT_TYP2) ) {
     membershipIndex = allMembrIndx;
     membershipSize = parent -> membrCount = allMembrSize;
@@ -109,27 +109,27 @@ void getMultiClassProb (uint       treeID,
       (parent -> maxClass)[j] = maxClass;
     }
   }
-  ${trace.token}  if (getTraceFlag(treeID) & !TURN_OFF_TRACE) {
-  ${trace.token}    if (getTraceFlag(treeID) & ENSB_LOW_TRACE) {
-  ${trace.token}    RF_nativePrint("\nClass proportion vector for (tree, leaf):  (%10d, %10d) \n", treeID, parent -> nodeID);
-  ${trace.token}    for (j=1; j <= RF_rFactorCount; j++) {
-  ${trace.token}      RF_nativePrint("\nFactor Index:  %10d", RF_rFactorIndex[j]);
-  ${trace.token}      RF_nativePrint("\nMember Count:  %10d", parent -> membrCount);
-  ${trace.token}      RF_nativePrint("\nClass ->  ");
-  ${trace.token}      for (k=1; k <= RF_rFactorSize[j]; k++) {
-  ${trace.token}        RF_nativePrint("%10d", k);
-  ${trace.token}      }
-  ${trace.token}      RF_nativePrint("\n");
-  ${trace.token}      RF_nativePrint("%10d", j);
-  ${trace.token}      for (k=1; k <= RF_rFactorSize[j]; k++) {
-  ${trace.token}        RF_nativePrint("%10d", (parent -> multiClassProb)[j][k]);
-  ${trace.token}      }
-  ${trace.token}    }
-  ${trace.token}  }
-  ${trace.token}  }
-  ${trace.token}  if (getTraceFlag(treeID) & SUMM_MED_TRACE) {
-  ${trace.token}    RF_nativePrint("\ngetMultiClassProb() EXIT ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(treeID) & !TURN_OFF_TRACE) {
+  //    if (getTraceFlag(treeID) & ENSB_LOW_TRACE) {
+  //    RF_nativePrint("\nClass proportion vector for (tree, leaf):  (%10d, %10d) \n", treeID, parent -> nodeID);
+  //    for (j=1; j <= RF_rFactorCount; j++) {
+  //      RF_nativePrint("\nFactor Index:  %10d", RF_rFactorIndex[j]);
+  //      RF_nativePrint("\nMember Count:  %10d", parent -> membrCount);
+  //      RF_nativePrint("\nClass ->  ");
+  //      for (k=1; k <= RF_rFactorSize[j]; k++) {
+  //        RF_nativePrint("%10d", k);
+  //      }
+  //      RF_nativePrint("\n");
+  //      RF_nativePrint("%10d", j);
+  //      for (k=1; k <= RF_rFactorSize[j]; k++) {
+  //        RF_nativePrint("%10d", (parent -> multiClassProb)[j][k]);
+  //      }
+  //    }
+  //  }
+  //  }
+  //  if (getTraceFlag(treeID) & SUMM_MED_TRACE) {
+  //    RF_nativePrint("\ngetMultiClassProb() EXIT ...\n");
+  //  }
 }
 void updateEnsembleMultiClass(char      mode,
                               uint      treeID,
@@ -145,9 +145,9 @@ void updateEnsembleMultiClass(char      mode,
 #ifdef _OPENMP
   omp_lock_t   *lockDENptr;
 #endif
-  ${trace.token}  if (getTraceFlag(treeID) & SUMM_MED_TRACE) {
-  ${trace.token}    RF_nativePrint("\nupdateEnsembleMultiClass() ENTRY ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(treeID) & SUMM_MED_TRACE) {
+  //    RF_nativePrint("\nupdateEnsembleMultiClass() ENTRY ...\n");
+  //  }
   ensembleCLSnum = NULL;  
   ensembleDen    = NULL;  
   oobFlag = fullFlag = FALSE;
@@ -211,9 +211,9 @@ void updateEnsembleMultiClass(char      mode,
         if ((parent -> membrCount) > 0) {
         }
         else {
-          ${trace.token}  if (getTraceFlag(treeID) & SUMM_MED_TRACE) {
-          ${trace.token}    RF_nativePrint("\nCLAS OUTC_TYPE case no predicted value:  %10d \n", ii);
-          ${trace.token}  }
+          //  if (getTraceFlag(treeID) & SUMM_MED_TRACE) {
+          //    RF_nativePrint("\nCLAS OUTC_TYPE case no predicted value:  %10d \n", ii);
+          //  }
           selectionFlag = FALSE;
         }
       }
@@ -265,64 +265,64 @@ void updateEnsembleMultiClass(char      mode,
 #endif
       }
     }  
-    ${trace.token}  if (getTraceFlag(treeID) & SUMM_HGH_TRACE) {
-    ${trace.token}    uint obsSize = (mode == RF_PRED) ? RF_fobservationSize : RF_observationSize;
-    ${trace.token}    if (oobFlag == TRUE) {
-    ${trace.token}      RF_nativePrint("\nOOB Ensemble calculations follow: \n");
-    ${trace.token}    }
-    ${trace.token}    else {
-    ${trace.token}      if (fullFlag == TRUE) {
-    ${trace.token}        RF_nativePrint("\nFULL Ensemble calculations follow: \n");
-    ${trace.token}      }
-    ${trace.token}    }
-    ${trace.token}    RF_nativePrint("\nCLAS Numerator calculation: \n");
-    ${trace.token}    RF_nativePrint("          ");
-    ${trace.token}    for (uint i = 1; i <= obsSize; i++) {
-    ${trace.token}      RF_nativePrint("%10d", i);
-    ${trace.token}    }
-    ${trace.token}    for (uint j = 1; j <= RF_rTargetFactorCount; j++) {
-    ${trace.token}      RF_nativePrint("\n  Target Factor (idx, rsp): (%10d, %10d)", j, RF_rTargetFactor[j]);
-    ${trace.token}      for (uint k = 1; k <= RF_rFactorSize[RF_rFactorMap[RF_rTargetFactor[j]]]; k++) {
-    ${trace.token}        RF_nativePrint("\n%10d", k);
-    ${trace.token}        for (uint i  = 1; i <= obsSize; i++) {
-    ${trace.token}          RF_nativePrint("%10.4f", ensembleCLSnum[j][k][i]);
-    ${trace.token}        }
-    ${trace.token}      }
-    ${trace.token}      RF_nativePrint("\n");
-    ${trace.token}    }
-    ${trace.token}    RF_nativePrint("\nCLAS Denominator calculation: \n");
-    ${trace.token}    RF_nativePrint("          ");
-    ${trace.token}    for (uint i = 1; i <= obsSize; i++) {
-    ${trace.token}      RF_nativePrint("%10d", i);
-    ${trace.token}    }
-    ${trace.token}    RF_nativePrint("\n          ");
-    ${trace.token}    for (uint i = 1; i <= obsSize; i++) {
-    ${trace.token}      RF_nativePrint("%10d", (uint) ensembleDen[i]);
-    ${trace.token}    }
-    ${trace.token}    RF_nativePrint("\n");
-    ${trace.token}    if (outcomeFlag == TRUE) {
-    ${trace.token}      if (RF_optHigh & OPT_CSE) {
-    ${trace.token}        RF_nativePrint("\nCLAS CSE Denominator calculation: \n");
-    ${trace.token}        RF_nativePrint("                    ");
-    ${trace.token}        for (uint i = 1; i <= obsSize; i++) {
-    ${trace.token}          RF_nativePrint("%10d", i);
-    ${trace.token}        }
-    ${trace.token}        RF_nativePrint("\n                    ");
-    ${trace.token}        for (uint i = 1; i <= obsSize; i++) {
-    ${trace.token}          RF_nativePrint("%10d", RF_cseDENptr[i]);
-    ${trace.token}        }
-    ${trace.token}        RF_nativePrint("\nCLAS CSE Numerator calculation: \n");
-    ${trace.token}        for (uint j = 1; j <= RF_rTargetFactorCount; j++) {
-    ${trace.token}          RF_nativePrint("\n");
-    ${trace.token}          RF_nativePrint("%20d", j);
-    ${trace.token}          for (uint i = 1; i <= obsSize; i++) {
-    ${trace.token}            RF_nativePrint("%10.4f", RF_cseNumCLSptr[j][i]);
-    ${trace.token}          }
-    ${trace.token}        }
-    ${trace.token}        RF_nativePrint("\n");
-    ${trace.token}      }
-    ${trace.token}    }
-    ${trace.token}  }
+    //  if (getTraceFlag(treeID) & SUMM_HGH_TRACE) {
+    //    uint obsSize = (mode == RF_PRED) ? RF_fobservationSize : RF_observationSize;
+    //    if (oobFlag == TRUE) {
+    //      RF_nativePrint("\nOOB Ensemble calculations follow: \n");
+    //    }
+    //    else {
+    //      if (fullFlag == TRUE) {
+    //        RF_nativePrint("\nFULL Ensemble calculations follow: \n");
+    //      }
+    //    }
+    //    RF_nativePrint("\nCLAS Numerator calculation: \n");
+    //    RF_nativePrint("          ");
+    //    for (uint i = 1; i <= obsSize; i++) {
+    //      RF_nativePrint("%10d", i);
+    //    }
+    //    for (uint j = 1; j <= RF_rTargetFactorCount; j++) {
+    //      RF_nativePrint("\n  Target Factor (idx, rsp): (%10d, %10d)", j, RF_rTargetFactor[j]);
+    //      for (uint k = 1; k <= RF_rFactorSize[RF_rFactorMap[RF_rTargetFactor[j]]]; k++) {
+    //        RF_nativePrint("\n%10d", k);
+    //        for (uint i  = 1; i <= obsSize; i++) {
+    //          RF_nativePrint("%10.4f", ensembleCLSnum[j][k][i]);
+    //        }
+    //      }
+    //      RF_nativePrint("\n");
+    //    }
+    //    RF_nativePrint("\nCLAS Denominator calculation: \n");
+    //    RF_nativePrint("          ");
+    //    for (uint i = 1; i <= obsSize; i++) {
+    //      RF_nativePrint("%10d", i);
+    //    }
+    //    RF_nativePrint("\n          ");
+    //    for (uint i = 1; i <= obsSize; i++) {
+    //      RF_nativePrint("%10d", (uint) ensembleDen[i]);
+    //    }
+    //    RF_nativePrint("\n");
+    //    if (outcomeFlag == TRUE) {
+    //      if (RF_optHigh & OPT_CSE) {
+    //        RF_nativePrint("\nCLAS CSE Denominator calculation: \n");
+    //        RF_nativePrint("                    ");
+    //        for (uint i = 1; i <= obsSize; i++) {
+    //          RF_nativePrint("%10d", i);
+    //        }
+    //        RF_nativePrint("\n                    ");
+    //        for (uint i = 1; i <= obsSize; i++) {
+    //          RF_nativePrint("%10d", RF_cseDENptr[i]);
+    //        }
+    //        RF_nativePrint("\nCLAS CSE Numerator calculation: \n");
+    //        for (uint j = 1; j <= RF_rTargetFactorCount; j++) {
+    //          RF_nativePrint("\n");
+    //          RF_nativePrint("%20d", j);
+    //          for (uint i = 1; i <= obsSize; i++) {
+    //            RF_nativePrint("%10.4f", RF_cseNumCLSptr[j][i]);
+    //          }
+    //        }
+    //        RF_nativePrint("\n");
+    //      }
+    //    }
+    //  }
     if (outcomeFlag == TRUE) {
       outcomeFlag = FALSE;
     }
@@ -333,9 +333,9 @@ void updateEnsembleMultiClass(char      mode,
       fullFlag = FALSE;
     }
   }  
-  ${trace.token}  if (getTraceFlag(treeID) & SUMM_MED_TRACE) {
-  ${trace.token}    RF_nativePrint("\nupdateEnsembleMultiClass() EXIT ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(treeID) & SUMM_MED_TRACE) {
+  //    RF_nativePrint("\nupdateEnsembleMultiClass() EXIT ...\n");
+  //  }
 }
 double getBrierScore(uint     obsSize,
                      uint     rTarget,
@@ -348,10 +348,10 @@ double getBrierScore(uint     obsSize,
   uint *oaaResponse;
   uint cumDenomCount;
   double result;
-  ${trace.token}  if (getTraceFlag(0) & SUMM_MED_TRACE) {
-  ${trace.token}    RF_nativePrint("\ngetBrierScore() ENTRY ...\n");
-  ${trace.token}  }
-  ${trace.token}  uint j;
+  //  if (getTraceFlag(0) & SUMM_MED_TRACE) {
+  //    RF_nativePrint("\ngetBrierScore() ENTRY ...\n");
+  //  }
+  //  uint j;
   oaaResponse = uivector(1, obsSize);
   result = 0.0;
   cumDenomCount = 0;
@@ -382,19 +382,19 @@ double getBrierScore(uint     obsSize,
       cpv[against] = cpv[against] / (double) cumDenomCount;
       result += cpv[against];
     }
-    ${trace.token}  if (getTraceFlag(0) & ENSB_LOW_TRACE) {
-    ${trace.token}    
-    ${trace.token}    RF_nativePrint("\nBrier Score Conditional Classification complete for level:  %10d ", against);
-    ${trace.token}    RF_nativePrint("\nLevel     ");
-    ${trace.token}    for (j=1; j <= RF_rFactorSize[RF_rFactorMap[rTarget]]; j++) {
-    ${trace.token}      RF_nativePrint(" %10d", j);
-    ${trace.token}    }
-    ${trace.token}    RF_nativePrint("\n          ");
-    ${trace.token}    for (j=1; j <= RF_rFactorSize[RF_rFactorMap[rTarget]]; j++) {
-    ${trace.token}      RF_nativePrint(" %10.4f", cpv[j]);
-    ${trace.token}    }
-    ${trace.token}    RF_nativePrint("\n");
-    ${trace.token}  }
+    //  if (getTraceFlag(0) & ENSB_LOW_TRACE) {
+    //    
+    //    RF_nativePrint("\nBrier Score Conditional Classification complete for level:  %10d ", against);
+    //    RF_nativePrint("\nLevel     ");
+    //    for (j=1; j <= RF_rFactorSize[RF_rFactorMap[rTarget]]; j++) {
+    //      RF_nativePrint(" %10d", j);
+    //    }
+    //    RF_nativePrint("\n          ");
+    //    for (j=1; j <= RF_rFactorSize[RF_rFactorMap[rTarget]]; j++) {
+    //      RF_nativePrint(" %10.4f", cpv[j]);
+    //    }
+    //    RF_nativePrint("\n");
+    //  }
   }
   if (cumDenomCount == 0) {
     result = RF_nativeNaN;
@@ -405,16 +405,16 @@ double getBrierScore(uint     obsSize,
   for (against = 1; against <= RF_rFactorSize[RF_rFactorMap[rTarget]]; against++) {
     cpv[against] = cpv[against] * RF_rFactorSize[RF_rFactorMap[rTarget]] / (RF_rFactorSize[RF_rFactorMap[rTarget]] - 1);
   }
-  ${trace.token}  if (getTraceFlag(0) & ENSB_LOW_TRACE) {
-  ${trace.token}    
-  ${trace.token}    RF_nativePrint("\nBrier Score calculation complete:");
-  ${trace.token}    RF_nativePrint("\nResult:                          %20.4f", result);
-  ${trace.token}    RF_nativePrint("\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & ENSB_LOW_TRACE) {
+  //    
+  //    RF_nativePrint("\nBrier Score calculation complete:");
+  //    RF_nativePrint("\nResult:                          %20.4f", result);
+  //    RF_nativePrint("\n");
+  //  }
   free_uivector(oaaResponse, 1, obsSize);
-  ${trace.token}  if (getTraceFlag(0) & SUMM_MED_TRACE) {
-  ${trace.token}    RF_nativePrint("\ngetBrierScore() EXIT() ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_MED_TRACE) {
+  //    RF_nativePrint("\ngetBrierScore() EXIT() ...\n");
+  //  }
   return result;
 }
 void getConditionalClassificationIndexGrow(uint     size,
@@ -427,9 +427,9 @@ void getConditionalClassificationIndexGrow(uint     size,
   uint i, k;
   uint cumDenomCount;
   uint *condClassificationCount;
-  ${trace.token}  if (getTraceFlag(0) & SUMM_MED_TRACE) {
-  ${trace.token}    RF_nativePrint("\ngetConditionalClassificationIndexGrow() ENTRY ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_MED_TRACE) {
+  //    RF_nativePrint("\ngetConditionalClassificationIndexGrow() ENTRY ...\n");
+  //  }
   cumDenomCount = 0;
   condClassificationCount = uivector(1, RF_rFactorSize[RF_rFactorMap[rTarget]]);
   for (k=1; k <= RF_rFactorSize[RF_rFactorMap[rTarget]]; k++) {
@@ -460,23 +460,23 @@ void getConditionalClassificationIndexGrow(uint     size,
     }
   }
   free_uivector(condClassificationCount, 1, RF_rFactorSize[RF_rFactorMap[rTarget]]);
-  ${trace.token}  if (getTraceFlag(0) & ENSB_LOW_TRACE) {
-  ${trace.token}    
-  ${trace.token}    RF_nativePrint("\nConditional Classification and error update complete:  ");
-  ${trace.token}    RF_nativePrint("\nTarget:  %10d ", rTarget);
-  ${trace.token}    RF_nativePrint("\nLevel     ");
-  ${trace.token}    for (k=1; k <= RF_rFactorSize[RF_rFactorMap[rTarget]]; k++) {
-  ${trace.token}      RF_nativePrint(" %10d", k);
-  ${trace.token}    }
-  ${trace.token}    RF_nativePrint("\n          ");
-  ${trace.token}    for (k=1; k <= RF_rFactorSize[RF_rFactorMap[rTarget]]; k++) {
-  ${trace.token}      RF_nativePrint(" %10.4f", cpv[k]);
-  ${trace.token}    }
-  ${trace.token}    RF_nativePrint("\n");
-  ${trace.token}  }
-  ${trace.token}  if (getTraceFlag(0) & SUMM_MED_TRACE) {
-  ${trace.token}    RF_nativePrint("\ngetConditionalClassificationIndexGrow() EXIT() ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & ENSB_LOW_TRACE) {
+  //    
+  //    RF_nativePrint("\nConditional Classification and error update complete:  ");
+  //    RF_nativePrint("\nTarget:  %10d ", rTarget);
+  //    RF_nativePrint("\nLevel     ");
+  //    for (k=1; k <= RF_rFactorSize[RF_rFactorMap[rTarget]]; k++) {
+  //      RF_nativePrint(" %10d", k);
+  //    }
+  //    RF_nativePrint("\n          ");
+  //    for (k=1; k <= RF_rFactorSize[RF_rFactorMap[rTarget]]; k++) {
+  //      RF_nativePrint(" %10.4f", cpv[k]);
+  //    }
+  //    RF_nativePrint("\n");
+  //  }
+  //  if (getTraceFlag(0) & SUMM_MED_TRACE) {
+  //    RF_nativePrint("\ngetConditionalClassificationIndexGrow() EXIT() ...\n");
+  //  }
   return;
 }
 void getConditionalClassificationIndexPred(uint     size,
@@ -489,9 +489,9 @@ void getConditionalClassificationIndexPred(uint     size,
   uint i, k;
   uint cumDenomCount;
   uint *condClassificationCount;
-  ${trace.token}  if (getTraceFlag(0) & SUMM_MED_TRACE) {
-  ${trace.token}    RF_nativePrint("\ngetConditionalClassificationIndexGrow() ENTRY ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_MED_TRACE) {
+  //    RF_nativePrint("\ngetConditionalClassificationIndexGrow() ENTRY ...\n");
+  //  }
   cumDenomCount = 0;
   condClassificationCount = uivector(1, RF_rFactorSize[RF_rFactorMap[rTarget]]);
   for (k=1; k <= RF_rFactorSize[RF_rFactorMap[rTarget]]; k++) {
@@ -524,23 +524,23 @@ void getConditionalClassificationIndexPred(uint     size,
     }
   }
   free_uivector(condClassificationCount, 1, RF_rFactorSize[RF_rFactorMap[rTarget]]);
-  ${trace.token}  if (getTraceFlag(0) & ENSB_LOW_TRACE) {
-  ${trace.token}    
-  ${trace.token}    RF_nativePrint("\nConditional Classification and error update complete:  ");
-  ${trace.token}    RF_nativePrint("\nTarget:  %10d ", rTarget);
-  ${trace.token}    RF_nativePrint("\nLevel     ");
-  ${trace.token}    for (k=1; k <= RF_rFactorSize[RF_rFactorMap[rTarget]]; k++) {
-  ${trace.token}      RF_nativePrint(" %10d", k);
-  ${trace.token}    }
-  ${trace.token}    RF_nativePrint("\n          ");
-  ${trace.token}    for (k=1; k <= RF_rFactorSize[RF_rFactorMap[rTarget]]; k++) {
-  ${trace.token}      RF_nativePrint(" %10.4f", cpv[k]);
-  ${trace.token}    }
-  ${trace.token}    RF_nativePrint("\n");
-  ${trace.token}  }
-  ${trace.token}  if (getTraceFlag(0) & SUMM_MED_TRACE) {
-  ${trace.token}    RF_nativePrint("\ngetConditionalClassificationIndexGrow() EXIT() ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & ENSB_LOW_TRACE) {
+  //    
+  //    RF_nativePrint("\nConditional Classification and error update complete:  ");
+  //    RF_nativePrint("\nTarget:  %10d ", rTarget);
+  //    RF_nativePrint("\nLevel     ");
+  //    for (k=1; k <= RF_rFactorSize[RF_rFactorMap[rTarget]]; k++) {
+  //      RF_nativePrint(" %10d", k);
+  //    }
+  //    RF_nativePrint("\n          ");
+  //    for (k=1; k <= RF_rFactorSize[RF_rFactorMap[rTarget]]; k++) {
+  //      RF_nativePrint(" %10.4f", cpv[k]);
+  //    }
+  //    RF_nativePrint("\n");
+  //  }
+  //  if (getTraceFlag(0) & SUMM_MED_TRACE) {
+  //    RF_nativePrint("\ngetConditionalClassificationIndexGrow() EXIT() ...\n");
+  //  }
   return;
 }
 double getClassificationIndex(uint     size,
@@ -551,9 +551,9 @@ double getClassificationIndex(uint     size,
   uint i;
   uint cumDenomCount;
   double result;
-  ${trace.token}  if (getTraceFlag(0) & SUMM_MED_TRACE) {
-  ${trace.token}    RF_nativePrint("\ngetClassificationIndex() ENTRY ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_MED_TRACE) {
+  //    RF_nativePrint("\ngetClassificationIndex() ENTRY ...\n");
+  //  }
   cumDenomCount = 0;
   result = 0.0;
   for (i=1; i <= size; i++) {
@@ -573,23 +573,23 @@ double getClassificationIndex(uint     size,
   else {
     result = 1.0 - result / (double) cumDenomCount;
   }
-  ${trace.token}  if (getTraceFlag(0) & ENSB_LOW_TRACE) {
-  ${trace.token}    
-  ${trace.token}    RF_nativePrint("\nPredicted Outcome used in Classification Index Calculations:  ");
-  ${trace.token}    RF_nativePrint("\n        count     OOBcount     Response      Outcome");
-  ${trace.token}    for (i=1; i <= size; i++) {
-  ${trace.token}      RF_nativePrint("\n %12d %12d %12.4f %12.4f", i, denomCount[i], responsePtr[i], maxVote[i]);
-  ${trace.token}    }
-  ${trace.token}    RF_nativePrint("\n");
-  ${trace.token}    
-  ${trace.token}    RF_nativePrint("\nClassification and error update complete:  ");
-  ${trace.token}    RF_nativePrint("\nCount of cumulative OOB count:         %20d", cumDenomCount);
-  ${trace.token}    RF_nativePrint("\nResult:                                %20.4f", result);
-  ${trace.token}    RF_nativePrint("\n");
-  ${trace.token}  }
-  ${trace.token}  if (getTraceFlag(0) & SUMM_MED_TRACE) {
-  ${trace.token}    RF_nativePrint("\ngetClassificationIndex() EXIT() ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & ENSB_LOW_TRACE) {
+  //    
+  //    RF_nativePrint("\nPredicted Outcome used in Classification Index Calculations:  ");
+  //    RF_nativePrint("\n        count     OOBcount     Response      Outcome");
+  //    for (i=1; i <= size; i++) {
+  //      RF_nativePrint("\n %12d %12d %12.4f %12.4f", i, denomCount[i], responsePtr[i], maxVote[i]);
+  //    }
+  //    RF_nativePrint("\n");
+  //    
+  //    RF_nativePrint("\nClassification and error update complete:  ");
+  //    RF_nativePrint("\nCount of cumulative OOB count:         %20d", cumDenomCount);
+  //    RF_nativePrint("\nResult:                                %20.4f", result);
+  //    RF_nativePrint("\n");
+  //  }
+  //  if (getTraceFlag(0) & SUMM_MED_TRACE) {
+  //    RF_nativePrint("\ngetClassificationIndex() EXIT() ...\n");
+  //  }
   return result;
 }
 double getGMeanIndexGrow(uint    size,
@@ -601,9 +601,9 @@ double getGMeanIndexGrow(uint    size,
   uint cumDenomCount;
   double *trueRate, *falseRate;
   double denom, result;
-  ${trace.token}  if (getTraceFlag(0) & SUMM_MED_TRACE) {
-  ${trace.token}    RF_nativePrint("\ngetGMeanIndexGrow() ENTRY ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_MED_TRACE) {
+  //    RF_nativePrint("\ngetGMeanIndexGrow() ENTRY ...\n");
+  //  }
   cumDenomCount = 0;
   result = 1.0;
   trueRate  = dvector(1, RF_rFactorSize[RF_rFactorMap[rTarget]]);
@@ -637,32 +637,32 @@ double getGMeanIndexGrow(uint    size,
     }
     result = 1.0 - sqrt(result);
   }
-  ${trace.token}  if (getTraceFlag(0) & ENSB_LOW_TRACE) {
-  ${trace.token}    RF_nativePrint("\nConfusion Matrix:");
-  ${trace.token}    RF_nativePrint("\n                              Predicted L1         Predicted L2");
-  ${trace.token}    RF_nativePrint("\n              True L1 %20d %20d", (uint) trueRate[1],  (uint) falseRate[1]);
-  ${trace.token}    RF_nativePrint("\n              True L2 %20d %20d", (uint) falseRate[2], (uint) trueRate[2]);  
-  ${trace.token}    RF_nativePrint("\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & ENSB_LOW_TRACE) {
+  //    RF_nativePrint("\nConfusion Matrix:");
+  //    RF_nativePrint("\n                              Predicted L1         Predicted L2");
+  //    RF_nativePrint("\n              True L1 %20d %20d", (uint) trueRate[1],  (uint) falseRate[1]);
+  //    RF_nativePrint("\n              True L2 %20d %20d", (uint) falseRate[2], (uint) trueRate[2]);  
+  //    RF_nativePrint("\n");
+  //  }
   free_dvector(trueRate, 1, RF_rFactorSize[RF_rFactorMap[rTarget]]);
   free_dvector(falseRate, 1, RF_rFactorSize[RF_rFactorMap[rTarget]]);
-  ${trace.token}  if (getTraceFlag(0) & ENSB_LOW_TRACE) {
-  ${trace.token}    
-  ${trace.token}    RF_nativePrint("\nPredicted Outcome used in Classification Index Calculations:  ");
-  ${trace.token}    RF_nativePrint("\n        count     OOBcount     Response      Outcome");
-  ${trace.token}    for (i=1; i <= size; i++) {
-  ${trace.token}      RF_nativePrint("\n %12d %12.4f %12.4f %12.4f", i, denomCount[i], responsePtr[i], maxVote[i]);
-  ${trace.token}    }
-  ${trace.token}    RF_nativePrint("\n");
-  ${trace.token}    
-  ${trace.token}    RF_nativePrint("\nClassification and error update complete:  ");
-  ${trace.token}    RF_nativePrint("\nCount of cumulative OOB count:         %20d", cumDenomCount);
-  ${trace.token}    RF_nativePrint("\nResult:                                %20.4f", result);
-  ${trace.token}    RF_nativePrint("\n");
-  ${trace.token}  }
-  ${trace.token}  if (getTraceFlag(0) & SUMM_MED_TRACE) {
-  ${trace.token}    RF_nativePrint("\ngetGMeanIndexGrow() EXIT() ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & ENSB_LOW_TRACE) {
+  //    
+  //    RF_nativePrint("\nPredicted Outcome used in Classification Index Calculations:  ");
+  //    RF_nativePrint("\n        count     OOBcount     Response      Outcome");
+  //    for (i=1; i <= size; i++) {
+  //      RF_nativePrint("\n %12d %12.4f %12.4f %12.4f", i, denomCount[i], responsePtr[i], maxVote[i]);
+  //    }
+  //    RF_nativePrint("\n");
+  //    
+  //    RF_nativePrint("\nClassification and error update complete:  ");
+  //    RF_nativePrint("\nCount of cumulative OOB count:         %20d", cumDenomCount);
+  //    RF_nativePrint("\nResult:                                %20.4f", result);
+  //    RF_nativePrint("\n");
+  //  }
+  //  if (getTraceFlag(0) & SUMM_MED_TRACE) {
+  //    RF_nativePrint("\ngetGMeanIndexGrow() EXIT() ...\n");
+  //  }
   return result;
 }
 double getGMeanIndexPred(uint    size,
@@ -674,9 +674,9 @@ double getGMeanIndexPred(uint    size,
   uint cumDenomCount;
   double *trueRate, *falseRate;
   double denom, result;
-  ${trace.token}  if (getTraceFlag(0) & SUMM_MED_TRACE) {
-  ${trace.token}    RF_nativePrint("\ngetGMeanIndexGrow() ENTRY ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_MED_TRACE) {
+  //    RF_nativePrint("\ngetGMeanIndexGrow() ENTRY ...\n");
+  //  }
   cumDenomCount = 0;
   result = 1.0;
   trueRate  = dvector(1, RF_rFactorSizeTest[RF_rFactorMap[rTarget]]);
@@ -710,41 +710,41 @@ double getGMeanIndexPred(uint    size,
     }
     result = 1.0 - sqrt(result);
   }
-  ${trace.token}  if (getTraceFlag(0) & ENSB_LOW_TRACE) {
-  ${trace.token}    RF_nativePrint("\nConfusion Matrix:");
-  ${trace.token}    RF_nativePrint("\n          ");
-  ${trace.token}    for (i=1; i <= RF_rFactorSizeTest[RF_rFactorMap[rTarget]]; i++) {
-  ${trace.token}      RF_nativePrint(" %10d", i);
-  ${trace.token}    }
-  ${trace.token}    RF_nativePrint("\ntrue:     ");
-  ${trace.token}    for (i=1; i <= RF_rFactorSizeTest[RF_rFactorMap[rTarget]]; i++) {
-  ${trace.token}      RF_nativePrint(" %10d", (uint) trueRate[i]);
-  ${trace.token}    }
-  ${trace.token}    RF_nativePrint("\nfalse:    ");
-  ${trace.token}    for (i=1; i <= RF_rFactorSizeTest[RF_rFactorMap[rTarget]]; i++) {
-  ${trace.token}      RF_nativePrint(" %10d", (uint) falseRate[i]);
-  ${trace.token}    }
-  ${trace.token}    RF_nativePrint("\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & ENSB_LOW_TRACE) {
+  //    RF_nativePrint("\nConfusion Matrix:");
+  //    RF_nativePrint("\n          ");
+  //    for (i=1; i <= RF_rFactorSizeTest[RF_rFactorMap[rTarget]]; i++) {
+  //      RF_nativePrint(" %10d", i);
+  //    }
+  //    RF_nativePrint("\ntrue:     ");
+  //    for (i=1; i <= RF_rFactorSizeTest[RF_rFactorMap[rTarget]]; i++) {
+  //      RF_nativePrint(" %10d", (uint) trueRate[i]);
+  //    }
+  //    RF_nativePrint("\nfalse:    ");
+  //    for (i=1; i <= RF_rFactorSizeTest[RF_rFactorMap[rTarget]]; i++) {
+  //      RF_nativePrint(" %10d", (uint) falseRate[i]);
+  //    }
+  //    RF_nativePrint("\n");
+  //  }
   free_dvector(trueRate, 1, RF_rFactorSizeTest[RF_rFactorMap[rTarget]]);
   free_dvector(falseRate, 1, RF_rFactorSizeTest[RF_rFactorMap[rTarget]]);
-  ${trace.token}  if (getTraceFlag(0) & ENSB_LOW_TRACE) {
-  ${trace.token}    
-  ${trace.token}    RF_nativePrint("\nPredicted Outcome used in Classification Index Calculations:  ");
-  ${trace.token}    RF_nativePrint("\n        count     OOBcount     Response      Outcome");
-  ${trace.token}    for (i=1; i <= size; i++) {
-  ${trace.token}      RF_nativePrint("\n %12d %12.4f %12.4f %12.4f", i, denomCount[i], responsePtr[i], maxVote[i]);
-  ${trace.token}    }
-  ${trace.token}    RF_nativePrint("\n");
-  ${trace.token}    
-  ${trace.token}    RF_nativePrint("\nClassification and error update complete:  ");
-  ${trace.token}    RF_nativePrint("\nCount of cumulative OOB count:         %20d", cumDenomCount);
-  ${trace.token}    RF_nativePrint("\nResult:                                %20.4f", result);
-  ${trace.token}    RF_nativePrint("\n");
-  ${trace.token}  }
-  ${trace.token}  if (getTraceFlag(0) & SUMM_MED_TRACE) {
-  ${trace.token}    RF_nativePrint("\ngetGMeanIndexGrow() EXIT() ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & ENSB_LOW_TRACE) {
+  //    
+  //    RF_nativePrint("\nPredicted Outcome used in Classification Index Calculations:  ");
+  //    RF_nativePrint("\n        count     OOBcount     Response      Outcome");
+  //    for (i=1; i <= size; i++) {
+  //      RF_nativePrint("\n %12d %12.4f %12.4f %12.4f", i, denomCount[i], responsePtr[i], maxVote[i]);
+  //    }
+  //    RF_nativePrint("\n");
+  //    
+  //    RF_nativePrint("\nClassification and error update complete:  ");
+  //    RF_nativePrint("\nCount of cumulative OOB count:         %20d", cumDenomCount);
+  //    RF_nativePrint("\nResult:                                %20.4f", result);
+  //    RF_nativePrint("\n");
+  //  }
+  //  if (getTraceFlag(0) & SUMM_MED_TRACE) {
+  //    RF_nativePrint("\ngetGMeanIndexGrow() EXIT() ...\n");
+  //  }
   return result;
 }
 void restoreMultiClassProb(uint treeID) {
@@ -752,9 +752,9 @@ void restoreMultiClassProb(uint treeID) {
   Terminal *parent;
   uint leaf;
   uint j, k;
-  ${trace.token}  if (getTraceFlag(treeID) & SUMM_MED_TRACE) {
-  ${trace.token}    RF_nativePrint("\nrestoreMultiClassProb() ENTRY ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(treeID) & SUMM_MED_TRACE) {
+  //    RF_nativePrint("\nrestoreMultiClassProb() ENTRY ...\n");
+  //  }
   leafLinkedPtr = RF_leafLinkedObjHead[treeID] -> fwdLink;
   while (leafLinkedPtr != NULL) {
     parent = leafLinkedPtr -> termPtr;
@@ -773,26 +773,26 @@ void restoreMultiClassProb(uint treeID) {
       RF_nativeExit();
     }
     leafLinkedPtr = leafLinkedPtr -> fwdLink;
-    ${trace.token}  if (getTraceFlag(treeID) & SUMM_HGH_TRACE) {
-    ${trace.token}    RF_nativePrint("\nClass proportion vector for (tree, leaf):  (%10d, %10d) \n", treeID, leaf);
-    ${trace.token}    for (j=1; j <= RF_rFactorCount; j++) {
-    ${trace.token}      RF_nativePrint("\nFactor Index:  %10d ", RF_rFactorIndex[j]);
-    ${trace.token}      RF_nativePrint("\nMember Count:  %10d", parent -> membrCount);
-    ${trace.token}      RF_nativePrint("\nClass ->  ");
-    ${trace.token}      for (k=1; k <= RF_rFactorSize[j]; k++) {
-    ${trace.token}        RF_nativePrint("%10d", k);
-    ${trace.token}      }
-    ${trace.token}      RF_nativePrint("\n");
-    ${trace.token}      RF_nativePrint("%10d", j);
-    ${trace.token}      for (k=1; k <= RF_rFactorSize[j]; k++) {
-    ${trace.token}        RF_nativePrint("%10d", (parent -> multiClassProb)[j][k]);
-    ${trace.token}      }
-    ${trace.token}    }
-    ${trace.token}  }
+    //  if (getTraceFlag(treeID) & SUMM_HGH_TRACE) {
+    //    RF_nativePrint("\nClass proportion vector for (tree, leaf):  (%10d, %10d) \n", treeID, leaf);
+    //    for (j=1; j <= RF_rFactorCount; j++) {
+    //      RF_nativePrint("\nFactor Index:  %10d ", RF_rFactorIndex[j]);
+    //      RF_nativePrint("\nMember Count:  %10d", parent -> membrCount);
+    //      RF_nativePrint("\nClass ->  ");
+    //      for (k=1; k <= RF_rFactorSize[j]; k++) {
+    //        RF_nativePrint("%10d", k);
+    //      }
+    //      RF_nativePrint("\n");
+    //      RF_nativePrint("%10d", j);
+    //      for (k=1; k <= RF_rFactorSize[j]; k++) {
+    //        RF_nativePrint("%10d", (parent -> multiClassProb)[j][k]);
+    //      }
+    //    }
+    //  }
   }
-  ${trace.token}  if (getTraceFlag(treeID) & SUMM_MED_TRACE) {
-  ${trace.token}    RF_nativePrint("\nrestoreMultiClassProb() EXIT ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(treeID) & SUMM_MED_TRACE) {
+  //    RF_nativePrint("\nrestoreMultiClassProb() EXIT ...\n");
+  //  }
 }
 void getMaxVote(uint     size,
                 uint     rTarget,
@@ -800,9 +800,9 @@ void getMaxVote(uint     size,
                 double  *denomCount,
                 double  *maxVote) {
   uint i,k;
-  ${trace.token}  if (getTraceFlag(0) & SUMM_MED_TRACE) {
-  ${trace.token}    RF_nativePrint("\ngetMaxVote() ENTRY() ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_MED_TRACE) {
+  //    RF_nativePrint("\ngetMaxVote() ENTRY() ...\n");
+  //  }
   if ((RF_opt & OPT_CLAS_RFQ) && RF_rFactorMinorityFlag[RF_rFactorMap[rTarget]]) {
     uint minorityClass = RF_rFactorMinority[RF_rFactorMap[rTarget]];
     uint majorityClass = RF_rFactorMajority[RF_rFactorMap[rTarget]];
@@ -840,28 +840,28 @@ void getMaxVote(uint     size,
       }
     }  
  } 
-  ${trace.token}  if (getTraceFlag(0) & SUMM_HGH_TRACE) {
-  ${trace.token}    RF_nativePrint("\n  Target Factor: %10d", rTarget);
-  ${trace.token}    for (int k=1; k <= RF_rFactorSize[RF_rFactorMap[rTarget]]; k++) {
-  ${trace.token}      RF_nativePrint("\n%10d", k);
-  ${trace.token}      for (i = 1; i <= size; i++) {
-  ${trace.token}        RF_nativePrint("%10.4f", outcomeCLS[k][i]);
-  ${trace.token}      }
-  ${trace.token}    }
-  ${trace.token}    RF_nativePrint("\n");
-  ${trace.token}    RF_nativePrint("\nMax Vote calculation: \n");
-  ${trace.token}    RF_nativePrint("          ");
-  ${trace.token}    for (i = 1; i <= size; i++) {
-  ${trace.token}      RF_nativePrint("%10d", i);
-  ${trace.token}    }
-  ${trace.token}    RF_nativePrint("\n");
-  ${trace.token}    RF_nativePrint("          ");
-  ${trace.token}    for (i = 1; i <= size; i++) {
-  ${trace.token}      RF_nativePrint("%10.4f", maxVote[i]);
-  ${trace.token}    }
-  ${trace.token}    RF_nativePrint("\n");
-  ${trace.token}  }
-  ${trace.token}  if (getTraceFlag(0) & SUMM_MED_TRACE) {
-  ${trace.token}    RF_nativePrint("\ngetMaxVote() EXIT() ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_HGH_TRACE) {
+  //    RF_nativePrint("\n  Target Factor: %10d", rTarget);
+  //    for (int k=1; k <= RF_rFactorSize[RF_rFactorMap[rTarget]]; k++) {
+  //      RF_nativePrint("\n%10d", k);
+  //      for (i = 1; i <= size; i++) {
+  //        RF_nativePrint("%10.4f", outcomeCLS[k][i]);
+  //      }
+  //    }
+  //    RF_nativePrint("\n");
+  //    RF_nativePrint("\nMax Vote calculation: \n");
+  //    RF_nativePrint("          ");
+  //    for (i = 1; i <= size; i++) {
+  //      RF_nativePrint("%10d", i);
+  //    }
+  //    RF_nativePrint("\n");
+  //    RF_nativePrint("          ");
+  //    for (i = 1; i <= size; i++) {
+  //      RF_nativePrint("%10.4f", maxVote[i]);
+  //    }
+  //    RF_nativePrint("\n");
+  //  }
+  //  if (getTraceFlag(0) & SUMM_MED_TRACE) {
+  //    RF_nativePrint("\ngetMaxVote() EXIT() ...\n");
+  //  }
 }

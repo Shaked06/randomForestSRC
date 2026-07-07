@@ -13,7 +13,7 @@
 #include "nativeUtil.h"
 #include "sexpOutgoing.h"
 #include "nrutil.h"
-${trace.token} #include "error.h"
+// #include "error.h"
 void stackTNQualitativeObjectsKnown(char     mode,
                                     uint   **pRF_RMBR_ID_,
                                     uint   **pRF_AMBR_ID_,
@@ -22,9 +22,9 @@ void stackTNQualitativeObjectsKnown(char     mode,
                                     uint   **pRF_OOB_SZ_,
                                     uint   **pRF_IBG_SZ_) {
   ulong localSize;
-  ${trace.token}  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  ${trace.token}    RF_nativePrint("\nstackTNQualitativeObjectsKnown() ENTRY ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+  //    RF_nativePrint("\nstackTNQualitativeObjectsKnown() ENTRY ...\n");
+  //  }
   if (RF_optHigh & OPT_MEMB_OUTG) {
     localSize = (ulong) RF_ntree * RF_bootstrapSize;
     *pRF_RMBR_ID_ = (uint*) stackAndProtect(mode, &RF_nativeIndex, NATIVE_TYPE_INTEGER, RF_RMBR_ID, localSize, 0, RF_sexpString[RF_RMBR_ID], &RF_RMBR_ID_ptr, 2, RF_ntree, RF_bootstrapSize);
@@ -34,9 +34,9 @@ void stackTNQualitativeObjectsKnown(char     mode,
     (*pRF_OOB_SZ_) --;
     *pRF_IBG_SZ_ = (uint*) stackAndProtect(mode, &RF_nativeIndex, NATIVE_TYPE_INTEGER, RF_IBG_SZ, RF_ntree, 0, RF_sexpString[RF_IBG_SZ], NULL, 1, RF_ntree);
     (*pRF_IBG_SZ_) --;
-    ${trace.token}  if (getTraceFlag(0) & SUMM_DEF_TRACE) {
-    ${trace.token}    RF_nativePrint("\nAllocation of TN qualitative known output objects complete, with running S.E.X.P. index at:  %10d", RF_nativeIndex);
-    ${trace.token}  }
+    //  if (getTraceFlag(0) & SUMM_DEF_TRACE) {
+    //    RF_nativePrint("\nAllocation of TN qualitative known output objects complete, with running S.E.X.P. index at:  %10d", RF_nativeIndex);
+    //  }
   }
   else if (RF_optHigh & OPT_MEMB_INCG) {
     int *dim = ivector(1, 2);
@@ -87,13 +87,13 @@ void stackTNQualitativeObjectsKnown(char     mode,
                           dim);
     RF_incStackCount ++;
     free_ivector(dim, 1, 2);
-    ${trace.token}    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-    ${trace.token}    RF_nativePrint("\nAllocation (aux only) of TN qualitative known input objects complete.");
-    ${trace.token}    }
+    //    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+    //    RF_nativePrint("\nAllocation (aux only) of TN qualitative known input objects complete.");
+    //    }
   }
-  ${trace.token}  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  ${trace.token}    RF_nativePrint("\nstackTNQualitativeObjectsKnown() EXIT ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+  //    RF_nativePrint("\nstackTNQualitativeObjectsKnown() EXIT ...\n");
+  //  }
 }
 void stackTNQualitativeObjectsUnknown(char     mode,
                                       uint   **pRF_TN_RCNT_,
@@ -103,9 +103,9 @@ void stackTNQualitativeObjectsUnknown(char     mode,
   LeafLinkedObj *leafLinkedPtr;
   ulong localSize;
   uint i;
-  ${trace.token}  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  ${trace.token}    RF_nativePrint("\nstackTNQualitativeObjectsUnknown() ENTRY ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+  //    RF_nativePrint("\nstackTNQualitativeObjectsUnknown() ENTRY ...\n");
+  //  }
   if (RF_optHigh & OPT_MEMB_OUTG) {
     localSize = RF_totalTerminalCount;
     *pRF_TN_RCNT_ = (uint*) stackAndProtect(mode, &RF_nativeIndex, NATIVE_TYPE_INTEGER, RF_TN_RCNT, localSize, 0, RF_sexpString[RF_TN_RCNT], &RF_TN_RCNT_ptr, 2, RF_ntree, -2);
@@ -122,18 +122,18 @@ void stackTNQualitativeObjectsUnknown(char     mode,
         leafLinkedPtr = leafLinkedPtr -> fwdLink;
       }
     }
-    ${trace.token}  if (getTraceFlag(0) & SUMM_DEF_TRACE) {
-    ${trace.token}    RF_nativePrint("\nAllocation of TN qualitative unknown output objects complete, with running S.E.X.P. index at:  %10d", RF_nativeIndex);
-    ${trace.token}  }
+    //  if (getTraceFlag(0) & SUMM_DEF_TRACE) {
+    //    RF_nativePrint("\nAllocation of TN qualitative unknown output objects complete, with running S.E.X.P. index at:  %10d", RF_nativeIndex);
+    //  }
   }
-  ${trace.token}  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  ${trace.token}    RF_nativePrint("\nstackTNQualitativeObjectsUnknown() EXIT ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+  //    RF_nativePrint("\nstackTNQualitativeObjectsUnknown() EXIT ...\n");
+  //  }
 }
 void stackTNQuantitativeForestObjectsPtrOnly(char mode) {
-  ${trace.token}  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  ${trace.token}    RF_nativePrint("\nstackTNQuantitativeForestObjectsPtrOnly() ENTRY ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+  //    RF_nativePrint("\nstackTNQuantitativeForestObjectsPtrOnly() ENTRY ...\n");
+  //  }
   if (RF_optHigh & OPT_TERM_OUTG) {
     RF_totalTerminalCount = 0;
     if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
@@ -155,9 +155,9 @@ void stackTNQuantitativeForestObjectsPtrOnly(char mode) {
         RF_TN_CLAS_ptr = (uint ****) new_vvector(1, RF_ntree, NRUTIL_UPTR3);
       }
     }
-    ${trace.token}  if (getTraceFlag(0) & SUMM_DEF_TRACE) {
-    ${trace.token}    RF_nativePrint("\nAllocation of OPT_TERM_OUTG TN quantitative forest objects pointers only complete.");
-    ${trace.token}  }
+    //  if (getTraceFlag(0) & SUMM_DEF_TRACE) {
+    //    RF_nativePrint("\nAllocation of OPT_TERM_OUTG TN quantitative forest objects pointers only complete.");
+    //  }
   }
   else if (RF_optHigh & OPT_TERM_INCG) {
     int *dim = ivector(1, 4);
@@ -261,19 +261,19 @@ void stackTNQuantitativeForestObjectsPtrOnly(char mode) {
       }
     }
     free_ivector(dim, 1, 4);
-    ${trace.token}  if (getTraceFlag(0) & SUMM_DEF_TRACE) {
-    ${trace.token}    RF_nativePrint("\nAllocation of OPT_TERM_INCG TN quantitative forest objects pointers only complete.");
-    ${trace.token}  }
+    //  if (getTraceFlag(0) & SUMM_DEF_TRACE) {
+    //    RF_nativePrint("\nAllocation of OPT_TERM_INCG TN quantitative forest objects pointers only complete.");
+    //  }
   }
-  ${trace.token}  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  ${trace.token}    RF_nativePrint("\nstackTNQuantitativeForestObjectsPtrOnly() EXIT ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+  //    RF_nativePrint("\nstackTNQuantitativeForestObjectsPtrOnly() EXIT ...\n");
+  //  }
 }
 void unstackTNQuantitativeForestObjectsPtrOnly(char mode) {
   uint i;
-  ${trace.token}  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  ${trace.token}    RF_nativePrint("\nunstackTNQuantitativeForestObjectsPtrOnly() ENTRY ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+  //    RF_nativePrint("\nunstackTNQuantitativeForestObjectsPtrOnly() ENTRY ...\n");
+  //  }
   if (RF_optHigh & OPT_TERM_OUTG) {
     if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
       for (i = 1; i <= RF_ntree; i++) {
@@ -313,15 +313,15 @@ void unstackTNQuantitativeForestObjectsPtrOnly(char mode) {
       }
     }
   }
-  ${trace.token}  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  ${trace.token}    RF_nativePrint("\nunstackTNQuantitativeForestObjectsPtrOnly() EXIT ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+  //    RF_nativePrint("\nunstackTNQuantitativeForestObjectsPtrOnly() EXIT ...\n");
+  //  }
 }
 void stackTNQuantitativeTreeObjectsPtrOnly(uint treeID) {
   uint i, j;
-  ${trace.token}  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  ${trace.token}    RF_nativePrint("\nstackTNQuantitativeTreeObjectsPtrOnly() ENTRY ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+  //    RF_nativePrint("\nstackTNQuantitativeTreeObjectsPtrOnly() ENTRY ...\n");
+  //  }
   if (RF_optHigh & OPT_TERM_OUTG) {
     if (RF_tLeafCount[treeID] > 0 ) {
       if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
@@ -369,15 +369,15 @@ void stackTNQuantitativeTreeObjectsPtrOnly(uint treeID) {
       }
     }
   }
-  ${trace.token}  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  ${trace.token}    RF_nativePrint("\nstackTNQuantitativeTreeObjectsPtrOnly() EXIT ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+  //    RF_nativePrint("\nstackTNQuantitativeTreeObjectsPtrOnly() EXIT ...\n");
+  //  }
 }
 void unstackTNQuantitativeTreeObjectsPtrOnly(uint treeID) {
   uint i, j;
-  ${trace.token}  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  ${trace.token}    RF_nativePrint("\nunstackTNQuantitativeTreeObjectsPtrOnly(%10d) ENTRY ...\n", treeID);
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+  //    RF_nativePrint("\nunstackTNQuantitativeTreeObjectsPtrOnly(%10d) ENTRY ...\n", treeID);
+  //  }
   if (RF_optHigh & OPT_TERM_OUTG) {
     if (RF_tLeafCount[treeID] > 0 ) {
       if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
@@ -425,18 +425,18 @@ void unstackTNQuantitativeTreeObjectsPtrOnly(uint treeID) {
       }
     }
   }
-  ${trace.token}  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  ${trace.token}    RF_nativePrint("\nunstackTNQuantitativeTreeObjectsPtrOnly(%10d) EXIT ...\n", treeID);
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+  //    RF_nativePrint("\nunstackTNQuantitativeTreeObjectsPtrOnly(%10d) EXIT ...\n", treeID);
+  //  }
 }
 void saveTNQuantitativeTreeObjects(uint treeID) {
   LeafLinkedObj *leafLinkedPtr;
   Terminal *parent;
   uint leaf;
   uint j, k;
-  ${trace.token}  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  ${trace.token}    RF_nativePrint("\nsaveTNQuantitativeTreeObjects() ENTRY ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+  //    RF_nativePrint("\nsaveTNQuantitativeTreeObjects() ENTRY ...\n");
+  //  }
   if (RF_optHigh & OPT_TERM_OUTG) {
     if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
       leafLinkedPtr = RF_leafLinkedObjHead[treeID] -> fwdLink;
@@ -447,19 +447,19 @@ void saveTNQuantitativeTreeObjects(uint treeID) {
           RF_TN_MORT_ptr[treeID][leaf][j] = parent -> mortality[j];
         }
         leafLinkedPtr = leafLinkedPtr -> fwdLink;
-        ${trace.token}      if (getTraceFlag(treeID) & ENSB_LOW_TRACE) {
-        ${trace.token}      if (getTraceFlag(treeID) & !TURN_OFF_TRACE) {
-        ${trace.token}        RF_nativePrint("\nNode specific mortality:  [RF_eventTypeSize] for:  (tree, leaf) = (%10d, %10d)  \n", treeID, parent -> nodeID);
-        ${trace.token}        for (j=1; j <= RF_eventTypeSize; j++) {
-        ${trace.token}          RF_nativePrint("%10d ", j);
-        ${trace.token}        }
-        ${trace.token}        RF_nativePrint("\n");
-        ${trace.token}        for (j=1; j <= RF_eventTypeSize; j++) {
-        ${trace.token}          RF_nativePrint("%10.4f ", (parent -> mortality)[j]);
-        ${trace.token}        }
-        ${trace.token}        RF_nativePrint("\n");
-        ${trace.token}      }
-        ${trace.token}      }
+        //      if (getTraceFlag(treeID) & ENSB_LOW_TRACE) {
+        //      if (getTraceFlag(treeID) & !TURN_OFF_TRACE) {
+        //        RF_nativePrint("\nNode specific mortality:  [RF_eventTypeSize] for:  (tree, leaf) = (%10d, %10d)  \n", treeID, parent -> nodeID);
+        //        for (j=1; j <= RF_eventTypeSize; j++) {
+        //          RF_nativePrint("%10d ", j);
+        //        }
+        //        RF_nativePrint("\n");
+        //        for (j=1; j <= RF_eventTypeSize; j++) {
+        //          RF_nativePrint("%10.4f ", (parent -> mortality)[j]);
+        //        }
+        //        RF_nativePrint("\n");
+        //      }
+        //      }
       }
       if (!(RF_opt & OPT_COMP_RISK)) {
         leafLinkedPtr = RF_leafLinkedObjHead[treeID] -> fwdLink;
@@ -471,29 +471,29 @@ void saveTNQuantitativeTreeObjects(uint treeID) {
             RF_TN_NLSN_ptr[treeID][leaf][k] = parent -> nelsonAalen[k];
           }
           leafLinkedPtr = leafLinkedPtr -> fwdLink;
-          ${trace.token}      if (getTraceFlag(treeID) & ENSB_LOW_TRACE) {
-          ${trace.token}      if (getTraceFlag(treeID) & !TURN_OFF_TRACE) {
-          ${trace.token}        RF_nativePrint("\nNode specific non-local survival function [RF_sortedTimeInterestSize] x [RF_tLeafCount[treeID]] for:  (tree, leaf) = (%10d, %10d)  \n", treeID, parent -> nodeID);
-          ${trace.token}        RF_nativePrint("                 time ");
-          ${trace.token}        RF_nativePrint("\n");
-          ${trace.token}        for (k=1; k <= RF_sortedTimeInterestSize; k++) {
-          ${trace.token}          RF_nativePrint("%10d %10.4f %10.4f", k, RF_timeInterest[k], (parent -> survival)[k]);
-          ${trace.token}          RF_nativePrint("\n");
-          ${trace.token}        }
-          ${trace.token}      }
-          ${trace.token}      }
-          ${trace.token}  if (getTraceFlag(treeID) & ENSB_LOW_TRACE) {
-          ${trace.token}    if (getTraceFlag(treeID) & !TURN_OFF_TRACE) {
-          ${trace.token}      RF_nativePrint("\nNelson-Aalen estimator matrix for (tree, leaf) = (%10d, %10d)  \n", treeID, parent -> nodeID);
-          ${trace.token}      for (k=1; k <= RF_sortedTimeInterestSize; k++) {
-          ${trace.token}        RF_nativePrint("%10d", k);
-          ${trace.token}      }
-          ${trace.token}      for (k=1; k <= RF_sortedTimeInterestSize; k++) {
-          ${trace.token}          RF_nativePrint("%10.4f", parent -> nelsonAalen[k]);
-          ${trace.token}      }
-          ${trace.token}      RF_nativePrint("\n");
-          ${trace.token}    }
-          ${trace.token}  }
+          //      if (getTraceFlag(treeID) & ENSB_LOW_TRACE) {
+          //      if (getTraceFlag(treeID) & !TURN_OFF_TRACE) {
+          //        RF_nativePrint("\nNode specific non-local survival function [RF_sortedTimeInterestSize] x [RF_tLeafCount[treeID]] for:  (tree, leaf) = (%10d, %10d)  \n", treeID, parent -> nodeID);
+          //        RF_nativePrint("                 time ");
+          //        RF_nativePrint("\n");
+          //        for (k=1; k <= RF_sortedTimeInterestSize; k++) {
+          //          RF_nativePrint("%10d %10.4f %10.4f", k, RF_timeInterest[k], (parent -> survival)[k]);
+          //          RF_nativePrint("\n");
+          //        }
+          //      }
+          //      }
+          //  if (getTraceFlag(treeID) & ENSB_LOW_TRACE) {
+          //    if (getTraceFlag(treeID) & !TURN_OFF_TRACE) {
+          //      RF_nativePrint("\nNelson-Aalen estimator matrix for (tree, leaf) = (%10d, %10d)  \n", treeID, parent -> nodeID);
+          //      for (k=1; k <= RF_sortedTimeInterestSize; k++) {
+          //        RF_nativePrint("%10d", k);
+          //      }
+          //      for (k=1; k <= RF_sortedTimeInterestSize; k++) {
+          //          RF_nativePrint("%10.4f", parent -> nelsonAalen[k]);
+          //      }
+          //      RF_nativePrint("\n");
+          //    }
+          //  }
         }
       }
       else {
@@ -508,40 +508,40 @@ void saveTNQuantitativeTreeObjects(uint treeID) {
             }
           }
           leafLinkedPtr = leafLinkedPtr -> fwdLink;
-          ${trace.token}  if (getTraceFlag(treeID) & ENSB_LOW_TRACE) {
-          ${trace.token}    if (getTraceFlag(treeID) & !TURN_OFF_TRACE) {
-          ${trace.token}        RF_nativePrint("\nNode specific non-local CSH:  [RF_eventTypeSize] x [nodeEventTimeSize] for:  (tree, leaf) = (%10d, %10d)  \n", treeID, parent -> nodeID);
-          ${trace.token}        RF_nativePrint("                 time ");
-          ${trace.token}        for (j=1; j <= RF_eventTypeSize; j++) {
-          ${trace.token}          RF_nativePrint("%10d ", j);
-          ${trace.token}        }
-          ${trace.token}        RF_nativePrint("\n");
-          ${trace.token}        for (k=1; k <= RF_sortedTimeInterestSize; k++) {
-          ${trace.token}          RF_nativePrint("%10d %10.4f ", k, RF_timeInterest[k]);
-          ${trace.token}          for (j=1; j <= RF_eventTypeSize; j++) {
-          ${trace.token}            RF_nativePrint("%10.4f ", (parent -> CSH)[j][k]);
-          ${trace.token}          }
-          ${trace.token}          RF_nativePrint("\n");
-          ${trace.token}        }
-          ${trace.token}    }
-          ${trace.token}  }
-          ${trace.token}  if (getTraceFlag(treeID) & ENSB_LOW_TRACE) {
-          ${trace.token}    if (getTraceFlag(treeID) & !TURN_OFF_TRACE) {
-          ${trace.token}        RF_nativePrint("\nNode specific non-local CIF:  [RF_eventTypeSize] x [nodeEventTimeSize] for:  (tree, leaf) = (%10d, %10d)  \n", treeID, parent -> nodeID);
-          ${trace.token}        RF_nativePrint("                 time ");
-          ${trace.token}        for (j=1; j <= RF_eventTypeSize; j++) {
-          ${trace.token}          RF_nativePrint("%10d ", j);
-          ${trace.token}        }
-          ${trace.token}        RF_nativePrint("\n");
-          ${trace.token}        for (k=1; k <= RF_sortedTimeInterestSize; k++) {
-          ${trace.token}          RF_nativePrint("%10d %10.4f ", k, RF_timeInterest[k]);
-          ${trace.token}          for (j=1; j <= RF_eventTypeSize; j++) {
-          ${trace.token}            RF_nativePrint("%10.4f ", (parent -> CIF)[j][k]);
-          ${trace.token}          }
-          ${trace.token}          RF_nativePrint("\n");
-          ${trace.token}        }
-          ${trace.token}    }
-          ${trace.token}  }
+          //  if (getTraceFlag(treeID) & ENSB_LOW_TRACE) {
+          //    if (getTraceFlag(treeID) & !TURN_OFF_TRACE) {
+          //        RF_nativePrint("\nNode specific non-local CSH:  [RF_eventTypeSize] x [nodeEventTimeSize] for:  (tree, leaf) = (%10d, %10d)  \n", treeID, parent -> nodeID);
+          //        RF_nativePrint("                 time ");
+          //        for (j=1; j <= RF_eventTypeSize; j++) {
+          //          RF_nativePrint("%10d ", j);
+          //        }
+          //        RF_nativePrint("\n");
+          //        for (k=1; k <= RF_sortedTimeInterestSize; k++) {
+          //          RF_nativePrint("%10d %10.4f ", k, RF_timeInterest[k]);
+          //          for (j=1; j <= RF_eventTypeSize; j++) {
+          //            RF_nativePrint("%10.4f ", (parent -> CSH)[j][k]);
+          //          }
+          //          RF_nativePrint("\n");
+          //        }
+          //    }
+          //  }
+          //  if (getTraceFlag(treeID) & ENSB_LOW_TRACE) {
+          //    if (getTraceFlag(treeID) & !TURN_OFF_TRACE) {
+          //        RF_nativePrint("\nNode specific non-local CIF:  [RF_eventTypeSize] x [nodeEventTimeSize] for:  (tree, leaf) = (%10d, %10d)  \n", treeID, parent -> nodeID);
+          //        RF_nativePrint("                 time ");
+          //        for (j=1; j <= RF_eventTypeSize; j++) {
+          //          RF_nativePrint("%10d ", j);
+          //        }
+          //        RF_nativePrint("\n");
+          //        for (k=1; k <= RF_sortedTimeInterestSize; k++) {
+          //          RF_nativePrint("%10d %10.4f ", k, RF_timeInterest[k]);
+          //          for (j=1; j <= RF_eventTypeSize; j++) {
+          //            RF_nativePrint("%10.4f ", (parent -> CIF)[j][k]);
+          //          }
+          //          RF_nativePrint("\n");
+          //        }
+          //    }
+          //  }
         }
       }
     }
@@ -555,20 +555,20 @@ void saveTNQuantitativeTreeObjects(uint treeID) {
             RF_TN_REGR_ptr[treeID][leaf][j] = (parent -> meanResponse)[j];
           }
           leafLinkedPtr = leafLinkedPtr -> fwdLink;
-          ${trace.token}  if (getTraceFlag(treeID) & ENSB_LOW_TRACE) {
-          ${trace.token}    if (getTraceFlag(treeID) & !TURN_OFF_TRACE) {
-          ${trace.token}    RF_nativePrint("\nMean response vector for (tree, leaf):  (%10d, %10d) \n", treeID, leaf);
-          ${trace.token}    RF_nativePrint("Resp ->  ");
-          ${trace.token}    for (j=1; j <= RF_rNonFactorCount; j++) {
-          ${trace.token}      RF_nativePrint("%20d", RF_rNonFactorIndex[j]);
-          ${trace.token}    }
-          ${trace.token}    RF_nativePrint("\n");
-          ${trace.token}    RF_nativePrint("         ");
-          ${trace.token}    for (j=1; j <= RF_rNonFactorCount; j++) {
-          ${trace.token}      RF_nativePrint("%20.4f", (parent -> meanResponse)[j]);
-          ${trace.token}    }
-          ${trace.token}  }
-          ${trace.token}  }
+          //  if (getTraceFlag(treeID) & ENSB_LOW_TRACE) {
+          //    if (getTraceFlag(treeID) & !TURN_OFF_TRACE) {
+          //    RF_nativePrint("\nMean response vector for (tree, leaf):  (%10d, %10d) \n", treeID, leaf);
+          //    RF_nativePrint("Resp ->  ");
+          //    for (j=1; j <= RF_rNonFactorCount; j++) {
+          //      RF_nativePrint("%20d", RF_rNonFactorIndex[j]);
+          //    }
+          //    RF_nativePrint("\n");
+          //    RF_nativePrint("         ");
+          //    for (j=1; j <= RF_rNonFactorCount; j++) {
+          //      RF_nativePrint("%20.4f", (parent -> meanResponse)[j]);
+          //    }
+          //  }
+          //  }
         }
       }
       if (RF_rFactorCount > 0) {
@@ -582,37 +582,37 @@ void saveTNQuantitativeTreeObjects(uint treeID) {
             }
           }
           leafLinkedPtr = leafLinkedPtr -> fwdLink;
-          ${trace.token}  if (getTraceFlag(treeID) & ENSB_LOW_TRACE) {
-          ${trace.token}      if (getTraceFlag(treeID) & !TURN_OFF_TRACE) {
-          ${trace.token}        RF_nativePrint("\nClass proportion vector for (tree, leaf):  (%10d, %10d) \n", treeID, leaf);
-          ${trace.token}        for (j=1; j <= RF_rFactorCount; j++) {
-          ${trace.token}          RF_nativePrint("\nClass ->  ");
-          ${trace.token}          for (k=1; k <= RF_rFactorSize[j]; k++) {
-          ${trace.token}            RF_nativePrint("%10d", k);
-          ${trace.token}          }
-          ${trace.token}          RF_nativePrint("\n");
-          ${trace.token}          RF_nativePrint("%10d", j);
-          ${trace.token}          for (k=1; k <= RF_rFactorSize[j]; k++) {
-          ${trace.token}            RF_nativePrint("%10d", RF_TN_CLAS_ptr[treeID][leaf][j][k]);
-          ${trace.token}          }
-          ${trace.token}        }
-          ${trace.token}      }
-          ${trace.token}  }
+          //  if (getTraceFlag(treeID) & ENSB_LOW_TRACE) {
+          //      if (getTraceFlag(treeID) & !TURN_OFF_TRACE) {
+          //        RF_nativePrint("\nClass proportion vector for (tree, leaf):  (%10d, %10d) \n", treeID, leaf);
+          //        for (j=1; j <= RF_rFactorCount; j++) {
+          //          RF_nativePrint("\nClass ->  ");
+          //          for (k=1; k <= RF_rFactorSize[j]; k++) {
+          //            RF_nativePrint("%10d", k);
+          //          }
+          //          RF_nativePrint("\n");
+          //          RF_nativePrint("%10d", j);
+          //          for (k=1; k <= RF_rFactorSize[j]; k++) {
+          //            RF_nativePrint("%10d", RF_TN_CLAS_ptr[treeID][leaf][j][k]);
+          //          }
+          //        }
+          //      }
+          //  }
         }
       }
     }
   }
-  ${trace.token}  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  ${trace.token}    RF_nativePrint("\nsaveTNQuantitativeTreeObjects() EXIT ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+  //    RF_nativePrint("\nsaveTNQuantitativeTreeObjects() EXIT ...\n");
+  //  }
 }
 void stackTNQuantitativeForestObjectsOutput(char mode) {
   ulong localSize;
   uint tnDimOne, tnDimTwo;
   uint j;
-  ${trace.token}  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  ${trace.token}    RF_nativePrint("\nstackTNQuantitativeForestOutputObjects() ENTRY ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+  //    RF_nativePrint("\nstackTNQuantitativeForestOutputObjects() ENTRY ...\n");
+  //  }
   if (RF_optHigh & OPT_TERM_OUTG) {
     tnDimOne = RF_totalTerminalCount;
     if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
@@ -650,23 +650,23 @@ void stackTNQuantitativeForestObjectsOutput(char mode) {
         RF_TN_CLAS_ --;
       }
     }
-    ${trace.token}    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-    ${trace.token}      RF_nativePrint("\nAllocating for OPT TERM OUTG complete. \n");
-    ${trace.token}    }
-    ${trace.token}  if (getTraceFlag(0) & SUMM_DEF_TRACE) {
-    ${trace.token}    RF_nativePrint("\nAllocation of TN quantitative output objects complete, with running S.E.X.P. index at:  %10d", RF_nativeIndex);
-    ${trace.token}  }
+    //    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+    //      RF_nativePrint("\nAllocating for OPT TERM OUTG complete. \n");
+    //    }
+    //  if (getTraceFlag(0) & SUMM_DEF_TRACE) {
+    //    RF_nativePrint("\nAllocation of TN quantitative output objects complete, with running S.E.X.P. index at:  %10d", RF_nativeIndex);
+    //  }
   }
-  ${trace.token}  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  ${trace.token}    RF_nativePrint("\nstackTNQuantitativeForestOutputObjects() EXIT ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+  //    RF_nativePrint("\nstackTNQuantitativeForestOutputObjects() EXIT ...\n");
+  //  }
 }
 void writeTNQuantitativeForestObjectsOutput(char mode) {
   uint i, j, k, m;
   ulong iter;
-  ${trace.token}  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  ${trace.token}    RF_nativePrint("\nwriteTNQuantitativeForestOutputObjects() ENTRY ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+  //    RF_nativePrint("\nwriteTNQuantitativeForestOutputObjects() ENTRY ...\n");
+  //  }
   if (RF_optHigh & OPT_TERM_OUTG) {
     if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
       iter = 0;
@@ -727,9 +727,9 @@ void writeTNQuantitativeForestObjectsOutput(char mode) {
       }
     }
   }
-  ${trace.token}  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  ${trace.token}    RF_nativePrint("\nwriteTNQuantitativeForestOutputObjects() EXIT ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+  //    RF_nativePrint("\nwriteTNQuantitativeForestOutputObjects() EXIT ...\n");
+  //  }
 }
 void stackTNQualitativeObjectsUnknownMembership(char   mode, uint **pRF_OMBR_ID_, uint **pRF_IMBR_ID_) {
   Terminal *termPtr;
@@ -737,9 +737,9 @@ void stackTNQualitativeObjectsUnknownMembership(char   mode, uint **pRF_OMBR_ID_
   uint  treeID;
   uint  i, j;
   uint iter;
-  ${trace.token}  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  ${trace.token}    RF_nativePrint("\nstackTNQualitativeObjectsUnknownMembership() ENTRY ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+  //    RF_nativePrint("\nstackTNQualitativeObjectsUnknownMembership() ENTRY ...\n");
+  //  }
   if (RF_optHigh & OPT_MEMB_OUTG) {
     localSize = 0;
     for (uint treeID = 1; treeID <= RF_ntree; treeID++) {
@@ -781,7 +781,7 @@ void stackTNQualitativeObjectsUnknownMembership(char   mode, uint **pRF_OMBR_ID_
       }
     }
   }  
-  ${trace.token}  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  ${trace.token}    RF_nativePrint("\nstackTNQualitativeObjectsUnknownMembership() EXIT ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+  //    RF_nativePrint("\nstackTNQualitativeObjectsUnknownMembership() EXIT ...\n");
+  //  }
 }

@@ -11,7 +11,7 @@
 #include "marginal.h"
 #include "polarity.h"
 #include "nrutil.h"
-${trace.token} #include "error.h"
+// #include "error.h"
 void getMarginalMembership(char mode, uint treeID) {
   double **observationPtr;
   uint    *gallMembrIndx;
@@ -37,31 +37,31 @@ void getMarginalMembership(char mode, uint treeID) {
     RF_utTermMembershipCount[treeID][i] = 0;
     RF_utTermMembershipAlloc[treeID][i] = 1;            
   }
-  ${trace.token}      if (getTraceFlag(treeID) & SUMM_LOW_TRACE) {
-  ${trace.token}        RF_nativePrint("\nBeginning of Marginal Membership Restoration:  %10d", treeID);
-  ${trace.token}      }
+  //      if (getTraceFlag(treeID) & SUMM_LOW_TRACE) {
+  //        RF_nativePrint("\nBeginning of Marginal Membership Restoration:  %10d", treeID);
+  //      }
   marginalMembership(treeID,
                      RF_root[treeID],
                      gallMembrIndx,
                      obsSize,
                      obsSize,
                      observationPtr);
-  ${trace.token}      if (getTraceFlag(treeID) & SUMM_LOW_TRACE) {
-  ${trace.token}        RF_nativePrint("\nEnd of Marginal Membership Restoration:  %10d", treeID);
-  ${trace.token}      }
-  ${trace.token}    if (getTraceFlag(treeID) & SUMM_MED_TRACE) {
-  ${trace.token}      if (RF_xMarginalSize > 0) {
-  ${trace.token}        RF_nativePrint("\nFinal MARGINAL Membership (all data):  %10d", treeID);
-  ${trace.token}        RF_nativePrint("\n       index         leaf ->\n");
-  ${trace.token}        for (i=1; i <= obsSize; i++) {
-  ${trace.token}          RF_nativePrint("%12d ", i);
-  ${trace.token}          for (uint j=1; j <= RF_utTermMembershipCount[treeID][i]; j++) {
-  ${trace.token}            RF_nativePrint("%12d ", RF_utTermMembership[treeID][i][j]);
-  ${trace.token}          }
-  ${trace.token}          RF_nativePrint("\n");
-  ${trace.token}        }
-  ${trace.token}      }
-  ${trace.token}    }
+  //      if (getTraceFlag(treeID) & SUMM_LOW_TRACE) {
+  //        RF_nativePrint("\nEnd of Marginal Membership Restoration:  %10d", treeID);
+  //      }
+  //    if (getTraceFlag(treeID) & SUMM_MED_TRACE) {
+  //      if (RF_xMarginalSize > 0) {
+  //        RF_nativePrint("\nFinal MARGINAL Membership (all data):  %10d", treeID);
+  //        RF_nativePrint("\n       index         leaf ->\n");
+  //        for (i=1; i <= obsSize; i++) {
+  //          RF_nativePrint("%12d ", i);
+  //          for (uint j=1; j <= RF_utTermMembershipCount[treeID][i]; j++) {
+  //            RF_nativePrint("%12d ", RF_utTermMembership[treeID][i][j]);
+  //          }
+  //          RF_nativePrint("\n");
+  //        }
+  //      }
+  //    }
 }
 void releaseMarginalMembership(char mode, uint treeID) {
   uint     obsSize;
@@ -102,22 +102,22 @@ void marginalMembership(uint     treeID,
                                       void      *value,
                                       ...);
   uint i, j;
-  ${trace.token}  if (getTraceFlag(treeID) & SPLT_DEF_TRACE) {
-  ${trace.token}    RF_nativePrint("\nmarginalMembership() ENTRY ...\n");
-  ${trace.token}  }
-  ${trace.token}  if (getTraceFlag(treeID) & SPLT_DEF_TRACE) {
-  ${trace.token}    RF_nativePrint("\nmarginalMembership (%10d) leaf:  %10d \n", treeID, parent -> nodeID);
-  ${trace.token}    RF_nativePrint("\n  called with   all size:  %10d", genAllMembrSize);
-  ${trace.token}  }
+  //  if (getTraceFlag(treeID) & SPLT_DEF_TRACE) {
+  //    RF_nativePrint("\nmarginalMembership() ENTRY ...\n");
+  //  }
+  //  if (getTraceFlag(treeID) & SPLT_DEF_TRACE) {
+  //    RF_nativePrint("\nmarginalMembership (%10d) leaf:  %10d \n", treeID, parent -> nodeID);
+  //    RF_nativePrint("\n  called with   all size:  %10d", genAllMembrSize);
+  //  }
   getDaughterPolarityGeneric = NULL;  
   terminalFlag = TRUE;
   if (((parent -> left) != NULL) && ((parent -> right) != NULL)) {
     info = parent -> splitInfo;
     terminalFlag = FALSE;
-    ${trace.token}    if (getTraceFlag(treeID) & FORK_DEF_TRACE) {
-    ${trace.token}      RF_nativePrint("\nForking On:  ");
-    ${trace.token}      getNodeInfo(parent);
-    ${trace.token}    }
+    //    if (getTraceFlag(treeID) & FORK_DEF_TRACE) {
+    //      RF_nativePrint("\nForking On:  ");
+    //      getNodeInfo(parent);
+    //    }
     leftAllMembrIndx = rghtAllMembrIndx = NULL;
     leftAllMembrSize = rghtAllMembrSize = 0;
     uint *indicator = uivector(1, obsSize);
@@ -136,48 +136,48 @@ void marginalMembership(uint     treeID,
         indicator[genAllMembrIndx[i]] = daughterFlag;
         leftAllMembrSize ++;
         rghtAllMembrSize ++;
-        ${trace.token}            if (getTraceFlag(treeID) & FORK_DEF_TRACE) {
-        ${trace.token}              RF_nativePrint("\nmNode Membership:  %10d %10d %20.8f", i, genAllMembrIndx[i], (uint) RF_observation[treeID][info -> randomVar[1]][genAllMembrIndx[i]]);
-        ${trace.token}              RF_nativePrint(" --> BOTH ");
-        ${trace.token}            }
+        //            if (getTraceFlag(treeID) & FORK_DEF_TRACE) {
+        //              RF_nativePrint("\nmNode Membership:  %10d %10d %20.8f", i, genAllMembrIndx[i], (uint) RF_observation[treeID][info -> randomVar[1]][genAllMembrIndx[i]]);
+        //              RF_nativePrint(" --> BOTH ");
+        //            }
       }        
     }
     if (daughterFlag != NEITHER) {
       for (i = 1; i <= genAllMembrSize; i++) {
-        ${trace.token}        if (getTraceFlag(treeID) & FORK_DEF_TRACE) {
-        ${trace.token}            RF_nativePrint("\nmNode Membership:  %10d %10d ", i, genAllMembrIndx[i]);
-        ${trace.token}        }
+        //        if (getTraceFlag(treeID) & FORK_DEF_TRACE) {
+        //            RF_nativePrint("\nmNode Membership:  %10d %10d ", i, genAllMembrIndx[i]);
+        //        }
         daughterFlag = getDaughterPolarityGeneric(treeID,
                                                   info,
                                                   genAllMembrIndx[i],
                                                   obsLocal);
-        ${trace.token}      if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-        ${trace.token}        if (getTraceFlag(treeID) & !TURN_OFF_TRACE) {
-        ${trace.token}          if(daughterFlag == LEFT) {
-        ${trace.token}            RF_nativePrint("\nNon-Greedy Daughter LEFT :  %10d %10d", i, genAllMembrIndx[i]);
-        ${trace.token}          }
-        ${trace.token}          else {
-        ${trace.token}            RF_nativePrint("\nNon-Greedy Daughter RGHT :  %10d %10d", i, genAllMembrIndx[i]);
-        ${trace.token}          }
-        ${trace.token}        }
-        ${trace.token}      }
+        //      if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
+        //        if (getTraceFlag(treeID) & !TURN_OFF_TRACE) {
+        //          if(daughterFlag == LEFT) {
+        //            RF_nativePrint("\nNon-Greedy Daughter LEFT :  %10d %10d", i, genAllMembrIndx[i]);
+        //          }
+        //          else {
+        //            RF_nativePrint("\nNon-Greedy Daughter RGHT :  %10d %10d", i, genAllMembrIndx[i]);
+        //          }
+        //        }
+        //      }
         indicator[genAllMembrIndx[i]] = daughterFlag;
         if (daughterFlag == LEFT) {
           leftAllMembrSize ++;
-          ${trace.token}          if (getTraceFlag(treeID) & FORK_DEF_TRACE) {
-          ${trace.token}            RF_nativePrint(" --> LEFT ");
-          ${trace.token}          }
+          //          if (getTraceFlag(treeID) & FORK_DEF_TRACE) {
+          //            RF_nativePrint(" --> LEFT ");
+          //          }
         }
         else {
           rghtAllMembrSize ++;
-          ${trace.token}          if (getTraceFlag(treeID) & FORK_DEF_TRACE) {
-          ${trace.token}            RF_nativePrint(" --> RGHT ");
-          ${trace.token}          }
+          //          if (getTraceFlag(treeID) & FORK_DEF_TRACE) {
+          //            RF_nativePrint(" --> RGHT ");
+          //          }
         }
       }  
-      ${trace.token}        if (getTraceFlag(treeID) & FORK_DEF_TRACE) {
-      ${trace.token}          RF_nativePrint("\n");
-      ${trace.token}        }
+      //        if (getTraceFlag(treeID) & FORK_DEF_TRACE) {
+      //          RF_nativePrint("\n");
+      //        }
     }  
     leftAllMembrIndx  = uivector(1, leftAllMembrSize + 1);
     rghtAllMembrIndx  = uivector(1, rghtAllMembrSize + 1);
@@ -199,18 +199,18 @@ void marginalMembership(uint     treeID,
       }
     }
     free_uivector(indicator, 1, obsSize);
-    ${trace.token}        if (getTraceFlag(treeID) & SPLT_DEF_TRACE) {
-    ${trace.token}          RF_nativePrint("\nmarginalMembership(%10d) LEFT:  \n", treeID);
-    ${trace.token}        }
+    //        if (getTraceFlag(treeID) & SPLT_DEF_TRACE) {
+    //          RF_nativePrint("\nmarginalMembership(%10d) LEFT:  \n", treeID);
+    //        }
     marginalMembership(treeID,
                               parent -> left,
                               leftAllMembrIndx,
                               leftAllMembrSize,
                               obsSize,
                               xArray);
-    ${trace.token}        if (getTraceFlag(treeID) & SPLT_DEF_TRACE) {
-    ${trace.token}          RF_nativePrint("\nmarginalMembership(%10d) RGHT:  \n", treeID);
-    ${trace.token}        }
+    //        if (getTraceFlag(treeID) & SPLT_DEF_TRACE) {
+    //          RF_nativePrint("\nmarginalMembership(%10d) RGHT:  \n", treeID);
+    //        }
     marginalMembership(treeID,
                               parent -> right,
                               rghtAllMembrIndx,
@@ -221,9 +221,9 @@ void marginalMembership(uint     treeID,
     free_uivector(rghtAllMembrIndx, 1, rghtAllMembrSize + 1);
   }  
   else {
-    ${trace.token}  if (getTraceFlag(treeID) & SPLT_DEF_TRACE) {
-    ${trace.token}    RF_nativePrint("\n  Terminal node encountered for leaf:  %10d %20x ",  parent -> nodeID, parent);
-    ${trace.token}  }
+    //  if (getTraceFlag(treeID) & SPLT_DEF_TRACE) {
+    //    RF_nativePrint("\n  Terminal node encountered for leaf:  %10d %20x ",  parent -> nodeID, parent);
+    //  }
   }
   if (terminalFlag) {
     for (i = 1; i <= genAllMembrSize; i++) {
@@ -238,18 +238,18 @@ void marginalMembership(uint     treeID,
         RF_utTermMembership[treeID][genAllMembrIndx[i]] = utTermMembershipNew;
       }
     }
-    ${trace.token}            if (getTraceFlag(treeID) & FORK_DEF_TRACE) {
-    ${trace.token}              RF_nativePrint("\nMarginal Split Multiple Terminal Node Membership: ");
-    ${trace.token}              RF_nativePrint("\n      index       indv membership -> ");
-    ${trace.token}              for (i = 1; i <= genAllMembrSize; i++) {
-    ${trace.token}                RF_nativePrint("\n %10d %10d", i, genAllMembrIndx[i]);
-    ${trace.token}                for (j = 1; j <= RF_utTermMembershipCount[treeID][genAllMembrIndx[i]]; j++) {
-    ${trace.token}                  RF_nativePrint(" %10d", RF_utTermMembership[treeID][genAllMembrIndx[i]][j]);
-    ${trace.token}                }
-    ${trace.token}              }
-    ${trace.token}            }
+    //            if (getTraceFlag(treeID) & FORK_DEF_TRACE) {
+    //              RF_nativePrint("\nMarginal Split Multiple Terminal Node Membership: ");
+    //              RF_nativePrint("\n      index       indv membership -> ");
+    //              for (i = 1; i <= genAllMembrSize; i++) {
+    //                RF_nativePrint("\n %10d %10d", i, genAllMembrIndx[i]);
+    //                for (j = 1; j <= RF_utTermMembershipCount[treeID][genAllMembrIndx[i]]; j++) {
+    //                  RF_nativePrint(" %10d", RF_utTermMembership[treeID][genAllMembrIndx[i]][j]);
+    //                }
+    //              }
+    //            }
   }  
-  ${trace.token}  if (getTraceFlag(treeID) & SPLT_DEF_TRACE) {
-  ${trace.token}    RF_nativePrint("\nmarginalMembership() EXIT ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(treeID) & SPLT_DEF_TRACE) {
+  //    RF_nativePrint("\nmarginalMembership() EXIT ...\n");
+  //  }
 }

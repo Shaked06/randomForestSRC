@@ -15,11 +15,11 @@
 #include "error.h"
 Node *makeNode(unsigned int xSize) {
   Node *parent = (Node*) gblock((size_t) sizeof(Node));
-  ${trace.token}  if (getTraceFlag(0) | TURN_OFF_TRACE) {
-  ${trace.token}    if (getTraceFlag(0) & FORK_DEF_TRACE) {
-  ${trace.token}      RF_nativePrint("\nmakeNode() size:  %10d", xSize);
-  ${trace.token}    }
-  ${trace.token}  }
+  //  if (getTraceFlag(0) | TURN_OFF_TRACE) {
+  //    if (getTraceFlag(0) & FORK_DEF_TRACE) {
+  //      RF_nativePrint("\nmakeNode() size:  %10d", xSize);
+  //    }
+  //  }
   if (xSize > 0) {
     parent -> xSize = xSize;
     parent -> permissible = cvector(1, xSize);
@@ -75,23 +75,23 @@ Node *makeNode(unsigned int xSize) {
   parent -> nonMissMembrIndx       = NULL;
   parent -> nonMissMembrSize       = 0;
   parent -> sumRght = 0.0;
-  ${trace.token}  if (getTraceFlag(0) & TURN_OFF_TRACE) {
-  ${trace.token}    if (getTraceFlag(0) & FORK_DEF_TRACE) {
-  ${trace.token}      RF_nativePrint("\nmakeNode NodeInfo:  %20x", parent);
-  ${trace.token}      getNodeInfo(parent);
-  ${trace.token}    }
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & TURN_OFF_TRACE) {
+  //    if (getTraceFlag(0) & FORK_DEF_TRACE) {
+  //      RF_nativePrint("\nmakeNode NodeInfo:  %20x", parent);
+  //      getNodeInfo(parent);
+  //    }
+  //  }
   return parent;
 }
 void freeNodeGeneric(Node *parent) {
-  ${trace.token}  if (getTraceFlag(0) | TURN_OFF_TRACE) {
-  ${trace.token}    if (getTraceFlag(0) & FORK_DEF_TRACE) {
-  ${trace.token}      RF_nativePrint("\nfreeNodeGeneric() info:  %20x", parent);
-  ${trace.token}      if (getTraceFlag(0) | TURN_OFF_TRACE) {
-  ${trace.token}        getNodeInfo(parent);
-  ${trace.token}      }
-  ${trace.token}    }
-  ${trace.token}  }
+  //  if (getTraceFlag(0) | TURN_OFF_TRACE) {
+  //    if (getTraceFlag(0) & FORK_DEF_TRACE) {
+  //      RF_nativePrint("\nfreeNodeGeneric() info:  %20x", parent);
+  //      if (getTraceFlag(0) | TURN_OFF_TRACE) {
+  //        getNodeInfo(parent);
+  //      }
+  //    }
+  //  }
   if (parent -> xSize > 0) {
     if (parent -> permissible != NULL) {
       free_cvector(parent -> permissible, 1, parent -> xSize);
@@ -134,14 +134,14 @@ void freeNodeGeneric(Node *parent) {
   free_gblock(parent, (size_t) sizeof(Node));
 }
 void freeNodeNew(Node *parent) {
-  ${trace.token}  if (getTraceFlag(0) | TURN_OFF_TRACE) {
-  ${trace.token}    if (getTraceFlag(0) & FORK_DEF_TRACE) {
-  ${trace.token}      RF_nativePrint("\nfreeNodeNew() info:  %20x", parent);
-  ${trace.token}      if (getTraceFlag(0) | TURN_OFF_TRACE) {
-  ${trace.token}        getNodeInfo(parent);
-  ${trace.token}      }
-  ${trace.token}    }
-  ${trace.token}  }
+  //  if (getTraceFlag(0) | TURN_OFF_TRACE) {
+  //    if (getTraceFlag(0) & FORK_DEF_TRACE) {
+  //      RF_nativePrint("\nfreeNodeNew() info:  %20x", parent);
+  //      if (getTraceFlag(0) | TURN_OFF_TRACE) {
+  //        getNodeInfo(parent);
+  //      }
+  //    }
+  //  }
   if (parent -> xSize > 0) {
     if (parent -> permissibleOwnershipFlag) {
       if (parent -> permissible != NULL) {

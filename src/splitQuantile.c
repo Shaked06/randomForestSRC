@@ -11,7 +11,7 @@
 #include "splitQuantile.h"
 #include "splitUtil.h"
 #include "nrutil.h"
-${trace.token} #include "error.h"
+// #include "error.h"
 char locallyAdaptiveQuantileRegrSplit (uint       treeID,
                                        Node      *parent,
                                        SplitInfoMax *splitInfoMax,
@@ -34,9 +34,9 @@ char locallyAdaptiveQuantileRegrSplit (uint       treeID,
   char preliminaryResult, result;
   double delta;
   uint j, jj, k, p;
-  ${trace.token}  if (getTraceFlag(treeID) & SPLT_LOW_TRACE) {
-  ${trace.token}    RF_nativePrint("\nlocallyAdaptiveQuantileRegrSplit(%10d) ENTRY ...\n", treeID);
-  ${trace.token}  }
+  //  if (getTraceFlag(treeID) & SPLT_LOW_TRACE) {
+  //    RF_nativePrint("\nlocallyAdaptiveQuantileRegrSplit(%10d) ENTRY ...\n", treeID);
+  //  }
   mwcpSizeAbsolute       = 0;     
   preliminaryResult = getPreSplitResult(treeID,
                                         parent,
@@ -141,14 +141,14 @@ char locallyAdaptiveQuantileRegrSplit (uint       treeID,
                              priorMembrIter,
                              & currentMembrIter);
           rghtSize = nonMissMembrSize - leftSize;
-          ${trace.token}  if (getTraceFlag(treeID) & SPLT_MED_TRACE) {
-          ${trace.token}    RF_nativePrint("\nNon-miss Node Size:  %10d, Non-miss Left Size:  %10d, Non-miss Right Size:  %10d", nonMissMembrSize, leftSize, rghtSize);
-          ${trace.token}  }
-          ${trace.token}          if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-          ${trace.token}            if (getTraceFlag(treeID) & TURN_OFF_TRACE) {
-          ${trace.token}              RF_nativePrint("\n PriorIter:     %10d  CurrentIter:   %10d", priorMembrIter, currentMembrIter);
-          ${trace.token}            }
-          ${trace.token}          }
+          //  if (getTraceFlag(treeID) & SPLT_MED_TRACE) {
+          //    RF_nativePrint("\nNon-miss Node Size:  %10d, Non-miss Left Size:  %10d, Non-miss Right Size:  %10d", nonMissMembrSize, leftSize, rghtSize);
+          //  }
+          //          if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
+          //            if (getTraceFlag(treeID) & TURN_OFF_TRACE) {
+          //              RF_nativePrint("\n PriorIter:     %10d  CurrentIter:   %10d", priorMembrIter, currentMembrIter);
+          //            }
+          //          }
           if ((leftSize != 0) && (rghtSize != 0)) {
             if (factorFlag == TRUE) {
               sumLeftMean = sumRghtMean = 0.0;
@@ -207,27 +207,27 @@ char locallyAdaptiveQuantileRegrSplit (uint       treeID,
             sumLeftSqr = sumLeft / leftSize;
             sumRghtSqr  = sumRght / rghtSize;
             delta = (sumLeftSqr + sumRghtSqr) / nonMissMembrSize;
-            ${trace.token}          if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-            ${trace.token}            if (getTraceFlag(treeID) & ~TURN_OFF_TRACE) {
-            ${trace.token}              RF_nativePrint("\nClass proportions:        right       left");        
-            ${trace.token}              for (p = 1; p <= responseClassCount; p++) {
-            ${trace.token}                RF_nativePrint("\n          %10d %10d %10d", p, rghtClassProp[p], leftClassProp[p]);
-            ${trace.token}              }
-            ${trace.token}            }
-            ${trace.token}          }
-            ${trace.token}          if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-            ${trace.token}            if (getTraceFlag(treeID) & TURN_OFF_TRACE) {
-            ${trace.token}              RF_nativePrint("\nVirtual (non-miss) Membership:  ");
-            ${trace.token}              for (k = 1; k <= nonMissMembrSize; k++) {
-            ${trace.token}                if (localSplitIndicator[ nonMissMembrIndx[indxx[k]] ] == LEFT) {
-            ${trace.token}                  RF_nativePrint("\n %10d %10d %12.4f %12.4f --> LEFT ", k, nonMissMembrIndx[indxx[k]], repMembrIndx[nonMissMembrIndx[indxx[k]]], observation[ repMembrIndx[nonMissMembrIndx[indxx[k]]] ], pseudoResponse[  nonMissMembrIndx[indxx[k]]  ]);
-            ${trace.token}                }
-            ${trace.token}                else {
-            ${trace.token}                  RF_nativePrint("\n %10d %10d %12.4f %12.4f --> RGHT ", k, nonMissMembrIndx[indxx[k]], repMembrIndx[nonMissMembrIndx[indxx[k]]], observation[ repMembrIndx[nonMissMembrIndx[indxx[k]]] ], pseudoResponse[  nonMissMembrIndx[indxx[k]]  ]);
-            ${trace.token}                }
-            ${trace.token}              }
-            ${trace.token}            }
-            ${trace.token}          }
+            //          if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
+            //            if (getTraceFlag(treeID) & ~TURN_OFF_TRACE) {
+            //              RF_nativePrint("\nClass proportions:        right       left");        
+            //              for (p = 1; p <= responseClassCount; p++) {
+            //                RF_nativePrint("\n          %10d %10d %10d", p, rghtClassProp[p], leftClassProp[p]);
+            //              }
+            //            }
+            //          }
+            //          if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
+            //            if (getTraceFlag(treeID) & TURN_OFF_TRACE) {
+            //              RF_nativePrint("\nVirtual (non-miss) Membership:  ");
+            //              for (k = 1; k <= nonMissMembrSize; k++) {
+            //                if (localSplitIndicator[ nonMissMembrIndx[indxx[k]] ] == LEFT) {
+            //                  RF_nativePrint("\n %10d %10d %12.4f %12.4f --> LEFT ", k, nonMissMembrIndx[indxx[k]], repMembrIndx[nonMissMembrIndx[indxx[k]]], observation[ repMembrIndx[nonMissMembrIndx[indxx[k]]] ], pseudoResponse[  nonMissMembrIndx[indxx[k]]  ]);
+            //                }
+            //                else {
+            //                  RF_nativePrint("\n %10d %10d %12.4f %12.4f --> RGHT ", k, nonMissMembrIndx[indxx[k]], repMembrIndx[nonMissMembrIndx[indxx[k]]], observation[ repMembrIndx[nonMissMembrIndx[indxx[k]]] ], pseudoResponse[  nonMissMembrIndx[indxx[k]]  ]);
+            //                }
+            //              }
+            //            }
+            //          }
           }
           else {
             delta = RF_nativeNaN;
@@ -286,10 +286,10 @@ char locallyAdaptiveQuantileRegrSplit (uint       treeID,
                   multImpFlag,
                   FALSE);  
   result = summarizeSplitResult(splitInfoMax);
-  ${trace.token}  if (getTraceFlag(treeID) & SPLT_LOW_TRACE) {
-  ${trace.token}    RF_nativePrint("\nlocallyAdaptiveQuantileRegrSplit(%10d) result:  %10d", treeID, result);
-  ${trace.token}    RF_nativePrint("\nlocallyAdaptiveQuantileRegrSplit(%10d) EXIT ...\n", treeID);
-  ${trace.token}  }
+  //  if (getTraceFlag(treeID) & SPLT_LOW_TRACE) {
+  //    RF_nativePrint("\nlocallyAdaptiveQuantileRegrSplit(%10d) result:  %10d", treeID, result);
+  //    RF_nativePrint("\nlocallyAdaptiveQuantileRegrSplit(%10d) EXIT ...\n", treeID);
+  //  }
   return result;
 }
 char quantileRegrSplit (uint       treeID,
@@ -314,9 +314,9 @@ char quantileRegrSplit (uint       treeID,
   char preliminaryResult, result;
   double delta;
   uint j, k, p;
-  ${trace.token}  if (getTraceFlag(treeID) & SPLT_LOW_TRACE) {
-  ${trace.token}    RF_nativePrint("\nquantileRegrSplit(%10d) ENTRY ...\n", treeID);
-  ${trace.token}  }
+  //  if (getTraceFlag(treeID) & SPLT_LOW_TRACE) {
+  //    RF_nativePrint("\nquantileRegrSplit(%10d) ENTRY ...\n", treeID);
+  //  }
   mwcpSizeAbsolute       = 0;     
   preliminaryResult = getPreSplitResult(treeID,
                                         parent,
@@ -425,14 +425,14 @@ char quantileRegrSplit (uint       treeID,
                              priorMembrIter,
                              & currentMembrIter);
           rghtSize = nonMissMembrSize - leftSize;
-          ${trace.token}  if (getTraceFlag(treeID) & SPLT_MED_TRACE) {
-          ${trace.token}    RF_nativePrint("\nNon-miss Node Size:  %10d, Non-miss Left Size:  %10d, Non-miss Right Size:  %10d", nonMissMembrSize, leftSize, rghtSize);
-          ${trace.token}  }
-          ${trace.token}          if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-          ${trace.token}            if (getTraceFlag(treeID) & TURN_OFF_TRACE) {
-          ${trace.token}              RF_nativePrint("\n PriorIter:     %10d  CurrentIter:   %10d", priorMembrIter, currentMembrIter);
-          ${trace.token}            }
-          ${trace.token}          }
+          //  if (getTraceFlag(treeID) & SPLT_MED_TRACE) {
+          //    RF_nativePrint("\nNon-miss Node Size:  %10d, Non-miss Left Size:  %10d, Non-miss Right Size:  %10d", nonMissMembrSize, leftSize, rghtSize);
+          //  }
+          //          if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
+          //            if (getTraceFlag(treeID) & TURN_OFF_TRACE) {
+          //              RF_nativePrint("\n PriorIter:     %10d  CurrentIter:   %10d", priorMembrIter, currentMembrIter);
+          //            }
+          //          }
           if ((leftSize != 0) && (rghtSize != 0)) {
             if (factorFlag == TRUE) {
               for (p=1; p <= responseClassCount; p++) {
@@ -461,27 +461,27 @@ char quantileRegrSplit (uint       treeID,
             sumLeftSqr = sumLeft / leftSize;
             sumRghtSqr  = sumRght / rghtSize;
             delta = (sumLeftSqr + sumRghtSqr) / nonMissMembrSize;
-            ${trace.token}          if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-            ${trace.token}            if (getTraceFlag(treeID) & ~TURN_OFF_TRACE) {
-            ${trace.token}              RF_nativePrint("\nClass proportions:       parent       left");
-            ${trace.token}              for (p = 1; p <= responseClassCount; p++) {
-            ${trace.token}                RF_nativePrint("\n          %10d %10d %10d", p, parentClassProp[p], leftClassProp[p]);
-            ${trace.token}              }
-            ${trace.token}            }
-            ${trace.token}          }
-            ${trace.token}          if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-            ${trace.token}            if (getTraceFlag(treeID) & TURN_OFF_TRACE) {
-            ${trace.token}              RF_nativePrint("\nVirtual (non-miss) Membership:  ");
-            ${trace.token}              for (k = 1; k <= nonMissMembrSize; k++) {
-            ${trace.token}                if (localSplitIndicator[ nonMissMembrIndx[indxx[k]] ] == LEFT) {
-            ${trace.token}                  RF_nativePrint("\n %10d %10d %12.4f %12.4f --> LEFT ", k, nonMissMembrIndx[indxx[k]], repMembrIndx[nonMissMembrIndx[indxx[k]]], observation[ repMembrIndx[nonMissMembrIndx[indxx[k]]] ], pseudoResponse[  nonMissMembrIndx[indxx[k]]  ]);
-            ${trace.token}                }
-            ${trace.token}                else {
-            ${trace.token}                  RF_nativePrint("\n %10d %10d %12.4f %12.4f --> RGHT ", k, nonMissMembrIndx[indxx[k]], repMembrIndx[nonMissMembrIndx[indxx[k]]], observation[ repMembrIndx[nonMissMembrIndx[indxx[k]]] ], pseudoResponse[  nonMissMembrIndx[indxx[k]]  ]);
-            ${trace.token}                }
-            ${trace.token}              }
-            ${trace.token}            }
-            ${trace.token}          }
+            //          if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
+            //            if (getTraceFlag(treeID) & ~TURN_OFF_TRACE) {
+            //              RF_nativePrint("\nClass proportions:       parent       left");
+            //              for (p = 1; p <= responseClassCount; p++) {
+            //                RF_nativePrint("\n          %10d %10d %10d", p, parentClassProp[p], leftClassProp[p]);
+            //              }
+            //            }
+            //          }
+            //          if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
+            //            if (getTraceFlag(treeID) & TURN_OFF_TRACE) {
+            //              RF_nativePrint("\nVirtual (non-miss) Membership:  ");
+            //              for (k = 1; k <= nonMissMembrSize; k++) {
+            //                if (localSplitIndicator[ nonMissMembrIndx[indxx[k]] ] == LEFT) {
+            //                  RF_nativePrint("\n %10d %10d %12.4f %12.4f --> LEFT ", k, nonMissMembrIndx[indxx[k]], repMembrIndx[nonMissMembrIndx[indxx[k]]], observation[ repMembrIndx[nonMissMembrIndx[indxx[k]]] ], pseudoResponse[  nonMissMembrIndx[indxx[k]]  ]);
+            //                }
+            //                else {
+            //                  RF_nativePrint("\n %10d %10d %12.4f %12.4f --> RGHT ", k, nonMissMembrIndx[indxx[k]], repMembrIndx[nonMissMembrIndx[indxx[k]]], observation[ repMembrIndx[nonMissMembrIndx[indxx[k]]] ], pseudoResponse[  nonMissMembrIndx[indxx[k]]  ]);
+            //                }
+            //              }
+            //            }
+            //          }
           }
           else {
             delta = RF_nativeNaN;
@@ -541,10 +541,10 @@ char quantileRegrSplit (uint       treeID,
                   multImpFlag,
                   FALSE);  
   result = summarizeSplitResult(splitInfoMax);
-  ${trace.token}  if (getTraceFlag(treeID) & SPLT_LOW_TRACE) {
-  ${trace.token}    RF_nativePrint("\nquantileRegrSplit(%10d) result:  %10d", treeID, result);
-  ${trace.token}    RF_nativePrint("\nquantileRegrSplit(%10d) EXIT ...\n", treeID);
-  ${trace.token}  }
+  //  if (getTraceFlag(treeID) & SPLT_LOW_TRACE) {
+  //    RF_nativePrint("\nquantileRegrSplit(%10d) result:  %10d", treeID, result);
+  //    RF_nativePrint("\nquantileRegrSplit(%10d) EXIT ...\n", treeID);
+  //  }
   return result;
 }
 double quantile7 (double *r, uint s, double p) {

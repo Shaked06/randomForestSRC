@@ -67,9 +67,9 @@ void stackDefinedOutputObjects(char      mode,
   char oobFlag, fullFlag;
   uint dimThree;
   uint i, j, k, m;
-  ${trace.token}  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  ${trace.token}    RF_nativePrint("\nstackDefinedOutputObjects() ENTRY ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+  //    RF_nativePrint("\nstackDefinedOutputObjects() ENTRY ...\n");
+  //  }
   xVimpSize      = 0;  
   dpthDimOne     = 0;  
   obsSize        = 0;  
@@ -384,20 +384,20 @@ void stackDefinedOutputObjects(char      mode,
     }
     break;
   }  
-  ${trace.token}  if (getTraceFlag(0) & SUMM_MED_TRACE) {
-  ${trace.token}    RF_nativePrint("\n TargetFactor:     ");
-  ${trace.token}    for (i = 1; i <= RF_rTargetFactorCount; i++) {
-  ${trace.token}      RF_nativePrint(" %10d ", RF_rTargetFactor[i]);
-  ${trace.token}    }
-  ${trace.token}    RF_nativePrint("\n TargetNonFactor:  ");
-  ${trace.token}    for (i = 1; i <= RF_rTargetNonFactorCount; i++) {
-  ${trace.token}      RF_nativePrint(" %10d ", RF_rTargetNonFactor[i]);
-  ${trace.token}    }
-  ${trace.token}    RF_nativePrint("\n");
-  ${trace.token}  }
-  ${trace.token}  if (getTraceFlag(0) & SUMM_MED_TRACE) {
-  ${trace.token}    RF_nativePrint("\nTotal Stack Count:     %20d", RF_stackCount);
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_MED_TRACE) {
+  //    RF_nativePrint("\n TargetFactor:     ");
+  //    for (i = 1; i <= RF_rTargetFactorCount; i++) {
+  //      RF_nativePrint(" %10d ", RF_rTargetFactor[i]);
+  //    }
+  //    RF_nativePrint("\n TargetNonFactor:  ");
+  //    for (i = 1; i <= RF_rTargetNonFactorCount; i++) {
+  //      RF_nativePrint(" %10d ", RF_rTargetNonFactor[i]);
+  //    }
+  //    RF_nativePrint("\n");
+  //  }
+  //  if (getTraceFlag(0) & SUMM_MED_TRACE) {
+  //    RF_nativePrint("\nTotal Stack Count:     %20d", RF_stackCount);
+  //  }
   if (RF_xMarginalSize > 0) {
     if (RF_xMarginalSize <= RF_xSize) {
       for (uint i = 1; i <= RF_xMarginalSize; i++) {
@@ -425,14 +425,14 @@ void stackDefinedOutputObjects(char      mode,
     for (i = 1; i <= RF_xMarginalSize; i++) {
       RF_xMarginalFlag[RF_xMarginal[i]] = TRUE;
     }
-    ${trace.token}  if (getTraceFlag(0) & SUMM_MED_TRACE) {
-    ${trace.token}    RF_nativePrint("\nMarginal Split Vector:  ");
-    ${trace.token}    RF_nativePrint("\n        index        x-var");
-    ${trace.token}    for (i = 1; i <= RF_xMarginalSize; i++) {
-    ${trace.token}      RF_nativePrint("\n %12d %12d", i, RF_xMarginal[i]);
-    ${trace.token}    }
-    ${trace.token}    RF_nativePrint("\n");
-    ${trace.token}  }
+    //  if (getTraceFlag(0) & SUMM_MED_TRACE) {
+    //    RF_nativePrint("\nMarginal Split Vector:  ");
+    //    RF_nativePrint("\n        index        x-var");
+    //    for (i = 1; i <= RF_xMarginalSize; i++) {
+    //      RF_nativePrint("\n %12d %12d", i, RF_xMarginal[i]);
+    //    }
+    //    RF_nativePrint("\n");
+    //  }
   }
   initProtect(RF_stackCount);
   stackAuxiliaryInfoList(&RF_snpAuxiliaryInfoList, RF_stackCount);
@@ -660,14 +660,14 @@ void stackDefinedOutputObjects(char      mode,
           }
         }
       }
-      ${trace.token}    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-      ${trace.token}      if (oobFlag == TRUE) {
-      ${trace.token}        RF_nativePrint("\nAllocating for OPT OENS complete. \n");
-      ${trace.token}      }
-      ${trace.token}      else {
-      ${trace.token}        RF_nativePrint("\nAllocating for OPT FENS complete. \n");
-      ${trace.token}      }
-      ${trace.token}    }
+      //    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+      //      if (oobFlag == TRUE) {
+      //        RF_nativePrint("\nAllocating for OPT OENS complete. \n");
+      //      }
+      //      else {
+      //        RF_nativePrint("\nAllocating for OPT FENS complete. \n");
+      //      }
+      //    }
       if (oobFlag == TRUE) {
         oobFlag = FALSE;
       }
@@ -711,9 +711,9 @@ void stackDefinedOutputObjects(char      mode,
         }
       }
     }
-    ${trace.token}    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-    ${trace.token}      RF_nativePrint("\nAllocating for OPT PERF complete. \n");
-    ${trace.token}    }
+    //    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+    //      RF_nativePrint("\nAllocating for OPT PERF complete. \n");
+    //    }
   }  
   if (RF_opt & OPT_VIMP) {
     RF_vimpMRTstd = NULL;
@@ -901,9 +901,9 @@ void stackDefinedOutputObjects(char      mode,
           RF_csvDen_ = (uint*) stackAndProtect(mode, &RF_nativeIndex, NATIVE_TYPE_INTEGER, RF_CSV_DEN, localSize, 0, RF_sexpString[RF_CSV_DEN], &RF_csvDENptr, 2, xVimpSize, obsSize);
         }
       }
-      ${trace.token}    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-      ${trace.token}      RF_nativePrint("\nAllocating for OPT VIMP complete. \n");
-      ${trace.token}    }
+      //    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+      //      RF_nativePrint("\nAllocating for OPT VIMP complete. \n");
+      //    }
     }
   }  
   if ((RF_vtry > 0) && (RF_vtryMode != RF_VTRY_NULL)) {
@@ -986,48 +986,48 @@ void stackDefinedOutputObjects(char      mode,
         }
       }
     }
-    ${trace.token}    if (getTraceFlag(0) & SUMM_MED_TRACE) {
-    ${trace.token}        RF_nativePrint("\nHoldout vtry: %10d ", RF_vtry);      
-    ${trace.token}        RF_nativePrint("\nHoldout Block Size: %10d ", RF_vtryBlockSize);
-    ${trace.token}        RF_nativePrint("\nHoldout mode: %10d ", RF_vtryMode);
-    ${trace.token}        RF_nativePrint("\n");
-    ${trace.token}        RF_nativePrint("\nHoldout Array: \n");
-    ${trace.token}        RF_nativePrint("   x-var -->> ");
-    ${trace.token}        for (j=1; j <= RF_xSize; j++) {
-    ${trace.token}          RF_nativePrint("%10d", j);
-    ${trace.token}        }
-    ${trace.token}        RF_nativePrint("\n");
-    ${trace.token}        for (i=1; i <= RF_ntree; i++) {
-    ${trace.token}          RF_nativePrint("treeID %6d ", i);
-    ${trace.token}          for (j=1; j <= RF_xSize; j++) {
-    ${trace.token}            RF_nativePrint("%10d", RF_vtryArray[i][j]);
-    ${trace.token}          }
-    ${trace.token}          RF_nativePrint("\n");
-    ${trace.token}        }
-    ${trace.token}        RF_nativePrint("\nHoldout Map: \n");
-    ${trace.token}        RF_nativePrint("   x-var -->> ");
-    ${trace.token}        for (j=1; j <= RF_xSize; j++) {
-    ${trace.token}          RF_nativePrint("%10d", j);
-    ${trace.token}        }
-    ${trace.token}        RF_nativePrint("\n");
-    ${trace.token}        for (i=1; i <= RF_ntree; i++) {
-    ${trace.token}          RF_nativePrint("treeID %6d ", i);
-    ${trace.token}          for (j=1; j <= RF_xSize; j++) {
-    ${trace.token}            RF_nativePrint("%10d", RF_holdoutMap[j][i]);
-    ${trace.token}          }
-    ${trace.token}          RF_nativePrint("\n");
-    ${trace.token}        }
-    ${trace.token}        RF_nativePrint("\nHoldout Block Serial Tree Index: [x-var][blockID]\n");
-    ${trace.token}        for (j=1; j <= RF_xSize; j++) {
-    ${trace.token}          for (k=1; k <= RF_holdBLKptr[j]; k++) {      
-    ${trace.token}            RF_nativePrint("\n[%10d][%10d]:  ", j, k);
-    ${trace.token}            for (m=1; m <= RF_vtryBlockSize; m++) {
-    ${trace.token}              RF_nativePrint(" %10d", RF_blockSerialTreeIndex[j][k][m]);
-    ${trace.token}            } 
-    ${trace.token}            RF_nativePrint("\n");
-    ${trace.token}          }
-    ${trace.token}        }
-    ${trace.token}    }
+    //    if (getTraceFlag(0) & SUMM_MED_TRACE) {
+    //        RF_nativePrint("\nHoldout vtry: %10d ", RF_vtry);      
+    //        RF_nativePrint("\nHoldout Block Size: %10d ", RF_vtryBlockSize);
+    //        RF_nativePrint("\nHoldout mode: %10d ", RF_vtryMode);
+    //        RF_nativePrint("\n");
+    //        RF_nativePrint("\nHoldout Array: \n");
+    //        RF_nativePrint("   x-var -->> ");
+    //        for (j=1; j <= RF_xSize; j++) {
+    //          RF_nativePrint("%10d", j);
+    //        }
+    //        RF_nativePrint("\n");
+    //        for (i=1; i <= RF_ntree; i++) {
+    //          RF_nativePrint("treeID %6d ", i);
+    //          for (j=1; j <= RF_xSize; j++) {
+    //            RF_nativePrint("%10d", RF_vtryArray[i][j]);
+    //          }
+    //          RF_nativePrint("\n");
+    //        }
+    //        RF_nativePrint("\nHoldout Map: \n");
+    //        RF_nativePrint("   x-var -->> ");
+    //        for (j=1; j <= RF_xSize; j++) {
+    //          RF_nativePrint("%10d", j);
+    //        }
+    //        RF_nativePrint("\n");
+    //        for (i=1; i <= RF_ntree; i++) {
+    //          RF_nativePrint("treeID %6d ", i);
+    //          for (j=1; j <= RF_xSize; j++) {
+    //            RF_nativePrint("%10d", RF_holdoutMap[j][i]);
+    //          }
+    //          RF_nativePrint("\n");
+    //        }
+    //        RF_nativePrint("\nHoldout Block Serial Tree Index: [x-var][blockID]\n");
+    //        for (j=1; j <= RF_xSize; j++) {
+    //          for (k=1; k <= RF_holdBLKptr[j]; k++) {      
+    //            RF_nativePrint("\n[%10d][%10d]:  ", j, k);
+    //            for (m=1; m <= RF_vtryBlockSize; m++) {
+    //              RF_nativePrint(" %10d", RF_blockSerialTreeIndex[j][k][m]);
+    //            } 
+    //            RF_nativePrint("\n");
+    //          }
+    //        }
+    //    }
     xVimpSize = RF_xSize;
     RF_holdEnsembleDen  = (double ***) new_vvector(1, xVimpSize, NRUTIL_DPTR2);
     for (j = 1; j <= xVimpSize; j++) {
@@ -1146,9 +1146,9 @@ void stackDefinedOutputObjects(char      mode,
         }
       }
     }
-    ${trace.token}    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-    ${trace.token}      RF_nativePrint("\nAllocating for OPT HOLD complete. \n");
-    ${trace.token}    }
+    //    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+    //      RF_nativePrint("\nAllocating for OPT HOLD complete. \n");
+    //    }
   }
   if (RF_opt & OPT_PROX) {
     localSize = ((ulong) (obsSize + 1) * obsSize) >> 1;
@@ -1168,9 +1168,9 @@ void stackDefinedOutputObjects(char      mode,
         RF_proximityDenPtr[i][j] = 0.0;
       }
     }
-    ${trace.token}    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-    ${trace.token}      RF_nativePrint("\nAllocating for OPT PROX complete. \n");
-    ${trace.token}    }
+    //    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+    //      RF_nativePrint("\nAllocating for OPT PROX complete. \n");
+    //    }
   }
   if (RF_optHigh & OPT_DIST) {
     localSize = ((ulong) (obsSize + 1) * obsSize) >> 1;
@@ -1190,9 +1190,9 @@ void stackDefinedOutputObjects(char      mode,
         RF_distanceDenPtr[i][j] = 0.0;
       }
     }
-    ${trace.token}    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-    ${trace.token}      RF_nativePrint("\nAllocating for OPT DIST complete. \n");
-    ${trace.token}    }
+    //    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+    //      RF_nativePrint("\nAllocating for OPT DIST complete. \n");
+    //    }
   }
   if (RF_optHigh & OPT_WGHT) {
     localSize = (ulong) obsSize * RF_observationSize;
@@ -1201,9 +1201,9 @@ void stackDefinedOutputObjects(char      mode,
     for (k = 1; k <= obsSize; k++) {
       RF_weightDenom[k] = 0.0;
     }
-    ${trace.token}    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-    ${trace.token}      RF_nativePrint("\nAllocating for OPT WGHT complete. \n");
-    ${trace.token}    }
+    //    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+    //      RF_nativePrint("\nAllocating for OPT WGHT complete. \n");
+    //    }
   }
   if (RF_opt & OPT_LEAF) {
     localSize = (ulong) RF_ntree;
@@ -1217,9 +1217,9 @@ void stackDefinedOutputObjects(char      mode,
         (*pRF_tLeafCount)[i] = RF_tLeafCount[i];
       }
     }
-    ${trace.token}    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-    ${trace.token}      RF_nativePrint("\nAllocating for OPT LEAF complete. \n");
-    ${trace.token}    }
+    //    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+    //      RF_nativePrint("\nAllocating for OPT LEAF complete. \n");
+    //    }
   }
   if (RF_opt & OPT_SEED) {
     localSize = (ulong) RF_ntree;
@@ -1240,9 +1240,9 @@ void stackDefinedOutputObjects(char      mode,
     RF_optLoGrow_ = (uint*) stackAndProtect(mode, &RF_nativeIndex, NATIVE_TYPE_INTEGER, RF_OPT_LO_GROW, 1, 0, RF_sexpString[RF_OPT_LO_GROW], NULL, 1, 1);
     RF_optLoGrow_ --;
     RF_optLoGrow_[1] = RF_optLoGrow = RF_opt;
-    ${trace.token}    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-    ${trace.token}      RF_nativePrint("\nAllocating for OPT SEED complete. \n");
-    ${trace.token}    }
+    //    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+    //      RF_nativePrint("\nAllocating for OPT SEED complete. \n");
+    //    }
   }
   if (RF_opt & OPT_MISS_OUT) {
     localSize = (ulong) (1 + rspSize + RF_xSize) * mRecordSize;
@@ -1268,9 +1268,9 @@ void stackDefinedOutputObjects(char      mode,
         (*pRF_sImputePredictorPtr)[j][i] = predictorPtr[j][mRecordIndex[i]];
       }
     }
-    ${trace.token}    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-    ${trace.token}      RF_nativePrint("\nAllocating for OPT MISS complete. \n");
-    ${trace.token}    }
+    //    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+    //      RF_nativePrint("\nAllocating for OPT MISS complete. \n");
+    //    }
   }
   if (RF_opt & (OPT_VARUSED_F | OPT_VARUSED_T)) {
     if (RF_opt & OPT_VARUSED_T) {
@@ -1288,9 +1288,9 @@ void stackDefinedOutputObjects(char      mode,
       }
     }
     (*pRF_varUsed) --;
-    ${trace.token}    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-    ${trace.token}      RF_nativePrint("\nAllocating for OPT VARUSED complete. \n");
-    ${trace.token}    }
+    //    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+    //      RF_nativePrint("\nAllocating for OPT VARUSED complete. \n");
+    //    }
   }
   if (RF_opt & (OPT_SPLDPTH_1 | OPT_SPLDPTH_2)) {
     if (RF_opt & OPT_SPLDPTH_1) {
@@ -1301,41 +1301,41 @@ void stackDefinedOutputObjects(char      mode,
     }
     localSize = (ulong) dpthDimOne * RF_xSize * RF_observationSize;
     *p_splitDepth = (double*) stackAndProtect(mode, &RF_nativeIndex, NATIVE_TYPE_NUMERIC, RF_DPTH_ID, localSize, 0, RF_sexpString[RF_DPTH_ID], &RF_splitDepthPtr, 3, dpthDimOne, RF_xSize, RF_observationSize);
-    ${trace.token}    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-    ${trace.token}      RF_nativePrint("\nAllocating for OPT SPLDPTH complete. \n");
-    ${trace.token}    }
+    //    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+    //      RF_nativePrint("\nAllocating for OPT SPLDPTH complete. \n");
+    //    }
   }
   if (RF_opt & OPT_CASE_DPTH) {
     localSize = (ulong) RF_ntree * obsSize;
     RF_CASE_DPTH_ = (uint*) stackAndProtect(mode, &RF_nativeIndex, NATIVE_TYPE_INTEGER, RF_CASE_DEPTH, localSize, 0, RF_sexpString[RF_CASE_DEPTH], &RF_CASE_DPTH_ptr, 2, RF_ntree, obsSize);
-    ${trace.token}    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-    ${trace.token}      RF_nativePrint("\nAllocating for OPT CASE_DPTH complete. \n");
-    ${trace.token}    }
+    //    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+    //      RF_nativePrint("\nAllocating for OPT CASE_DPTH complete. \n");
+    //    }
   }
   if (RF_optHigh & OPT_MEMB_PRUN) {
     localSize = (ulong) RF_ntree * obsSize;
     RF_PRUN_ID_ = (uint*) stackAndProtect(mode, &RF_nativeIndex, NATIVE_TYPE_INTEGER, RF_PRUN_ID, localSize, 0, RF_sexpString[RF_PRUN_ID], &RF_PRUN_ID_ptr, 2, RF_ntree, obsSize);
-    ${trace.token}    if (getTraceFlag(0) & SUMM_MED_TRACE) {
-    ${trace.token}      if (getTraceFlag(0) & !TURN_OFF_TRACE) {
-    ${trace.token}        RF_nativePrint("\nPRUN_ID aux alloc complete. \n");
-    ${trace.token}      }
-    ${trace.token}    }
+    //    if (getTraceFlag(0) & SUMM_MED_TRACE) {
+    //      if (getTraceFlag(0) & !TURN_OFF_TRACE) {
+    //        RF_nativePrint("\nPRUN_ID aux alloc complete. \n");
+    //      }
+    //    }
   }
   if (RF_optHigh & OPT_MEMB_USER) {
     localSize = (ulong) RF_ntree * obsSize;
     RF_MEMB_ID_ = (uint*) stackAndProtect(mode, &RF_nativeIndex, NATIVE_TYPE_INTEGER, RF_MEMB_ID, localSize, 0, RF_sexpString[RF_MEMB_ID], &RF_MEMB_ID_ptr, 2, RF_ntree, obsSize);
-    ${trace.token}    if (getTraceFlag(0) & SUMM_MED_TRACE) {
-    ${trace.token}      if (getTraceFlag(0) & !TURN_OFF_TRACE) {
-    ${trace.token}        RF_nativePrint("\nMEMB_ID aux alloc complete. \n");
-    ${trace.token}      }
-    ${trace.token}    }
+    //    if (getTraceFlag(0) & SUMM_MED_TRACE) {
+    //      if (getTraceFlag(0) & !TURN_OFF_TRACE) {
+    //        RF_nativePrint("\nMEMB_ID aux alloc complete. \n");
+    //      }
+    //    }
     localSize = (ulong) RF_ntree * RF_observationSize;
     RF_BOOT_CT_ = (uint*) stackAndProtect(mode, &RF_nativeIndex, NATIVE_TYPE_INTEGER, RF_BOOT_CT, localSize, 0, RF_sexpString[RF_BOOT_CT], &RF_BOOT_CT_ptr, 2, RF_ntree, RF_observationSize);
-    ${trace.token}    if (getTraceFlag(0) & SUMM_MED_TRACE) {
-    ${trace.token}      if (getTraceFlag(0) & !TURN_OFF_TRACE) {
-    ${trace.token}        RF_nativePrint("\nBOOT_CT aux alloc complete. \n");
-    ${trace.token}      }
-    ${trace.token}    }
+    //    if (getTraceFlag(0) & SUMM_MED_TRACE) {
+    //      if (getTraceFlag(0) & !TURN_OFF_TRACE) {
+    //        RF_nativePrint("\nBOOT_CT aux alloc complete. \n");
+    //      }
+    //    }
   }
   if (RF_optHigh & OPT_PART_PLOT) {
     RF_partSURVptr = NULL;
@@ -1427,61 +1427,61 @@ void stackDefinedOutputObjects(char      mode,
         RF_partial_REGR_ = (double*) stackAndProtect(mode, &RF_nativeIndex, NATIVE_TYPE_NUMERIC, RF_PART_RG, localSize, 0, RF_sexpString[RF_PART_RG], &RF_partREGRptr, 3, RF_partialLength, RF_rTargetNonFactorCount, RF_observationSize);
       }
     }
-    ${trace.token}  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-    ${trace.token}    RF_nativePrint("\n");
-    ${trace.token}    RF_nativePrint("\nPARTIAL Incoming Parameters:  ");
-    ${trace.token}    RF_nativePrint("\n  RF_partialLength:   %10d", RF_partialLength);
-    ${trace.token}    RF_nativePrint("\n  RF_partialXvar:     %10d", RF_partialXvar);
-    ${trace.token}    RF_nativePrint("\n  RF_partialLength2:  %10d", RF_partialLength2);
-    ${trace.token}    RF_nativePrint("\n");
-    ${trace.token}    RF_nativePrint("\nPrimary Partial Xvar Values:");
-    ${trace.token}    RF_nativePrint("\n        index        value \n");
-    ${trace.token}    for (i=1; i <= RF_partialLength; i++) {
-    ${trace.token}      RF_nativePrint(" %12d %12.4f \n", i, RF_partialValue[i]);
-    ${trace.token}    }
-    ${trace.token}    RF_nativePrint("\n");
-    ${trace.token}    RF_nativePrint("\nSecondary Partial Xvar Values:");
-    ${trace.token}    RF_nativePrint("\n         iter        index        value \n");
-    ${trace.token}    for (j=1; j <= RF_partialLength2; j++) {
-    ${trace.token}      RF_nativePrint(" %12d %12d %12.4f \n ", j, RF_partialXvar2[j], RF_partialValue[j]);
-    ${trace.token}    }
-    ${trace.token}    RF_nativePrint("\n");
-    ${trace.token}    RF_nativePrint("\nAllocating for OPT PART complete. \n");
-    ${trace.token}  }
+    //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+    //    RF_nativePrint("\n");
+    //    RF_nativePrint("\nPARTIAL Incoming Parameters:  ");
+    //    RF_nativePrint("\n  RF_partialLength:   %10d", RF_partialLength);
+    //    RF_nativePrint("\n  RF_partialXvar:     %10d", RF_partialXvar);
+    //    RF_nativePrint("\n  RF_partialLength2:  %10d", RF_partialLength2);
+    //    RF_nativePrint("\n");
+    //    RF_nativePrint("\nPrimary Partial Xvar Values:");
+    //    RF_nativePrint("\n        index        value \n");
+    //    for (i=1; i <= RF_partialLength; i++) {
+    //      RF_nativePrint(" %12d %12.4f \n", i, RF_partialValue[i]);
+    //    }
+    //    RF_nativePrint("\n");
+    //    RF_nativePrint("\nSecondary Partial Xvar Values:");
+    //    RF_nativePrint("\n         iter        index        value \n");
+    //    for (j=1; j <= RF_partialLength2; j++) {
+    //      RF_nativePrint(" %12d %12d %12.4f \n ", j, RF_partialXvar2[j], RF_partialValue[j]);
+    //    }
+    //    RF_nativePrint("\n");
+    //    RF_nativePrint("\nAllocating for OPT PART complete. \n");
+    //  }
   }  
   RF_cpuTime_ = (double*) stackAndProtect(mode, &RF_nativeIndex, NATIVE_TYPE_NUMERIC, RF_CPU_TIME, 1, 0, RF_sexpString[RF_CPU_TIME], NULL, 1, 1);
   RF_cpuTime_ --;
-  ${trace.token}  if (getTraceFlag(0) & SUMM_DEF_TRACE) {
-  ${trace.token}    RF_nativePrint("\nAllocation of defined output objects complete:  %10d", RF_nativeIndex);
-  ${trace.token}  }
-  ${trace.token}  if (getTraceFlag(0) & MISS_LOW_TRACE) {
-  ${trace.token}    
-  ${trace.token}    if (RF_opt & OPT_MISS_OUT) {
-  ${trace.token}      RF_nativePrint("\nImputed Data Output Object:  (at initialization)");
-  ${trace.token}      RF_nativePrint("\n       index   imputation -> \n");
-  ${trace.token}      RF_nativePrint(  "            ");
-  ${trace.token}      for (m=1; m <= rspSize; m++) {
-  ${trace.token}        RF_nativePrint(" %12d", -m);
-  ${trace.token}      }
-  ${trace.token}      for (k=1; k <= RF_xSize; k++) {
-  ${trace.token}        RF_nativePrint(" %12d", k);
-  ${trace.token}      }
-  ${trace.token}      RF_nativePrint("\n");
-  ${trace.token}      for (i = 1; i <= mRecordSize; i++) {
-  ${trace.token}        RF_nativePrint("%12d", mRecordIndex[i]);
-  ${trace.token}        for (m = 1; m <= rspSize; m++) {
-  ${trace.token}          RF_nativePrint(" %12.4f", (*pRF_sImputeResponsePtr)[m][i]);
-  ${trace.token}        }
-  ${trace.token}        for (k = 1; k <= RF_xSize; k++) {
-  ${trace.token}          RF_nativePrint(" %12.4f", (*pRF_sImputePredictorPtr)[k][i]);
-  ${trace.token}        }
-  ${trace.token}        RF_nativePrint("\n");
-  ${trace.token}      }
-  ${trace.token}    }
-  ${trace.token}  }
-  ${trace.token}  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  ${trace.token}    RF_nativePrint("\nstackDefinedOutputObjects() EXIT ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_DEF_TRACE) {
+  //    RF_nativePrint("\nAllocation of defined output objects complete:  %10d", RF_nativeIndex);
+  //  }
+  //  if (getTraceFlag(0) & MISS_LOW_TRACE) {
+  //    
+  //    if (RF_opt & OPT_MISS_OUT) {
+  //      RF_nativePrint("\nImputed Data Output Object:  (at initialization)");
+  //      RF_nativePrint("\n       index   imputation -> \n");
+  //      RF_nativePrint(  "            ");
+  //      for (m=1; m <= rspSize; m++) {
+  //        RF_nativePrint(" %12d", -m);
+  //      }
+  //      for (k=1; k <= RF_xSize; k++) {
+  //        RF_nativePrint(" %12d", k);
+  //      }
+  //      RF_nativePrint("\n");
+  //      for (i = 1; i <= mRecordSize; i++) {
+  //        RF_nativePrint("%12d", mRecordIndex[i]);
+  //        for (m = 1; m <= rspSize; m++) {
+  //          RF_nativePrint(" %12.4f", (*pRF_sImputeResponsePtr)[m][i]);
+  //        }
+  //        for (k = 1; k <= RF_xSize; k++) {
+  //          RF_nativePrint(" %12.4f", (*pRF_sImputePredictorPtr)[k][i]);
+  //        }
+  //        RF_nativePrint("\n");
+  //      }
+  //    }
+  //  }
+  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+  //    RF_nativePrint("\nstackDefinedOutputObjects() EXIT ...\n");
+  //  }
 }
 void unstackDefinedOutputObjects(char mode) {
   uint obsSize;
@@ -1502,9 +1502,9 @@ void unstackDefinedOutputObjects(char mode) {
   double ****ensembleCLSnum;
   double  ***ensembleRGRnum;
   uint i, j, k;
-  ${trace.token}  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  ${trace.token}    RF_nativePrint("\nunstackDefinedOutputObjects() ENTRY ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+  //    RF_nativePrint("\nunstackDefinedOutputObjects() ENTRY ...\n");
+  //  }
   obsSize        = 0;  
   xVimpSize      = 0;  
   rspSize        = 0;  
@@ -1632,14 +1632,14 @@ void unstackDefinedOutputObjects(char mode) {
           }
         }
       }
-      ${trace.token}    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-      ${trace.token}      if (oobFlag == TRUE) {
-      ${trace.token}        RF_nativePrint("\nDe-Allocating for OPT OENS complete. \n");
-      ${trace.token}      }
-      ${trace.token}      else {
-      ${trace.token}        RF_nativePrint("\nDe-Allocating for OPT FENS complete. \n");
-      ${trace.token}      }
-      ${trace.token}    }
+      //    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+      //      if (oobFlag == TRUE) {
+      //        RF_nativePrint("\nDe-Allocating for OPT OENS complete. \n");
+      //      }
+      //      else {
+      //        RF_nativePrint("\nDe-Allocating for OPT FENS complete. \n");
+      //      }
+      //    }
       if (oobFlag == TRUE) {
         oobFlag = FALSE;
       }
@@ -1658,9 +1658,9 @@ void unstackDefinedOutputObjects(char mode) {
       }
       if (RF_rTargetNonFactorCount > 0) {
       }
-      ${trace.token}    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-      ${trace.token}      RF_nativePrint("\nDe-Allocating for OPT PERF complete. \n");
-      ${trace.token}    }
+      //    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+      //      RF_nativePrint("\nDe-Allocating for OPT PERF complete. \n");
+      //    }
     }
   }  
   if (RF_opt & OPT_VIMP) {
@@ -1751,9 +1751,9 @@ void unstackDefinedOutputObjects(char mode) {
         }
         free_new_vvector(RF_vimpRGRblk, 1, RF_perfBlockCount, NRUTIL_DPTR2);
       }
-      ${trace.token}    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-      ${trace.token}      RF_nativePrint("\nDe-Allocating for OPT VIMP complete. \n");
-      ${trace.token}    }
+      //    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+      //      RF_nativePrint("\nDe-Allocating for OPT VIMP complete. \n");
+      //    }
     }
   }  
   if ((RF_vtry > 0) && (RF_vtryMode != RF_VTRY_NULL)) {
@@ -1811,42 +1811,42 @@ void unstackDefinedOutputObjects(char mode) {
         free_uivector(RF_holdoutMap[j], 1, RF_ntree);
       }
       free_new_vvector(RF_holdoutMap, 1, RF_xSize, NRUTIL_UPTR);
-    ${trace.token}    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-    ${trace.token}      RF_nativePrint("\nDe-Allocating for OPT HOLD complete. \n");
-    ${trace.token}    }
+    //    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+    //      RF_nativePrint("\nDe-Allocating for OPT HOLD complete. \n");
+    //    }
   }
   if (RF_opt & OPT_PROX) {
     localSize = ((obsSize + 1)  * obsSize) >> 1;
     free_dvector(RF_proximityDen, 1, localSize);
     free_new_vvector(RF_proximityPtr, 1, obsSize, NRUTIL_DPTR);
     free_new_vvector(RF_proximityDenPtr, 1, obsSize, NRUTIL_DPTR);
-    ${trace.token}    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-    ${trace.token}      RF_nativePrint("\nDe-allocating for OPT PROX complete. \n");
-    ${trace.token}    }
+    //    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+    //      RF_nativePrint("\nDe-allocating for OPT PROX complete. \n");
+    //    }
   }
   if (RF_optHigh & OPT_DIST) {
     localSize = ((obsSize + 1)  * obsSize) >> 1;
     free_dvector(RF_distanceDen, 1, localSize);
     free_new_vvector(RF_distancePtr, 1, obsSize, NRUTIL_DPTR);
     free_new_vvector(RF_distanceDenPtr, 1, obsSize, NRUTIL_DPTR);
-    ${trace.token}    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-    ${trace.token}      RF_nativePrint("\nDe-allocating for OPT DIST complete. \n");
-    ${trace.token}    }
+    //    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+    //      RF_nativePrint("\nDe-allocating for OPT DIST complete. \n");
+    //    }
   }
   if (RF_optHigh & OPT_WGHT) {
     free_uivector(RF_weightDenom, 1, obsSize);
-    ${trace.token}    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-    ${trace.token}      RF_nativePrint("\nDe-allocating for OPT WGHT complete. \n");
-    ${trace.token}    }
+    //    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+    //      RF_nativePrint("\nDe-allocating for OPT WGHT complete. \n");
+    //    }
   }
   if (RF_opt & OPT_MISS_OUT) {
     if (rspSize > 0) {
       free_new_vvector(RF_sImputeResponsePtr, 1, rspSize, NRUTIL_DPTR);
     }
     free_new_vvector(RF_sImputePredictorPtr, 1, RF_xSize, NRUTIL_DPTR);
-    ${trace.token}    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-    ${trace.token}      RF_nativePrint("\nDe-allocating for OPT MISS complete. \n");
-    ${trace.token}    }
+    //    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+    //      RF_nativePrint("\nDe-allocating for OPT MISS complete. \n");
+    //    }
   }
   if (RF_opt & (OPT_VARUSED_F | OPT_VARUSED_T)) {
     if (RF_opt & OPT_VARUSED_T) {
@@ -1854,9 +1854,9 @@ void unstackDefinedOutputObjects(char mode) {
     else {
       free_uimatrix(RF_varUsedPtr, 1, RF_ntree, 1, RF_xSize);
     }
-    ${trace.token}    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-    ${trace.token}      RF_nativePrint("\nDe-allocating for OPT VARUSED complete. \n");
-    ${trace.token}    }
+    //    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+    //      RF_nativePrint("\nDe-allocating for OPT VARUSED complete. \n");
+    //    }
   }
   if (RF_opt & (OPT_SPLDPTH_1 | OPT_SPLDPTH_2)) {
   }
@@ -1876,19 +1876,19 @@ void unstackDefinedOutputObjects(char mode) {
       if (RF_rTargetNonFactorCount > 0) {
       }
     }
-    ${trace.token}    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-    ${trace.token}      RF_nativePrint("\nDe-allocating for OPT PART complete. \n");
-    ${trace.token}    }
+    //    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+    //      RF_nativePrint("\nDe-allocating for OPT PART complete. \n");
+    //    }
   }
-  ${trace.token}  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  ${trace.token}    RF_nativePrint("\nunstackDefinedOutputObjects() EXIT ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+  //    RF_nativePrint("\nunstackDefinedOutputObjects() EXIT ...\n");
+  //  }
 }
 void stackForestObjectsPtrOnly(char mode) {
   uint i;
-  ${trace.token}  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  ${trace.token}    RF_nativePrint("\nstackForestObjectsPtrOnly() ENTRY ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+  //    RF_nativePrint("\nstackForestObjectsPtrOnly() ENTRY ...\n");
+  //  }
   if (RF_opt & OPT_TREE) {
     RF_totalNodeCount = 0;
     RF_totalMWCPCount = 0;
@@ -1927,15 +1927,15 @@ void stackForestObjectsPtrOnly(char mode) {
       }
     }  
   }  
-  ${trace.token}  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  ${trace.token}    RF_nativePrint("\nstackForestObjectsPtrOnly() EXIT ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+  //    RF_nativePrint("\nstackForestObjectsPtrOnly() EXIT ...\n");
+  //  }
 }
 void unstackForestObjectsPtrOnly(char mode) {
   uint treeID;
-  ${trace.token}  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  ${trace.token}    RF_nativePrint("\nunstackForestObjectsPtrOnly() ENTRY ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+  //    RF_nativePrint("\nunstackForestObjectsPtrOnly() ENTRY ...\n");
+  //  }
   if (RF_opt & OPT_TREE) {
     if (mode == RF_GROW) {
       for (treeID = 1; treeID <= RF_ntree; treeID++) {
@@ -1954,17 +1954,17 @@ void unstackForestObjectsPtrOnly(char mode) {
       free_new_vvector(RF_mwcpPT_ptr, 1,  RF_ntree, NRUTIL_UPTR2);
     }  
   }  
-  ${trace.token}  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  ${trace.token}    RF_nativePrint("\nununstackForestObjectsPtrOnly() EXIT ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+  //    RF_nativePrint("\nununstackForestObjectsPtrOnly() EXIT ...\n");
+  //  }
 }
 void stackTreeObjectsPtrOnly(char mode, uint treeID) {
   uint treeNodeCount;
   uint mwcpSize;
   uint treeMWCPCount;
-  ${trace.token}  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  ${trace.token}    RF_nativePrint("\nstackTreeObjectsPtrOnly() ENTRY ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+  //    RF_nativePrint("\nstackTreeObjectsPtrOnly() ENTRY ...\n");
+  //  }
   if (RF_opt & OPT_TREE) {
     if (mode == RF_GROW) {
       treeNodeCount = RF_nodeCount[treeID];
@@ -1989,17 +1989,17 @@ void stackTreeObjectsPtrOnly(char mode, uint treeID) {
       }
     }  
   }  
-  ${trace.token}  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  ${trace.token}    RF_nativePrint("\nstackTreeObjectsPtrOnly() EXIT ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+  //    RF_nativePrint("\nstackTreeObjectsPtrOnly() EXIT ...\n");
+  //  }
 }
 void unstackTreeObjectsPtrOnly(uint treeID) {
   uint treeNodeCount;
   uint mwcpSize;
   uint treeMWCPCount;
-  ${trace.token}  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  ${trace.token}    RF_nativePrint("\nunstackTreeObjectsPtrOnly() ENTRY ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+  //    RF_nativePrint("\nunstackTreeObjectsPtrOnly() ENTRY ...\n");
+  //  }
   treeNodeCount = RF_nodeCount[treeID];
   if (RF_xFactorCount > 0) {
     mwcpSize = (RF_xMaxFactorLevel >> (3 + ulog2(sizeof(uint)))) + ((RF_xMaxFactorLevel & (MAX_EXACT_LEVEL - 1)) ? 1 : 0);
@@ -2026,9 +2026,9 @@ void unstackTreeObjectsPtrOnly(uint treeID) {
   free_new_vvector(RF_fsrecID_ptr[treeID], 1, 1, NRUTIL_UPTR);
   free_new_vvector(RF_mwcpPT_ptr[treeID], 1, 1, NRUTIL_UPTR);
   free_uivector(RF_mwcpCT_ptr[treeID], 1, 1);
-  ${trace.token}  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  ${trace.token}    RF_nativePrint("\nunstackTreeObjectsPtrOnly() EXIT ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+  //    RF_nativePrint("\nunstackTreeObjectsPtrOnly() EXIT ...\n");
+  //  }
 }
 void stackForestObjectsOutput(char mode) {
   ulong  totalNodeCount;
@@ -2037,9 +2037,9 @@ void stackForestObjectsOutput(char mode) {
   char *adjStr;
   uint asciiLengthOfHexPortion;
   uint i, j;
-  ${trace.token}  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  ${trace.token}    RF_nativePrint("\nstackForestObjectsOutput() ENTRY ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+  //    RF_nativePrint("\nstackForestObjectsOutput() ENTRY ...\n");
+  //  }
   if (RF_opt & OPT_TREE) {
     j = 0;
     asciiLengthOfHexPortion = 0;
@@ -2097,22 +2097,22 @@ void stackForestObjectsOutput(char mode) {
     }  
     free_cvector(resultStr, 0, RF_SEXP_ASCII_SIZE + asciiLengthOfHexPortion + 1);
     free_cvector(adjStr, 0, asciiLengthOfHexPortion + 1);
-    ${trace.token}  if (getTraceFlag(0) & SUMM_DEF_TRACE) {
-    ${trace.token}    RF_nativePrint("\nAllocation of variable output objects complete, with running S.E.X.P. index at:  %10d", RF_nativeIndex);
-    ${trace.token}  }
+    //  if (getTraceFlag(0) & SUMM_DEF_TRACE) {
+    //    RF_nativePrint("\nAllocation of variable output objects complete, with running S.E.X.P. index at:  %10d", RF_nativeIndex);
+    //  }
   }  
-  ${trace.token}  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  ${trace.token}    RF_nativePrint("\nstackForestObjectsOutput() EXIT ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+  //    RF_nativePrint("\nstackForestObjectsOutput() EXIT ...\n");
+  //  }
 }
 void writeForestObjectsOutput(char mode) {
   ulong *totalMWCPCount;
   ulong offset;
   uint treeID;
   uint j;
-  ${trace.token}  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  ${trace.token}    RF_nativePrint("\nwriteForestObjectsOutput() ENTRY ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+  //    RF_nativePrint("\nwriteForestObjectsOutput() ENTRY ...\n");
+  //  }
   if (RF_opt & OPT_TREE) {
     if (mode == RF_GROW) {
       offset = 0;
@@ -2158,20 +2158,20 @@ void writeForestObjectsOutput(char mode) {
         RF_nativeExit();
       }
       free_ulvector(totalMWCPCount, 1, 1);
-      ${trace.token}  if (getTraceFlag(0) & SUMM_DEF_TRACE) {
-      ${trace.token}    RF_nativePrint("\nWriting of Forest Outputs Objects complete.");
-      ${trace.token}  }
+      //  if (getTraceFlag(0) & SUMM_DEF_TRACE) {
+      //    RF_nativePrint("\nWriting of Forest Outputs Objects complete.");
+      //  }
     }  
   }  
-  ${trace.token}  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  ${trace.token}    RF_nativePrint("\nwriteForestObjectsOutput() EXIT ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+  //    RF_nativePrint("\nwriteForestObjectsOutput() EXIT ...\n");
+  //  }
 }
 void stackForestObjectsAuxOnly(char mode) {
   uint i;
-  ${trace.token}  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  ${trace.token}    RF_nativePrint("\nstackForestObjectsAuxOnly() ENTRY ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+  //    RF_nativePrint("\nstackForestObjectsAuxOnly() ENTRY ...\n");
+  //  }
   if (mode != RF_GROW) {
     RF_parmID_   = (int **)    new_vvector(1, 1, NRUTIL_UPTR);
     RF_contPT_   = (double **) new_vvector(1, 1, NRUTIL_DPTR);
@@ -2195,14 +2195,14 @@ void stackForestObjectsAuxOnly(char mode) {
       RF_mwcpCT_[1][i] = 0;
     }
   }
-  ${trace.token}  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  ${trace.token}    RF_nativePrint("\nstackForestObjectsAuxOnly() EXIT ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+  //    RF_nativePrint("\nstackForestObjectsAuxOnly() EXIT ...\n");
+  //  }
 }
 void unstackForestObjectsAuxOnly(char mode) {
-  ${trace.token}  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  ${trace.token}    RF_nativePrint("\nunstackForestObjectsAuxOnly() ENTRY ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+  //    RF_nativePrint("\nunstackForestObjectsAuxOnly() ENTRY ...\n");
+  //  }
   if (mode == RF_GROW) {
     if (RF_opt & OPT_TREE) {
       free_new_vvector(RF_parmID_,  1, 1, NRUTIL_IPTR);
@@ -2226,9 +2226,9 @@ void unstackForestObjectsAuxOnly(char mode) {
     free_uivector(RF_mwcpCT_[1], 1, RF_ntree);
     free_new_vvector(RF_mwcpCT_, 1, 1, NRUTIL_UPTR);
   }
-  ${trace.token}  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  ${trace.token}    RF_nativePrint("\nunstackForestObjectsAuxOnly() EXIT ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+  //    RF_nativePrint("\nunstackForestObjectsAuxOnly() EXIT ...\n");
+  //  }
 }
 void verifyAndRegisterCustomSplitRules(void) {
   uint familyConstant;
@@ -2279,16 +2279,16 @@ void verifyAndRegisterCustomSplitRules(void) {
   }
 }
 void stackAuxiliaryInfoList(SNPAuxiliaryInfo ***list, uint count) {
-  ${trace.token}  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  ${trace.token}    RF_nativePrint("\nstackAuxiliaryInfoList() ENTRY ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+  //    RF_nativePrint("\nstackAuxiliaryInfoList() ENTRY ...\n");
+  //  }
    *list = new_vvector(0, count, NRUTIL_XPTR);
    for (uint i = 0; i <= count; i++) {
      (*list)[i] = NULL;
   }
-  ${trace.token}  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  ${trace.token}    RF_nativePrint("\nstackAuxiliaryInfoList() EXIT ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+  //    RF_nativePrint("\nstackAuxiliaryInfoList() EXIT ...\n");
+  //  }
  }
 void allocateAuxiliaryInfo(char   targetFlag,
                            char   type,
@@ -2302,9 +2302,9 @@ void allocateAuxiliaryInfo(char   targetFlag,
   uint dim1, dim2, dim3, dim4;
   ulong offset;
   uint stringLength;
-  ${trace.token}  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  ${trace.token}    RF_nativePrint("\nallocateAuxiliaryInfo() ENTRY ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+  //    RF_nativePrint("\nallocateAuxiliaryInfo() ENTRY ...\n");
+  //  }
   SNPAuxiliaryInfo *auxInfoPtr = (SNPAuxiliaryInfo*) gblock((size_t) sizeof(SNPAuxiliaryInfo));
   list[slot] = auxInfoPtr;
   auxInfoPtr -> slot = slot;
@@ -2319,21 +2319,21 @@ void allocateAuxiliaryInfo(char   targetFlag,
   for (uint i = 1; i <= dimSize; i++) {
     (auxInfoPtr -> dim)[i] = dim[i];
   }
-  ${trace.token}    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  ${trace.token}      RF_nativePrint("\nAllocating Auxiliary SNP Info:  ");
-  ${trace.token}      RF_nativePrint("\n       Memory:  %20x ", auxInfoPtr);
-  ${trace.token}      RF_nativePrint("\n      stacked:  %20d ", auxInfoPtr -> slot);
-  ${trace.token}      RF_nativePrint("\n         name:  %20s",  auxInfoPtr -> identity);
-  ${trace.token}      RF_nativePrint("\n         type:  %20d ", auxInfoPtr -> type);
-  ${trace.token}      RF_nativePrint("\n       snpPtr:  %20x ", auxInfoPtr -> snpPtr);
-  ${trace.token}      RF_nativePrint("\n  auxArrayPtr:  %20x ", auxInfoPtr -> auxiliaryArrayPtr);
-  ${trace.token}      RF_nativePrint("\n      dimSize:  %20d ", auxInfoPtr -> dimSize);
-  ${trace.token}      RF_nativePrint("\n        dim[]:            ");
-  ${trace.token}      for (uint i = 1; i <= auxInfoPtr -> dimSize; i++) {
-  ${trace.token}        RF_nativePrint("%10d ", (auxInfoPtr -> dim)[i]);
-  ${trace.token}      }
-  ${trace.token}      RF_nativePrint("\n");
-  ${trace.token}    }
+  //    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+  //      RF_nativePrint("\nAllocating Auxiliary SNP Info:  ");
+  //      RF_nativePrint("\n       Memory:  %20x ", auxInfoPtr);
+  //      RF_nativePrint("\n      stacked:  %20d ", auxInfoPtr -> slot);
+  //      RF_nativePrint("\n         name:  %20s",  auxInfoPtr -> identity);
+  //      RF_nativePrint("\n         type:  %20d ", auxInfoPtr -> type);
+  //      RF_nativePrint("\n       snpPtr:  %20x ", auxInfoPtr -> snpPtr);
+  //      RF_nativePrint("\n  auxArrayPtr:  %20x ", auxInfoPtr -> auxiliaryArrayPtr);
+  //      RF_nativePrint("\n      dimSize:  %20d ", auxInfoPtr -> dimSize);
+  //      RF_nativePrint("\n        dim[]:            ");
+  //      for (uint i = 1; i <= auxInfoPtr -> dimSize; i++) {
+  //        RF_nativePrint("%10d ", (auxInfoPtr -> dim)[i]);
+  //      }
+  //      RF_nativePrint("\n");
+  //    }
   switch(type) {
   case NATIVE_TYPE_NUMERIC:
     if (auxiliaryArrayPtr == NULL) {
@@ -2448,9 +2448,9 @@ void allocateAuxiliaryInfo(char   targetFlag,
     }
     break;
   }
-  ${trace.token}  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  ${trace.token}    RF_nativePrint("\nallocateAuxiliaryInfo() EXIT ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+  //    RF_nativePrint("\nallocateAuxiliaryInfo() EXIT ...\n");
+  //  }
 }
 uint getAuxDim(char flag, int *dim, uint iterIndex, uint slot) {
   uint result = 0;
@@ -2495,26 +2495,26 @@ void unstackAuxiliaryInfoAndList(char targetFlag, SNPAuxiliaryInfo **list, uint 
   uint  dimSize;
   uint  dim1, dim2, dim3;
   uint stringLength;
-  ${trace.token}  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  ${trace.token}    RF_nativePrint("\nunstackAuxiliaryInfoAndList() ENTRY ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+  //    RF_nativePrint("\nunstackAuxiliaryInfoAndList() ENTRY ...\n");
+  //  }
   for (uint ii = 0; ii < count; ii++) {
      auxInfoPtr = list[ii];
      if (auxInfoPtr != NULL) {
-       ${trace.token}    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-       ${trace.token}      RF_nativePrint("\nDe-allocating Auxiliary SNP Info:  ");
-       ${trace.token}      RF_nativePrint("\n      stacked:  %10d ", ii);
-       ${trace.token}      RF_nativePrint("\n         name:  %20s ", auxInfoPtr -> identity);
-       ${trace.token}      RF_nativePrint("\n         type:  %20d ", auxInfoPtr -> type);
-       ${trace.token}      RF_nativePrint("\n       snpPtr:  %20x ", auxInfoPtr -> snpPtr);
-       ${trace.token}      RF_nativePrint("\n  auxArrayPtr:  %20x ", auxInfoPtr -> auxiliaryArrayPtr);
-       ${trace.token}      RF_nativePrint("\n      dimSize:  %20d ", auxInfoPtr -> dimSize);
-       ${trace.token}      RF_nativePrint("\n        dim[]:            ");
-       ${trace.token}      for (uint i = 1; i <= auxInfoPtr -> dimSize; i++) {
-       ${trace.token}        RF_nativePrint("%10d ", (auxInfoPtr -> dim)[i]);
-       ${trace.token}      }
-       ${trace.token}      RF_nativePrint("\n");
-       ${trace.token}    }
+       //    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+       //      RF_nativePrint("\nDe-allocating Auxiliary SNP Info:  ");
+       //      RF_nativePrint("\n      stacked:  %10d ", ii);
+       //      RF_nativePrint("\n         name:  %20s ", auxInfoPtr -> identity);
+       //      RF_nativePrint("\n         type:  %20d ", auxInfoPtr -> type);
+       //      RF_nativePrint("\n       snpPtr:  %20x ", auxInfoPtr -> snpPtr);
+       //      RF_nativePrint("\n  auxArrayPtr:  %20x ", auxInfoPtr -> auxiliaryArrayPtr);
+       //      RF_nativePrint("\n      dimSize:  %20d ", auxInfoPtr -> dimSize);
+       //      RF_nativePrint("\n        dim[]:            ");
+       //      for (uint i = 1; i <= auxInfoPtr -> dimSize; i++) {
+       //        RF_nativePrint("%10d ", (auxInfoPtr -> dim)[i]);
+       //      }
+       //      RF_nativePrint("\n");
+       //    }
        dim = auxInfoPtr -> dim;
        dimSize = auxInfoPtr -> dimSize;
        stringLength = strlen(auxInfoPtr -> identity) + 1;
@@ -2590,7 +2590,7 @@ void unstackAuxiliaryInfoAndList(char targetFlag, SNPAuxiliaryInfo **list, uint 
      }
    }
   free_new_vvector(list, 0, count, NRUTIL_XPTR);
-  ${trace.token}  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  ${trace.token}    RF_nativePrint("\nunstackAuxiliaryInfoAndList() EXIT ...\n");
-  ${trace.token}  }
+  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
+  //    RF_nativePrint("\nunstackAuxiliaryInfoAndList() EXIT ...\n");
+  //  }
 }

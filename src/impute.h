@@ -69,7 +69,12 @@ void updateTimeIndexArray(uint    treeID,
                           char    naflag,
                           char    idFlag,
                           uint   *masterTimeIndex);
-void updateEventTypeSubsets(double *summaryStatus, 
+void updateEntryTimeIndexArray(uint    treeID,
+                               uint   *allMembrIndx,
+                               uint    allMembrSize,
+                               double *entryTime,
+                               uint   *masterEntryTimeIndex);
+void updateEventTypeSubsets(double *summaryStatus,
                             uint    mRecordSize,
                             int   **mpSign,
                             uint   *mRecordIndex,

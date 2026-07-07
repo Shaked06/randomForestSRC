@@ -50,7 +50,8 @@ SEXP rfsrcGrow(SEXP traceFlag,
                SEXP quantileInfo,
                SEXP qStarPlus,
                SEXP unoWeight,
-               SEXP numThreads) {
+               SEXP numThreads,
+               SEXP entryTime) {
   clock_t cpuTimeStart = clock();
   setUserTraceFlag(INTEGER(traceFlag)[0]);
   setNativeGlobalEnv(&RF_nativeIndex, &RF_stackCount);
@@ -231,6 +232,7 @@ SEXP rfsrcGrow(SEXP traceFlag,
   else {
     RF_unoWeight = NULL;
   }
+  RF_entryTimeIn          = REAL(entryTime);  RF_entryTimeIn--;
   RF_numThreads           = INTEGER(numThreads)[0];
   processDefaultGrow();
   rfsrc(RF_GROW, seedValue);
@@ -241,9 +243,9 @@ SEXP rfsrcGrow(SEXP traceFlag,
   free_2DObject(RF_observationIn, NATIVE_TYPE_NUMERIC, TRUE, RF_xSize, RF_observationSize);  
   free_2DObject(RF_qStarPlus, NATIVE_TYPE_NUMERIC, RF_qStarPlus != NULL, RF_ySize, RF_ySize);
   free_2DObject(RF_vtryArray, NATIVE_TYPE_INTEGER, RF_vtry > 0, RF_ntree, RF_xSize);  
-  ${stack.token}  if (getTraceFlag(0) & SUMM_DEF_TRACE) {
-  ${stack.token}    memoryCheck();
-  ${stack.token}  }
+  //  if (getTraceFlag(0) & SUMM_DEF_TRACE) {
+  //    memoryCheck();
+  //  }
   RF_cpuTime_[1] = (double) (clock() - cpuTimeStart) / CLOCKS_PER_SEC;
   R_ReleaseObject(RF_sexpVector[RF_OUTP_ID]);
   R_ReleaseObject(RF_sexpVector[RF_STRG_ID]);  
@@ -550,9 +552,9 @@ SEXP rfsrcPredict(SEXP traceFlag,
   free_2DObject(RF_bootstrapIn, NATIVE_TYPE_INTEGER, (RF_opt & OPT_BOOT_TYP1) && (RF_opt & OPT_BOOT_TYP2), RF_ntree, RF_subjSize);
   free_2DObject(RF_fresponseIn, NATIVE_TYPE_NUMERIC, RF_frSize > 0, RF_frSize, RF_fobservationSize);
   free_2DObject(RF_fobservationIn, NATIVE_TYPE_NUMERIC, RF_fobservationSize > 0 , RF_xSize, RF_fobservationSize);
-  ${stack.token}  if (getTraceFlag(0) & SUMM_DEF_TRACE) {
-  ${stack.token}    memoryCheck();
-  ${stack.token}  }
+  //  if (getTraceFlag(0) & SUMM_DEF_TRACE) {
+  //    memoryCheck();
+  //  }
   RF_cpuTime_[1] = (double) (clock() - cpuTimeStart) / CLOCKS_PER_SEC;
   R_ReleaseObject(RF_sexpVector[RF_OUTP_ID]);
   R_ReleaseObject(RF_sexpVector[RF_STRG_ID]);

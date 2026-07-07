@@ -11,7 +11,8 @@ rfsrc <- function(formula, data, ntree = 500,
                   ntime = 150, cause,
                   perf.type = NULL,
                   proximity = FALSE, distance = FALSE, forest.wt = FALSE,
-                  xvar.wt = NULL, yvar.wt = NULL, split.wt = NULL, case.wt = NULL, case.depth = FALSE, 
+                  xvar.wt = NULL, yvar.wt = NULL, split.wt = NULL, case.wt = NULL, case.depth = FALSE,
+                  entry.time = NULL,
                   forest = TRUE,
                   use.uno = TRUE, save.memory = FALSE,
                   var.used = c(FALSE, "all.trees", "by.tree"),
@@ -167,6 +168,23 @@ rfsrc <- function(formula, data, ntree = 500,
   ## initialize sample size, set mtry, samptype
   n <- nrow(xvar)
   n.xvar <- length(xvar.names)
+  ## Left-truncation (delayed entry) time: L_i, default zero for every subject.
+  ## entry.time = rep(0, n) reproduces the standard right-censored analysis exactly,
+  ## since the at-risk interval [0, time_i] collapses to the usual tail 1(time_i >= t).
+  if (is.null(entry.time)) {
+    entry.time <- rep(0, n)
+  }
+  else {
+    if (length(entry.time) != n || any(is.na(entry.time)) || any(entry.time < 0)) {
+      stop("Invalid entry.time vector specified: must be non-negative, non-missing, and of length nrow(data).")
+    }
+    if (grepl("surv", family) && length(yvar.names) == 2) {
+      observed.time <- data[, yvar.names[1]]
+      if (any(entry.time > observed.time, na.rm = TRUE)) {
+        stop("Invalid entry.time vector specified: entry.time must not exceed the observed follow-up time for any subject.")
+      }
+    }
+  }
   mtry <- get.grow.mtry(mtry, n.xvar, family, splitrule)
   samptype <- match.arg(samptype, c("swor", "swr"))
   ## Get the indvidual subject identifiers if they exist - do this *after* na.protocol
@@ -531,7 +549,8 @@ rfsrc <- function(formula, data, ntree = 500,
                                        if (is.null(prob.epsilon)) as.double(0) else as.double(prob.epsilon)),
                                   if (is.null(mahalanobis.sigma)) NULL else as.double(as.vector(mahalanobis.sigma)),
                                   if (is.null(uno.weights)) NULL else as.double(uno.weights$weight),
-                                  as.integer(get.rf.cores()))}, error = function(e) {
+                                  as.integer(get.rf.cores()),
+                                  as.double(entry.time))}, error = function(e) {
                                     print(e)
                                     NULL})
   ## Stop the C external timer.
