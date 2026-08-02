@@ -1,0 +1,228 @@
+---
+title: "Survival Simulation — Stage 1: Entry Times on Left-Truncated Data"
+subtitle: "One sample, two phases: entry zeroed, then entry supplied"
+author: "Shaked"
+date: "`r format(Sys.Date(), '%d/%m/%Y')`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    theme: readable
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo    = TRUE,
+  message = FALSE,
+  warning = FALSE,
+  cache   = TRUE,
+  fig.align = "center"
+)
+options(digits = 4)
+```
+
+# The experiment
+
+Every replication draws **one** left-truncated sample and runs it through
+**two phases**. The rows, the seed, and the hyperparameters are identical
+throughout; the only thing that changes between phases is the entry vector
+handed to the left-truncation arms.
+
+| | phase 1 — entry zeroed | phase 2 — entry supplied |
+|---|---|---|
+| **Cox, standard** | `Surv(time, status)` | unchanged |
+| **Cox, left-truncation** | `Surv(0, time, status)` | `Surv(entry, time, status)` |
+| **RSF, standard** | `rfsrc(...)` | unchanged |
+| **RSF, left-truncation** | `rfsrc(..., entry.time = 0)` | `rfsrc(..., entry.time = entry)` |
+
+The standard arms do not read the entry vector at all, so they are fitted once
+and carried into both phases unchanged. That makes them the reference line, and
+it means each replication needs six fits rather than eight.
+
+## What each phase is for
+
+**Phase 1** should produce four equal numbers. The counting-process Cox with
+entry 0 has the same risk sets as the standard fit, and `entry.time = 0` is
+documented to reproduce the standard forest bit for bit. Recovering that
+equality here confirms the left-truncation code paths are inert when there is no
+entry information to use, so anything that happens in phase 2 can be attributed
+to the entry times rather than to the modified code being different code.
+
+**Phase 2** supplies the observed entry times to the left-truncation arms. The
+standard arms are unchanged by construction, so the reported quantity is the
+within-arm shift from phase 1 to phase 2 on identical data.
+
+Both phases sit on left-truncated data. Truncation has already removed subjects
+who died before their entry time, and no argument to a model brings them back —
+phase 1 is not a truncation-free control, and is not presented as one.
+
+## Why the entry vector changes anything
+
+A subject retained by the filter was under observation only from $R_i$ onward.
+A fit that ignores entry places that subject in the risk set over $[0, R_i)$, a
+stretch in which it could not have contributed an observed event: the
+denominator $Y(t)$ is inflated at early times while the numerator is unchanged.
+
+Replacing $Y_i(t)=\mathbb 1(\tilde T_i \ge t)$ with
+$Y_i^{LT}(t)=\mathbb 1(R_i \le t \le \tilde T_i)$ removes those subject-time
+contributions. Since $R \perp (\tilde T, X)$ in this DGP, the delayed-entry risk
+set at each $t$ is a random subsample of the population risk set at $t$ — the
+retained sample is missing people, but what remains is representative of who was
+at risk at each time.
+
+## Scoring
+
+All arms are scored against the analytic truth
+$$S(t\mid X)=\exp\!\big(-A_0 t^2 e^{\beta^\top X}\big),$$
+which truncation leaves unchanged — it is a sampling mechanism, not a change to
+the model. Error is computed at every grid point and the headline figure is the
+mean of that curve, so the summary number and the curve cannot disagree.
+
+Test covariates are drawn from the **population** distribution rather than the
+retained one, since the estimand is the conditional $S(t\mid x)$.
+
+# Setup
+
+This chunk is deliberately **not** cached. Caching it would restore the objects
+it creates while silently skipping its `library()` calls, leaving the session
+with the engine's functions but none of the packages they need.
+
+```{r libs, cache=FALSE}
+source("../_common/sim_engine.R")
+source("../_common/sim_report.R")
+source("dgp.R")
+
+stopifnot("entry.time" %in% names(formals(rfsrc)))
+cat(sprintf("randomForestSRC %s loaded from %s\n",
+            packageVersion("randomForestSRC"), path.package("randomForestSRC")))
+```
+
+The `stopifnot` guards the most likely silent failure: running against the CRAN
+build, where `entry.time` would be absorbed by `...` and both phases would come
+out identical for a reason that has nothing to do with the data.
+
+```{r install, eval=FALSE}
+if (!requireNamespace("remotes", quietly = TRUE)) install.packages("remotes")
+remotes::install_github("Shaked06/randomForestSRC@ltrc-rsf")
+```
+
+```{r load-setup, cache=FALSE}
+setup <- readRDS("setup.rds")
+stopifnot(!is.null(setup$ltrc))
+
+M_TEST <- 200L      # test subjects per replication
+N_REP  <- 100L      # set to 5 for a fast pass, then 100
+
+str(setup[c("rsf_hp", "ltrc")])
+cat(sprintf("\ntime grid: M=%d, range (%.3f, %.3f]\n",
+            length(setup$time_grid), min(setup$time_grid), max(setup$time_grid)))
+```
+
+Prediction is cheap next to fitting, so `M_TEST` is set well above the number
+needed to run: it reduces per-replication noise at almost no cost in wall clock.
+
+# The replication loop
+
+Replications are independent and each seeds itself from `rep_id`, so the
+parallel run reproduces a serial one exactly. Workers source the engine and
+`dgp.R` rather than receiving exported closures, so each sees what this document
+sees. Six fits per replication, of which three are forests.
+
+`N_REP` and `M_TEST` are named in `cache.extra` on purpose. knitr does not track
+dependencies across chunks by default, so without this a cached loop would
+survive a change to `N_REP` and quietly report the previous run's replication
+count.
+
+```{r loop, cache.extra = list(N_REP, M_TEST, tools::md5sum(c("setup.rds", "dgp.R", "../_common/sim_engine.R")))}
+res <- run_experiment(
+  n_rep   = N_REP,
+  setup   = setup,
+  sim     = sim,
+  sources = c("../_common/sim_engine.R", "dgp.R"),
+  m_test  = M_TEST
+)
+
+saveRDS(res, "results_phases.rds")
+```
+
+# Results
+
+## Phase 1 — are the left-truncation arms inert?
+
+```{r noop, cache=FALSE}
+noop_table(res)
+```
+
+Both gaps are the largest discrepancy observed across all replications and all
+grid points, so a zero here is a statement about every fit in the run.
+
+The reporting chunks are uncached. They cost milliseconds, and caching them
+would let a wording change in `sim_report.R` leave stale labels on screen.
+
+## The two phases
+
+```{r phase-table, cache=FALSE}
+phase_table(res)
+```
+
+Each row is one arm measured in both phases on identical data. The standard rows
+carry a shift of exactly zero because those fits never see the entry vector; they
+are shown in both columns as the reference line.
+
+## Within-arm shift
+
+Both phases use the same rows and the same seed, so the phase-1 to phase-2
+difference is paired within a replication.
+
+```{r paired, cache=FALSE}
+paired_shift(res)
+```
+
+`n_moved_down` counts replications in which the phase-2 score is the smaller of
+the two.
+
+```{r plot-box, cache=FALSE, fig.width=7.5, fig.height=4.5}
+plot_phases_box(res)
+```
+
+## Across the time axis
+
+A single summary figure averages over the whole grid and cannot show where along
+the time axis the arms separate. The curve below reports the score at each grid
+point, averaged over replications.
+
+```{r plot-time, cache=FALSE, fig.width=8, fig.height=5}
+invisible(plot_score_by_time(res))
+```
+
+Early grid points are worth reading carefully. Few subjects have entered there,
+so the delayed-entry risk set is thin, and below the smallest entry time the
+hazard is not identified from the data at all. Here $c_L = 0$, so the smallest
+entry time among 5000 subjects sits very close to zero and the grid is covered
+in practice, but the earliest points remain the least well determined.
+
+# What we have
+
+`results_phases.rds` holds, for `r N_REP` replications: the score for eight
+arm-phase combinations, the score-versus-time curve for each, and the phase-1
+no-op diagnostics.
+
+The measured quantity is the within-arm shift between the two phases — same
+rows, same seed, same hyperparameters, same binary, with the entry vector as the
+only difference. The Cox arm applies the same correction through `survival`'s
+counting-process code, which is an independent implementation of delayed entry.
+
+Scoring against the analytic truth rather than out-of-bag error avoids the
+delayed-entry C-index and Brier score, which are not implemented in the fork.
+
+## Reusing this format
+
+The machinery lives in `../_common/sim_engine.R`: estimators, scoring, the two
+phases, the parallel loop, and the tables and plots above. A new simulation
+supplies a `dgp.R` defining `sim` with `draw_train`, `draw_test`, and `truth`,
+then reuses this document's structure unchanged. Datasets with no analytic truth
+can pass a different scorer to `run_experiment`; a scorer needs a `label` and a
+`by_time(Shat, ctx)` function.

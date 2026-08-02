@@ -1,0 +1,306 @@
+---
+title: "Survival Simulation 02 — Stage 0: Setup (DGP, Calibration, Tuning)"
+subtitle: "Gompertz-shape hazard DGP (paper Sec 7.1) with left truncation"
+author: "Shaked"
+date: "`r format(Sys.Date(), '%d/%m/%Y')`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    theme: readable
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo    = TRUE,
+  message = FALSE,
+  warning = FALSE,
+  cache   = TRUE,
+  fig.align = "center"
+)
+options(digits = 4)
+```
+
+# Background
+
+This is the second simulation in this project, reusing the format established
+by simulation 01 (`../01_cox_random_forerst_no_lt/`) — same two-stage
+structure, same shared engine (`../_common/sim_engine.R`), same reporting
+(`../_common/sim_report.R`) — but on a different data-generating process.
+
+The DGP is taken from Section 7.1 of "Flexible Deep Neural Networks for
+Partially Linear Survival Data" (`../../papers/Survival-Deep2512.10570v2.pdf`).
+That paper compares two deep-learning estimators; we take only their DGP, and
+fit the same Cox and RSF arms used in simulation 01. Left truncation is not
+part of the paper — it is added here the same way simulation 01 adds it to its
+own DGP.
+
+## Why a second DGP
+
+Simulation 01's DGP is an exactly-Cox proportional-hazards model, so the Cox
+arms are correctly specified there. Here the hazard is
+$$h(t\mid X,Z) = 0.1\exp\{a(X)\,t + \theta_0^\top Z\}, \qquad a(X)=0.1+f(X)^2,$$
+with $f(X) = 0.2(X_1+X_2) + 0.5X_1X_2 + X_3^2$ nonlinear in the nuisance
+covariates $X=(X_1,X_2,X_3)$, and $Z=(Z_1,Z_2)$ the primary covariates with
+$\theta_0=(2,-1)$. Because $a(X)$ multiplies $t$ inside the exponent, the
+hazard's *shape* over time depends on $X$, not just its level — this is not
+proportional hazards jointly in $(X,Z)$, so a Cox fit here is misspecified for
+the nuisance effect by construction. Running the same left-truncation question
+on a structurally different DGP is the point of a second simulation.
+
+```{r libs}
+source("dgp.R")
+suppressPackageStartupMessages({
+  library(survival)
+  library(randomForestSRC)
+})
+```
+
+The cumulative hazard has closed form,
+$$H(t\mid X,Z) = 0.1\,e^{\theta_0^\top Z}\,\frac{e^{a(X)t}-1}{a(X)},\qquad
+S(t\mid X,Z)=\exp(-H(t\mid X,Z)),$$
+and inverse-transform sampling follows the same closed form used in
+simulation 01: with $E\sim\mathrm{Exp}(1)$,
+$$\tilde T = \frac{1}{a(X)}\log\!\Big(1+\frac{a(X)E}{0.1\,e^{\theta_0^\top Z}}\Big).$$
+
+## A discrepancy in the paper's censoring spec
+
+Section 7.1 states an independent exponential censoring time "with mean
+$1/30$", together with administrative censoring at the study horizon
+$\tau=30$, "resulting censoring rate ... approximately 30%." Neither literal
+reading of "mean $1/30$" reproduces 30%: simulated at $n=200{,}000$,
+mean $=1/30$ gives $\approx99\%$ censored, and rate $=1/30$ (mean $=30$) gives
+$\approx15\%$. We therefore treat **30% as the design target** and calibrate
+the censoring parameter to it by root-find, the same approach simulation 01
+uses for its own censoring rate — deterministic, no sampling noise, because
+censoring is independent of the event time.
+
+Outputs of this stage, all written to `setup.rds`:
+
+1. $\theta$ — right-censoring parameter for the untruncated reference DGP,
+   calibrated to 30% censoring (with administrative censoring at $\tau=30$
+   folded into the calibration).
+2. $c_U$ — entry-window upper bound, calibrated so that $\approx\tfrac13$ of
+   the population is truncated away (same target as simulation 01, added here
+   rather than in the paper).
+3. $\theta_{LT}$ — censoring parameter under truncation, calibrated to 30%
+   among the *retained* subjects.
+4. Time grid.
+5. RSF hyperparameters, tuned by out-of-bag error.
+
+```{r params}
+MASTER_SEED   <- 20240815L   # distinct from simulation 01's seed
+
+N_PILOT       <- 50000L
+TARGET_CENSOR <- 0.30        # this paper's target, per the note above
+TARGET_TRUNC  <- 1/3         # same target as simulation 01
+M_TIMES       <- 100L
+TIME_QUANTILE <- 0.90
+
+N_POOL        <- 50000L
+N_LTRC        <- 5000L       # matches simulation 01's run size
+C_L           <- 0
+```
+
+# Censoring parameter $\theta$ (untruncated reference)
+
+```{r theta}
+set.seed(MASTER_SEED)
+
+XZ_pilot     <- sample_XZ(N_PILOT)
+Ttilde_pilot <- sample_event_times(XZ_pilot$X, XZ_pilot$Z)
+
+theta_hat <- uniroot(
+  f        = function(th) censoring_rate(th, Ttilde_pilot) - TARGET_CENSOR,
+  interval = c(1e-3, 10 * max(Ttilde_pilot)),
+  tol      = 1e-6
+)$root
+
+chk_df     <- make_survival_sample(N_PILOT, theta_hat)
+emp_censor <- mean(chk_df$status == 0)
+
+cat(sprintf("theta = %.4f\n  censoring  analytic = %.3f | empirical = %.3f\n",
+            theta_hat, censoring_rate(theta_hat, Ttilde_pilot), emp_censor))
+cat(sprintf("  P(T~ > tau=%d) = %.4f  (administrative censoring is a minor contributor)\n",
+            TAU, mean(Ttilde_pilot > TAU)))
+```
+
+# Entry window $c_U$
+
+```{r cU}
+cU_hat <- uniroot(
+  f        = function(cu) trunc_rate(cu, Ttilde_pilot, C_L) - TARGET_TRUNC,
+  interval = c(C_L + 1e-6, 50 * max(Ttilde_pilot)),
+  tol      = 1e-6
+)$root
+
+cat(sprintf("cU = %.4f  (entry window: Unif(%.2f, %.2f);  cU / tau = %.3f)\n",
+            cU_hat, C_L, cU_hat, cU_hat / TAU))
+cat(sprintf("  truncated away  analytic = %.3f  (target %.3f)\n",
+            trunc_rate(cU_hat, Ttilde_pilot, C_L), TARGET_TRUNC))
+```
+
+$c_U \ll \tau$, so entry times fall well inside the study horizon and
+administrative censoring plays essentially no role in the truncation
+mechanism.
+
+# Censoring under truncation, $\theta_{LT}$
+
+```{r theta-lt}
+set.seed(MASTER_SEED + 2L)
+
+R_pilot  <- runif(N_PILOT, C_L, cU_hat)
+kept     <- R_pilot <= Ttilde_pilot
+Tk_pilot <- Ttilde_pilot[kept]
+Rk_pilot <- R_pilot[kept]
+
+theta_lt_hat <- uniroot(
+  f        = function(th) censoring_rate_lt(th, Tk_pilot, Rk_pilot) - TARGET_CENSOR,
+  interval = c(1e-3, 50 * max(Tk_pilot)),
+  tol      = 1e-6
+)$root
+
+cat(sprintf("retained %d / %d pool subjects (%.1f%%)\n",
+            sum(kept), N_PILOT, 100 * mean(kept)))
+cat(sprintf("theta_LT = %.4f\n  censoring (retained)  analytic = %.3f\n",
+            theta_lt_hat, censoring_rate_lt(theta_lt_hat, Tk_pilot, Rk_pilot)))
+```
+
+# The left-truncated pilot sample
+
+```{r ltrc-pilot}
+set.seed(MASTER_SEED + 3L)
+df_pilot <- make_ltrc_sample(N_LTRC, N_POOL, theta_lt_hat, cU_hat, C_L)
+
+cat(sprintf("LTRC pilot: n=%d,  censoring=%.3f,  entry <= time on all rows: %s\n",
+            nrow(df_pilot), mean(df_pilot$status == 0),
+            all(df_pilot$entry <= df_pilot$time)))
+```
+
+# Time grid
+
+As in simulation 01, taken from the **left-truncated** pilot — the regime
+Stage 1 fits — up to the 90th percentile of observed follow-up.
+
+```{r grid}
+upper     <- as.numeric(quantile(df_pilot$time, TIME_QUANTILE))
+time_grid <- seq(0, upper, length.out = M_TIMES + 1L)[-1L]
+
+cat(sprintf("time grid: M=%d, range (%.3f, %.3f]\n",
+            length(time_grid), min(time_grid), max(time_grid)))
+cat(sprintf("cU = %.3f sits at grid position %d of %d\n",
+            cU_hat, sum(time_grid < cU_hat) + 1L, length(time_grid)))
+```
+
+# RSF hyperparameters
+
+Same two choices as simulation 01: tuning runs on the left-truncated pilot
+(the regime Stage 1 fits), and is entry-agnostic (`tune()`'s internal holdout
+does not subset extra arguments alongside it, and hyperparameters should not
+be selected using information only two of the four Stage 1 arms receive).
+
+```{r rsf-tune}
+xn <- c("x1", "x2", "x3", "z1", "z2")
+
+rsf_tune <- tune(
+  Surv(time, status) ~ .,
+  data      = df_pilot[, c(xn, "time", "status")],
+  ntree.try = 300,
+  do.best   = FALSE,
+  seed      = MASTER_SEED
+)
+
+rsf_hp <- list(
+  ntree    = 1000L,
+  mtry     = as.integer(rsf_tune$optimal["mtry"]),
+  nodesize = as.integer(rsf_tune$optimal["nodesize"])
+)
+
+cat(sprintf("RSF tuned (OOB): mtry=%d, nodesize=%d, ntree=%d\n",
+            rsf_hp$mtry, rsf_hp$nodesize, rsf_hp$ntree))
+```
+
+# Sanity checks
+
+**(a) Inverse-transform formula.** If sampling is correct then
+$0.1\,e^{\theta_0^\top Z}(e^{a(X)\tilde T}-1)/a(X) \sim \mathrm{Exp}(1)$, so
+mean and variance should both be $\approx 1$.
+
+```{r check-inv}
+aX_chk <- a_shape(XZ_pilot$X)
+lp_chk <- as.vector(XZ_pilot$Z %*% THETA0)
+exp1_chk <- BASE_RATE * exp(lp_chk) * (exp(aX_chk * Ttilde_pilot) - 1) / aX_chk
+cat(sprintf("Exp(1) check: mean=%.3f (~1), var=%.3f (~1)\n",
+            mean(exp1_chk), var(exp1_chk)))
+```
+
+**(b) Monotonicity of $S$.**
+
+```{r check-surv}
+x1row <- cbind(XZ_pilot$X[1, , drop = FALSE], XZ_pilot$Z[1, , drop = FALSE])
+colnames(x1row) <- xn
+s_chk <- as.vector(true_survival_matrix(x1row, time_grid))
+cat(sprintf("S range [%.3f, %.3f]; monotone decreasing: %s\n",
+            min(s_chk), max(s_chk), all(diff(s_chk) <= 0)))
+```
+
+**(c) Selection is present.** Retained subjects survived to their own entry
+time. Unlike simulation 01, survival here depends on both the nuisance shape
+$a(X)$ and the linear term $\theta_0^\top Z$, so we check the $Z$-linear part
+for a shift; a full check would require conditioning on $X$ as well, which is
+not attempted here.
+
+```{r check-selection}
+lp_pool <- as.vector(XZ_pilot$Z %*% THETA0)
+cat(sprintf("mean theta0'Z   pool = %+.4f | retained = %+.4f\n",
+            mean(lp_pool), mean(lp_pool[kept])))
+```
+
+As in simulation 01, this shift is not itself the bias mechanism — the
+estimand is the conditional $S(t\mid x,z)$, and Stage 1 evaluates on
+covariates drawn from the population distribution. What matters is the risk
+set: under $R\perp(\tilde T,X,Z)$ the delayed-entry risk set at each $t$ is a
+random subsample of the population risk set at $t$.
+
+**(d) Pool headroom.**
+
+```{r check-pool}
+cat(sprintf("need %d, expect ~%.0f retained from a pool of %d\n",
+            N_LTRC, (1 - TARGET_TRUNC) * N_POOL, N_POOL))
+```
+
+# Saving
+
+```{r save}
+setup <- list(
+  theta0    = THETA0,
+  tau       = TAU,
+  theta     = theta_hat,
+  rsf_hp    = rsf_hp,
+  time_grid = time_grid,
+  ltrc      = list(
+    cL       = C_L,
+    cU       = cU_hat,
+    theta_lt = theta_lt_hat,
+    n_pool   = N_POOL,
+    n_ltrc   = N_LTRC
+  ),
+  meta      = list(
+    n_pilot       = N_PILOT,
+    target_censor = TARGET_CENSOR,
+    emp_censor    = emp_censor,
+    target_trunc  = TARGET_TRUNC,
+    emp_retained  = mean(kept),
+    emp_censor_lt = mean(df_pilot$status == 0),
+    grid_source   = "ltrc",
+    tuned_on      = "ltrc",
+    master_seed   = MASTER_SEED,
+    source        = "Survival-Deep2512.10570v2.pdf, Section 7.1"
+  )
+)
+saveRDS(setup, "setup.rds")
+cat("setup.rds saved — ready for Stage 1.\n")
+```

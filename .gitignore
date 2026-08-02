@@ -3,3 +3,18 @@ src/*.so
 src/*.dll
 src/symbols.rds
 *.Rcheck/
+
+# knitr build output (regenerable from the .Rmd source)
+*_cache/
+*_files/
+*.html
+
+# simulation outputs (regenerable via stage0/stage1 .Rmd; package data ships
+# as data/*.rda, never *.rds, so this only ever matches generated objects)
+*.rds
+
+# R session / editor cruft
+.Rhistory
+.RData
+.Rproj.user/
+.DS_Store

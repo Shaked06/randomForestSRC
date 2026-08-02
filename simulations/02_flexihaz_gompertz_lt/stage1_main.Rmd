@@ -1,0 +1,181 @@
+---
+title: "Survival Simulation 02 — Stage 1: Entry Times Under a Gompertz-Shape Hazard"
+subtitle: "One sample, two phases: entry zeroed, then entry supplied"
+author: "Shaked"
+date: "`r format(Sys.Date(), '%d/%m/%Y')`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    theme: readable
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo    = TRUE,
+  message = FALSE,
+  warning = FALSE,
+  cache   = TRUE,
+  fig.align = "center"
+)
+options(digits = 4)
+```
+
+# The experiment
+
+Same design as simulation 01's Stage 1, run against a different DGP. Every
+replication draws **one** left-truncated sample and runs it through **two
+phases**. The rows, the seed, and the hyperparameters are identical
+throughout; the only thing that changes between phases is the entry vector
+handed to the entry-aware arms.
+
+| | phase 1 — entry zeroed | phase 2 — entry supplied |
+|---|---|---|
+| **Cox, standard** | `Surv(time, status)` | unchanged |
+| **Cox, left-truncation** | `Surv(0, time, status)` | `Surv(entry, time, status)` |
+| **RSF, standard** | `rfsrc(...)` | unchanged |
+| **RSF, left-truncation** | `rfsrc(..., entry.time = 0)` | `rfsrc(..., entry.time = entry)` |
+
+The standard arms do not read the entry vector at all, so they are fitted once
+and carried into both phases unchanged.
+
+## What is different from simulation 01
+
+The DGP is taken from Section 7.1 of "Flexible Deep Neural Networks for
+Partially Linear Survival Data" (`../../papers/Survival-Deep2512.10570v2.pdf`),
+not reproduced here — see `dgp.R` and simulation 02's Stage 0 for the model
+and the closed-form truth. The hazard is
+$$h(t\mid X,Z) = 0.1\exp\{a(X)\,t + \theta_0^\top Z\}, \qquad a(X)=0.1+f(X)^2,$$
+with the nonlinear nuisance term $f(X)$ modifying the hazard's shape over time
+rather than acting as a simple multiplicative effect. **This is not
+proportional hazards jointly in $(X,Z)$**, so unlike simulation 01 — an
+exactly-Cox DGP — the Cox arms here are misspecified for the nuisance effect
+by construction. Both Cox and RSF are fit on all five covariates
+($X_1,X_2,X_3,Z_1,Z_2$) without exploiting the nuisance/primary split; that
+split matters for the paper's own estimators, not for the Cox/RSF comparison
+run here.
+
+Left truncation is not part of the paper. It is added here exactly as in
+simulation 01: entry times $R\sim\mathrm{Unif}(c_L,c_U)$ independent of
+$(\tilde T,X,Z)$, retention filtered on the true event time, and censoring
+residual after entry so that `entry <= time` holds on every row.
+
+## What each phase is for
+
+**Phase 1** should produce four equal numbers, for the same reason as
+simulation 01: the counting-process Cox with entry 0 has the same risk sets as
+the standard fit, and `entry.time = 0` is documented to reproduce the standard
+forest bit for bit.
+
+**Phase 2** supplies the observed entry times. The reported quantity is the
+within-arm shift from phase 1 to phase 2 on identical data.
+
+## Scoring
+
+All arms are scored against the closed-form truth
+$$S(t\mid X,Z)=\exp\!\Big(-0.1\,e^{\theta_0^\top Z}\,\frac{e^{a(X)t}-1}{a(X)}\Big),$$
+which truncation leaves unchanged. Test covariates are drawn from the
+**population** distribution, since the estimand is the conditional
+$S(t\mid x,z)$.
+
+# Setup
+
+This chunk is deliberately **not** cached — caching it would restore the
+objects it creates while silently skipping its `library()` calls.
+
+```{r libs, cache=FALSE}
+source("../_common/sim_engine.R")
+source("../_common/sim_report.R")
+source("dgp.R")
+
+stopifnot("entry.time" %in% names(formals(rfsrc)))
+cat(sprintf("randomForestSRC %s loaded from %s\n",
+            packageVersion("randomForestSRC"), path.package("randomForestSRC")))
+```
+
+```{r install, eval=FALSE}
+if (!requireNamespace("remotes", quietly = TRUE)) install.packages("remotes")
+remotes::install_github("Shaked06/randomForestSRC@ltrc-rsf")
+```
+
+```{r load-setup, cache=FALSE}
+setup <- readRDS("setup.rds")
+stopifnot(!is.null(setup$ltrc))
+
+M_TEST <- 200L      # test subjects per replication
+N_REP  <- 50L      # set lower for a fast pass
+
+str(setup[c("rsf_hp", "ltrc")])
+cat(sprintf("\ntime grid: M=%d, range (%.3f, %.3f]\n",
+            length(setup$time_grid), min(setup$time_grid), max(setup$time_grid)))
+```
+
+# The replication loop
+
+Same mechanics as simulation 01: replications are independent, each seeds
+itself from `rep_id`, and workers source the engine and `dgp.R` rather than
+receiving exported closures.
+
+`N_REP` and `M_TEST` are named in `cache.extra` so a cached loop cannot
+silently survive a change to either.
+
+```{r loop, cache.extra = list(N_REP, M_TEST, tools::md5sum(c("setup.rds", "dgp.R", "../_common/sim_engine.R")))}
+res <- run_experiment(
+  n_rep   = N_REP,
+  setup   = setup,
+  sim     = sim,
+  sources = c("../_common/sim_engine.R", "dgp.R"),
+  m_test  = M_TEST
+)
+
+saveRDS(res, "results_phases.rds")
+```
+
+# Results
+
+## Phase 1 — are the left-truncation arms inert?
+
+```{r noop, cache=FALSE}
+noop_table(res)
+```
+
+The reporting chunks below are uncached: they cost milliseconds, and caching
+them would let a wording change in `sim_report.R` leave stale labels on
+screen.
+
+## The two phases
+
+```{r phase-table, cache=FALSE}
+phase_table(res)
+```
+
+## Within-arm shift
+
+```{r paired, cache=FALSE}
+paired_shift(res)
+```
+
+`n_moved_down` counts replications in which the phase-2 score is the smaller
+of the two.
+
+```{r plot-box, cache=FALSE, fig.width=7.5, fig.height=4.5}
+plot_phases_box(res)
+```
+
+## Across the time axis
+
+```{r plot-time, cache=FALSE, fig.width=8, fig.height=5}
+invisible(plot_score_by_time(res))
+```
+
+# What we have
+
+`results_phases.rds` holds, for `r N_REP` replications, the score for eight
+arm-phase combinations, the score-versus-time curve for each, and the
+phase-1 no-op diagnostics — same structure as simulation 01, on a DGP where
+the Cox arms are not correctly specified for the nuisance covariates. If the
+within-arm shift observed in simulation 01 also appears here, that is evidence
+the entry-time correction is not tied to the DGP being exactly Cox.
