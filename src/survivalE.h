@@ -29,32 +29,37 @@ void getConditionalConcordanceArrays(uint     j,
                                      double  *subsettedEnsembleDen,
                                      double  *subsettedWeight);
 double getConcordanceIndex(int     fastAction,
-                           uint    size, 
-                           double *timePtr, 
-                           double *statusPtr, 
+                           uint    size,
+                           double *timePtr,
+                           double *statusPtr,
                            double *predicted,
                            double *denom,
-                           double *weight);
-double getConcordanceIndexOriginal(uint    size, 
-                                   double *timePtr, 
-                                   double *statusPtr, 
+                           double *weight,
+                           double *entry);
+double getConcordanceIndexOriginal(uint    size,
+                                   double *timePtr,
+                                   double *statusPtr,
                                    double *predicted,
-                                   double *denom);
-double getConcordanceIndexUno(uint    size, 
-                              double *timePtr, 
-                              double *statusPtr, 
+                                   double *denom,
+                                   double *entry);
+double getConcordanceIndexUno(uint    size,
+                              double *timePtr,
+                              double *statusPtr,
                               double *predicted,
-                              double *weight);
-double getConcordanceIndexFenwick(uint    size, 
-                                  double *timePtr, 
-                                  double *statusPtr, 
+                              double *weight,
+                              double *entry);
+double getConcordanceIndexFenwick(uint    size,
+                                  double *timePtr,
+                                  double *statusPtr,
                                   double *predicted,
-                                  double *denom);
-double getConcordanceIndexUnoFenwick(uint    size, 
-                                     double *timePtr, 
-                                     double *statusPtr, 
+                                  double *denom,
+                                  double *entry);
+double getConcordanceIndexUnoFenwick(uint    size,
+                                     double *timePtr,
+                                     double *statusPtr,
                                      double *predicted,
-                                     double *weight);
+                                     double *weight,
+                                     double *entry);
 double getCRConcordanceIndexIPCW_Fenwick(uint    size,
                                          double *timePtr,
                                          double *statusPtr,

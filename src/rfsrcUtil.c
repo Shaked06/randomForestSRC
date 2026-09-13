@@ -452,6 +452,12 @@ void getPerformance(uint      serialTreeID,
   //  if (getTraceFlag(serialTreeID) & SUMM_LOW_TRACE) {
   //    RF_nativePrint("\ngetPerformance() ENTRY() ...\n");
   //  }
+  // Left truncation only has an entry-time array for the training data
+  // (RF_entryTime, populated during RF_GROW) -- predict() has no analogous
+  // array for new/test data, so entry stays NULL for every other mode and
+  // this call reproduces its prior (non-truncation-aware) behavior there.
+  double *entryPtr = ((mode == RF_GROW) && (RF_entryTime != NULL)) ?
+    RF_entryTime[serialTreeID] : NULL;
   if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
     if (!(RF_opt & OPT_COMP_RISK)) {
       perfMRTptr[1] = getConcordanceIndex(-1,
@@ -460,7 +466,8 @@ void getPerformance(uint      serialTreeID,
                                            responsePtr[RF_statusIndex],
                                            outcomeMRT[1],
                                            denomPtr,
-                                           RF_unoWeight);
+                                           RF_unoWeight,
+                                           entryPtr);
     }
     else {
       double *cpv = dvector(1, RF_eventTypeSize);

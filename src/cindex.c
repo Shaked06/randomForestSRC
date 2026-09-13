@@ -21,7 +21,8 @@ SEXP rfsrcCIndex(SEXP sexp_traceFlag,
                  SEXP sexp_censoring,
                  SEXP sexp_predicted,
                  SEXP sexp_denom,
-                 SEXP sexp_weight) {
+                 SEXP sexp_weight,
+                 SEXP sexp_entry) {
   uint    traceFlag   = INTEGER(sexp_traceFlag)[0];
   setUserTraceFlag(traceFlag);
   setNativeGlobalEnv(&RF_nativeIndex, &RF_stackCount);
@@ -32,11 +33,12 @@ SEXP rfsrcCIndex(SEXP sexp_traceFlag,
   double *predicted   = REAL(sexp_predicted); predicted--;
   double *denom       = REAL(sexp_denom); denom--;
   double *weight;
+  double *entry;
   double *v;
   char  *sexpString[3] = {
-    "",              
-    "",              
-    "err"            
+    "",
+    "",
+    "err"
   };
   //  setTraceFlag(traceFlag, 0);
   //  setTraceFlag(traceFlag, 0);
@@ -51,26 +53,35 @@ SEXP rfsrcCIndex(SEXP sexp_traceFlag,
   else {
     weight = NULL;
   }
+  // Left truncation: entry is optional, NULL reproduces the standard
+  // (non-truncated) concordance index exactly -- see getConcordanceIndex().
+  if (sexp_entry != R_NilValue) {
+    entry = REAL(sexp_entry); entry--;
+  }
+  else {
+    entry = NULL;
+  }
   RF_stackCount = 1;
   initProtect(RF_stackCount);
   stackAuxiliaryInfoList(&RF_snpAuxiliaryInfoList, RF_stackCount);
   v = (double*) stackAndProtect(RF_GROW,
                                 &RF_nativeIndex,
                                 NATIVE_TYPE_NUMERIC,
-                                2, 
-                                1, 
-                                0, 
+                                2,
+                                1,
+                                0,
                                 sexpString[2],
-                                NULL, 
-                                1,    
-                                1);   
+                                NULL,
+                                1,
+                                1);
   *v = getConcordanceIndex( fastFlag,
                             size,
                             time,
                             censoring,
                             predicted,
                             denom,
-                            weight);
+                            weight,
+                            entry);
   unstackAuxiliaryInfoAndList(FALSE, RF_snpAuxiliaryInfoList, RF_stackCount);
   //  if (getTraceFlag(0) & SUMM_DEF_TRACE) {
   //    memoryCheck();

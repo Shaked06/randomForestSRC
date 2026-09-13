@@ -7,7 +7,8 @@ SEXP rfsrcCIndex(SEXP sexp_traceFlag,
                  SEXP sexp_censoring,
                  SEXP sexp_predicted,
                  SEXP sexp_denom,
-                 SEXP sexp_weight);
+                 SEXP sexp_weight,
+                 SEXP sexp_entry);
 SEXP rfsrcCIndexFenwick(SEXP sexp_traceFlag,
                         SEXP sexp_eventType,
                         SEXP sexp_size,

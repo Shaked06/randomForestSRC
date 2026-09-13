@@ -399,21 +399,22 @@ void getConditionalConcordanceArrays(uint     j,
   //  }
 }
 double getConcordanceIndex(int     fastAction,
-                           uint    size, 
-                           double *timePtr, 
-                           double *statusPtr, 
+                           uint    size,
+                           double *timePtr,
+                           double *statusPtr,
                            double *predicted,
                            double *denom,
-                           double *weight) {
-  double  (*getConcordanceIndexActual) (uint, double*, double*, double*, double*);
-  char    fastFlag; 
+                           double *weight,
+                           double *entry) {
+  double  (*getConcordanceIndexActual) (uint, double*, double*, double*, double*, double*);
+  char    fastFlag;
   double *genericWeight;
   double  result;
   uint    i, j;
   //  if (getTraceFlag(0) & SUMM_MED_TRACE) {
   //    RF_nativePrint("\ngetConcordanceIndex() ENTRY ...\n");
   //  }
-  getConcordanceIndexActual = NULL;  
+  getConcordanceIndexActual = NULL;
   if (fastAction == 1) {
     fastFlag = TRUE;
   }
@@ -437,6 +438,14 @@ double getConcordanceIndex(int     fastAction,
       }
     }
   }
+  // entry (left-truncation) times are only supported by the O(n^2)
+  // Original/Uno paths below -- the Fenwick fast paths use a sort-and-BIT
+  // trick keyed on time order alone, which a per-pair entry-time filter
+  // breaks. When entry is supplied, fall back to the exact paths
+  // regardless of size; correctness over speed for a filter this rare.
+  if (entry != NULL) {
+    fastFlag = FALSE;
+  }
   if (weight == NULL) {
     genericWeight = denom;
   }
@@ -455,19 +464,20 @@ double getConcordanceIndex(int     fastAction,
     getConcordanceIndexActual = & getConcordanceIndexUnoFenwick;
   }
   else if ((weight == NULL) &&  (fastFlag == TRUE)) {
-    getConcordanceIndexActual = & getConcordanceIndexFenwick;    
+    getConcordanceIndexActual = & getConcordanceIndexFenwick;
   }
   else if ((weight != NULL) &&  (fastFlag == FALSE)) {
-    getConcordanceIndexActual = & getConcordanceIndexUno;    
+    getConcordanceIndexActual = & getConcordanceIndexUno;
   }
   else if ((weight == NULL) &&  (fastFlag == FALSE)) {
-    getConcordanceIndexActual = & getConcordanceIndexOriginal;    
+    getConcordanceIndexActual = & getConcordanceIndexOriginal;
   }
   result = getConcordanceIndexActual(size,
                                      timePtr,
                                      statusPtr,
                                      predicted,
-                                     genericWeight);
+                                     genericWeight,
+                                     entry);
   if (weight == NULL) {
   }
   else {
@@ -482,7 +492,8 @@ double getConcordanceIndexOriginal(uint    size,
                                    double *timePtr,
                                    double *statusPtr,
                                    double *predictedOutcome,
-                                   double *denom) {
+                                   double *denom,
+                                   double *entry) {
   uint i,j;
   double concordancePairCount;
   double concordanceCount;
@@ -490,12 +501,19 @@ double getConcordanceIndexOriginal(uint    size,
   //  if (getTraceFlag(0) & SUMM_MED_TRACE) {
   //    RF_nativePrint("\ngetConcordanceIndexOriginal() ENTRY ...\n");
   //  }
+  // Left truncation: a pair is only comparable at the earlier event time
+  // if the later/surviving subject had actually entered the study by
+  // then. `entry[k] <= own time[k]` always holds by construction, so the
+  // tied-both-events branch (below) needs no extra filter; only the two
+  // strict/tie-broken-by-censoring branches can compare a subject against
+  // an event time that predates their own entry.
   concordancePairCount = concordanceCount = 0;
   for (i=1; i < size; i++) {
     for (j=i+1; j <= size; j++) {
       if (denom[i] != 0  && denom[j] != 0) {
-        if ( ((timePtr[i] - timePtr[j] > EPSILON) && (statusPtr[j] > 0)) ||
-             ((fabs(timePtr[i] - timePtr[j]) <= EPSILON) && (statusPtr[j] > 0) && (statusPtr[i] == 0)) ) {
+        if ( ( ((timePtr[i] - timePtr[j] > EPSILON) && (statusPtr[j] > 0)) ||
+               ((fabs(timePtr[i] - timePtr[j]) <= EPSILON) && (statusPtr[j] > 0) && (statusPtr[i] == 0)) )
+             && (entry == NULL || entry[i] <= timePtr[j]) ) {
           concordancePairCount += 2;
           if (predictedOutcome[j] - predictedOutcome[i] > EPSILON) {
             concordanceCount += 2;
@@ -504,8 +522,9 @@ double getConcordanceIndexOriginal(uint    size,
             concordanceCount += 1;
           }
         }
-        else if ( ((timePtr[j] - timePtr[i]) > EPSILON  && (statusPtr[i] > 0)) ||
-                  ((fabs(timePtr[j] - timePtr[i]) <= EPSILON)  && (statusPtr[i] > 0) && (statusPtr[j] == 0)) ) {
+        else if ( ( ((timePtr[j] - timePtr[i]) > EPSILON  && (statusPtr[i] > 0)) ||
+                    ((fabs(timePtr[j] - timePtr[i]) <= EPSILON)  && (statusPtr[i] > 0) && (statusPtr[j] == 0)) )
+                  && (entry == NULL || entry[j] <= timePtr[i]) ) {
           concordancePairCount += 2;
           if ( predictedOutcome[i] - predictedOutcome[j] > EPSILON ) {
             concordanceCount += 2;
@@ -556,7 +575,8 @@ double getConcordanceIndexUno(uint    size,
                               double *timePtr,
                               double *statusPtr,
                               double *predictedOutcome,
-                              double *weight) {
+                              double *weight,
+                              double *entry) {
   uint i, j;
   double concordancePairWeight;
   double concordanceWeight;
@@ -565,11 +585,15 @@ double getConcordanceIndexUno(uint    size,
   //  if (getTraceFlag(0) & SUMM_MED_TRACE) {
   //    RF_nativePrint("\ngetConcordanceIndexUno() ENTRY ...\n");
   //  }
+  // Left truncation: same comparability filter as Original -- see there.
+  // The tied-both-events branch needs no filter (entry <= own time always
+  // holds by construction).
   concordancePairWeight = concordanceWeight = 0.0;
   for (i = 1; i < size; i++) {
     for (j = i + 1; j <= size; j++) {
       if (weight[i] != 0 && weight[j] != 0) {
-        if ((timePtr[i] - timePtr[j] > EPSILON) && (statusPtr[j] > 0) && (weight[j] > 0.0)) {
+        if ((timePtr[i] - timePtr[j] > EPSILON) && (statusPtr[j] > 0) && (weight[j] > 0.0)
+            && (entry == NULL || entry[i] <= timePtr[j])) {
           w = weight[j] * 2;
           concordancePairWeight += w;
           if (predictedOutcome[j] - predictedOutcome[i] > EPSILON) {
@@ -579,7 +603,8 @@ double getConcordanceIndexUno(uint    size,
             concordanceWeight += 0.5 * w;
           }
         }
-        else if ((timePtr[j] - timePtr[i] > EPSILON) && (statusPtr[i] > 0) && (weight[i] > 0.0)) {
+        else if ((timePtr[j] - timePtr[i] > EPSILON) && (statusPtr[i] > 0) && (weight[i] > 0.0)
+                 && (entry == NULL || entry[j] <= timePtr[i])) {
           w = weight[i] * 2;
           concordancePairWeight += w;
           if (predictedOutcome[i] - predictedOutcome[j] > EPSILON) {
@@ -590,7 +615,8 @@ double getConcordanceIndexUno(uint    size,
           }
         }
         else {
-          if ((fabs(timePtr[i] - timePtr[j]) <= EPSILON) && (statusPtr[j] > 0) && (statusPtr[i] == 0)) {
+          if ((fabs(timePtr[i] - timePtr[j]) <= EPSILON) && (statusPtr[j] > 0) && (statusPtr[i] == 0)
+              && (entry == NULL || entry[i] <= timePtr[j])) {
             w = weight[j] * 2;
             concordancePairWeight += w;
             if (predictedOutcome[j] - predictedOutcome[i] > EPSILON) {
@@ -600,7 +626,8 @@ double getConcordanceIndexUno(uint    size,
               concordanceWeight += 0.5 * w;
             }
           }
-          else if ((fabs(timePtr[j] - timePtr[i]) <= EPSILON)  && (statusPtr[i] > 0) && (statusPtr[j] == 0)) {
+          else if ((fabs(timePtr[j] - timePtr[i]) <= EPSILON)  && (statusPtr[i] > 0) && (statusPtr[j] == 0)
+                   && (entry == NULL || entry[j] <= timePtr[i])) {
             w = weight[i] * 2;
             concordancePairWeight += w;
             if (predictedOutcome[i] - predictedOutcome[j] > EPSILON) {
@@ -667,9 +694,14 @@ double getConcordanceIndexFenwick(uint    size,
                                   double *timePtr,
                                   double *statusPtr,
                                   double *predictedOutcome,
-                                  double *denom) {
+                                  double *denom,
+                                  double *entry) {
   uint i;
   double result;
+  // entry is unused here: getConcordanceIndex() never dispatches to the
+  // Fenwick paths when entry != NULL (see there). The parameter exists
+  // only so this function's signature matches the shared function-pointer
+  // typedef used to select among all four algorithm variants.
   //  if (getTraceFlag(0) & SUMM_MED_TRACE) {
   //    RF_nativePrint("\ngetConcordanceIndexFenwick() ENTRY ...\n");
   //  }
@@ -811,9 +843,11 @@ double getConcordanceIndexUnoFenwick(uint    size,
                                      double *timePtr,
                                      double *statusPtr,
                                      double *predictedOutcome,
-                                     double *weight) {
+                                     double *weight,
+                                     double *entry) {
   uint i;
   double result;
+  // entry is unused -- see getConcordanceIndexFenwick() above.
   //  if (getTraceFlag(0) & SUMM_MED_TRACE) {
   //    RF_nativePrint("\ngetConcordanceIndexUnoFenwick() ENTRY ...\n");
   //  }
@@ -1282,7 +1316,8 @@ void getCRPerformance (char     mode,
                                              subsettedStatus,
                                              subsettedMortality,
                                              subsettedEnsembleDen,
-                                             subsettedWeight);
+                                             subsettedWeight,
+                                             NULL); // competing risks: left truncation out of scope here
       if (RF_nativeIsNaN(concordanceIndex)) {
         performanceVector[j] = RF_nativeNaN;
       }

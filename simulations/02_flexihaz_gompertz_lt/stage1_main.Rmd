@@ -106,7 +106,7 @@ setup <- readRDS("setup.rds")
 stopifnot(!is.null(setup$ltrc))
 
 M_TEST <- 200L      # test subjects per replication
-N_REP  <- 50L      # set lower for a fast pass
+N_REP  <- 100L      # set lower for a fast pass
 
 str(setup[c("rsf_hp", "ltrc")])
 cat(sprintf("\ntime grid: M=%d, range (%.3f, %.3f]\n",
@@ -163,6 +163,27 @@ of the two.
 
 ```{r plot-box, cache=FALSE, fig.width=7.5, fig.height=4.5}
 plot_phases_box(res)
+```
+
+## C-index (ranking accuracy, training sample)
+
+MAD-vs-truth above checks the predicted *curve* against the true $S(t\mid x)$
+on the population test set. This checks the predicted *ranking* of subjects
+against who actually failed first, scored on this replication's own real
+(time, status, entry) -- RSF's built-in OOB survival curve, Cox's in-sample
+fit, both against the same real entry vector regardless of which arm
+produced the prediction (see `sim_engine.R` for why). `r res$cindex_label`.
+
+```{r cindex-phase-table, cache=FALSE}
+phase_table(res, field = "cindex")
+```
+
+```{r cindex-paired, cache=FALSE}
+paired_shift(res, field = "cindex")
+```
+
+```{r cindex-plot-box, cache=FALSE, fig.width=7.5, fig.height=4.5}
+plot_phases_box(res, field = "cindex")
 ```
 
 ## Across the time axis

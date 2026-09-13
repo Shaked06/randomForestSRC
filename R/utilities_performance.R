@@ -107,7 +107,14 @@ get.confusion <- function(y, class.or.prob) {
   cbind(confusion, class.error = round(class.error, 4))
 }
 ## cindex - extended to CR + uno/fenwick
-get.cindex <- function(time, censoring, predicted, weight, fast, do.trace = FALSE) {
+## `entry`: optional left-truncation (entry/late-entry) time per subject.
+## When supplied, a pair is only comparable if the later-time subject had
+## already entered the study by the earlier subject's event time -- see
+## tmp/c_index_left_truncation.md. NULL (the default) reproduces the
+## standard concordance index exactly. Only supported for right-censored
+## data; competing risks is out of scope.
+get.cindex <- function(time, censoring, predicted, weight, fast, do.trace = FALSE,
+                       entry = NULL) {
   size <- length(time)
   if (size != length(censoring)) {
     stop("time, censoring, and predicted must have the same length")
@@ -125,6 +132,20 @@ get.cindex <- function(time, censoring, predicted, weight, fast, do.trace = FALS
   ## fast switch is dynamic - now set by the native library
   if (missing(fast)) {
     fast <- -1
+  }
+  if (!is.null(entry)) {
+    if (isCR) {
+      stop("entry (left truncation) is not supported for competing risks")
+    }
+    if (length(entry) != size) {
+      stop("entry must have the same length as time")
+    }
+    if (any(is.na(entry)) || any(entry < 0, na.rm = TRUE)) {
+      stop("entry must be non-negative and non-missing")
+    }
+    if (any(entry > time, na.rm = TRUE)) {
+      stop("entry must not exceed the observed follow-up time for any subject")
+    }
   }
   ## -----------------------------
   ## Right-censoring
@@ -160,7 +181,8 @@ get.cindex <- function(time, censoring, predicted, weight, fast, do.trace = FALS
                           as.double(censoring),
                           as.double(predicted),
                           as.double(denom),
-                          if (is.null(weight)) NULL else as.double(weight))
+                          if (is.null(weight)) NULL else as.double(weight),
+                          if (is.null(entry)) NULL else as.double(entry))
     if (is.null(nativeOutput)) {
       stop("An error has occurred in rfsrcCIndex.  Please turn trace on for further analysis.")
     }
@@ -230,13 +252,14 @@ get.cindex <- function(time, censoring, predicted, weight, fast, do.trace = FALS
     denom.sub <- rep(1, length(idx))
     nativeOutput <- .Call("rfsrcCIndex",
                           as.integer(do.trace),
-                          as.integer(fast),  
+                          as.integer(fast),
                           as.integer(length(idx)),
                           as.double(time[idx]),
                           as.double(censoring[idx]),      # values are 0 or j (j>0 => event)
                           as.double(predMat[idx, j]),
                           as.double(denom.sub),
-                          NULL)
+                          NULL,
+                          NULL) # entry: competing risks, out of scope
     if (is.null(nativeOutput)) {
       stop("An error has occurred in rfsrcCIndex.  Please turn trace on for further analysis.")
     }

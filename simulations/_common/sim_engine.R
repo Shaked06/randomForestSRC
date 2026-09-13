@@ -51,15 +51,24 @@ cox_survival_matrix <- function(fit, Xtest, tgrid) {
   exp(-outer(exp(lp), H0))
 }
 
+## Both estimators' native output is a step function on their own event
+## times; this maps any such (survival matrix, event-time vector) pair onto
+## the shared grid. Factored out so the same mapping serves a fresh
+## prediction (rsf_survival_matrix, below) and an already-computed OOB
+## curve pulled straight off a fitted forest (see C-index section).
+step_to_grid <- function(surv_mat, time_interest, tgrid) {
+  idx <- findInterval(tgrid, time_interest)
+  out <- matrix(1, nrow = nrow(surv_mat), ncol = length(tgrid))  # S=1 pre-t1
+  nz  <- idx > 0
+  if (any(nz)) out[, nz] <- surv_mat[, idx[nz], drop = FALSE]
+  out
+}
+
 ## A test subject is dropped down the trees on covariates alone, so
 ## prediction needs no entry times and this serves both forest arms.
 rsf_survival_matrix <- function(fit, Xtest_df, tgrid) {
-  pr  <- predict(fit, newdata = Xtest_df)
-  idx <- findInterval(tgrid, pr$time.interest)
-  out <- matrix(1, nrow = nrow(pr$survival), ncol = length(tgrid))  # S=1 pre-t1
-  nz  <- idx > 0
-  if (any(nz)) out[, nz] <- pr$survival[, idx[nz], drop = FALSE]
-  out
+  pr <- predict(fit, newdata = Xtest_df)
+  step_to_grid(pr$survival, pr$time.interest, tgrid)
 }
 
 
@@ -79,6 +88,39 @@ scorer_mad_vs_truth <- list(
 score_arm <- function(Shat, ctx, scorer) {
   v <- scorer$by_time(Shat, ctx)
   list(by_time = v, overall = mean(v))
+}
+
+
+## ---------------------------------------------------------------------
+##  2b. C-index (rank-based, scored on the training sample's real outcomes)
+## ---------------------------------------------------------------------
+##  MAD-vs-truth (above) checks whether the predicted *curve* matches the
+##  true S(t|x); this checks whether the predicted *ranking* of subjects
+##  matches who actually failed first, using each replication's own real
+##  (time, status, entry) -- not the population test set, which has no
+##  simulated outcomes at all, only covariates and a known truth curve.
+##
+##  Each arm's own held-out-style fit is reused, at no extra fitting cost:
+##  RSF's built-in OOB survival curve, Cox's in-sample curve (Cox has no
+##  OOB equivalent). Both get mapped to a single risk score per subject --
+##  sum(1 - S_hat) over the shared grid, i.e. higher = worse predicted
+##  survival = higher risk -- so one code path scores every arm.
+##
+##  Every arm is scored against the SAME real entry vector regardless of
+##  whether that arm's own fit used it. That isolates one thing: does
+##  giving the model entry.time at FIT time produce a better risk ranking,
+##  when the EVALUATION is always done correctly (truncation-aware)? An
+##  arm scored against entry=0 would just reproduce the old biased
+##  evaluation this feature exists to replace.
+##
+##  get.cindex() returns an error rate (1 - C), matching MAD's own
+##  lower-is-better convention -- so both scorers can sit in one table
+##  without a sign flip.
+
+risk_score <- function(Shat) rowSums(1 - Shat)
+
+cindex_arm <- function(Shat_own, time, status, entry) {
+  get.cindex(time, status, risk_score(Shat_own), entry = entry)
 }
 
 
@@ -195,39 +237,56 @@ run_replication <- function(rep_id, setup, sim,
   ctx <- list(Strue = sim$truth(Xtest, tg, setup))
 
   run_arm <- function(key, e) {
-    a <- arms[[key]]
-    a$surv(a$fit(d, e, xn, -seed_r), Xtest, Xtest_df, tg)
+    a   <- arms[[key]]
+    fit <- a$fit(d, e, xn, -seed_r)
+    list(fit = fit, Shat = a$surv(fit, Xtest, Xtest_df, tg))
   }
 
-  S_cox_p1  <- run_arm("cox_lt",  zero)
-  S_rsf_p1  <- run_arm("rsf_lt",  zero)
-  S_cox_p2  <- run_arm("cox_lt",  entry)
-  S_rsf_p2  <- run_arm("rsf_lt",  entry)
+  r_cox_p1  <- run_arm("cox_lt",  zero)
+  r_rsf_p1  <- run_arm("rsf_lt",  zero)
+  r_cox_p2  <- run_arm("cox_lt",  entry)
+  r_rsf_p2  <- run_arm("rsf_lt",  entry)
 
   if (verify_noop) {
-    S_cox_std <- run_arm("cox_std", zero)
-    S_rsf_std <- run_arm("rsf_std", zero)
-    noop <- c(cox = max(abs(S_cox_std - S_cox_p1)),
-              rsf = max(abs(S_rsf_std - S_rsf_p1)))
+    r_cox_std <- run_arm("cox_std", zero)
+    r_rsf_std <- run_arm("rsf_std", zero)
+    noop <- c(cox = max(abs(r_cox_std$Shat - r_cox_p1$Shat)),
+              rsf = max(abs(r_rsf_std$Shat - r_rsf_p1$Shat)))
   } else {
-    S_cox_std <- S_cox_p1        # proven identical; see block comment above
-    S_rsf_std <- S_rsf_p1
+    r_cox_std <- r_cox_p1        # proven identical; see block comment above
+    r_rsf_std <- r_rsf_p1
     noop <- c(cox = NA_real_, rsf = NA_real_)
   }
 
   S <- list(
-    p1_cox_std = S_cox_std, p1_cox_lt = S_cox_p1,
-    p1_rsf_std = S_rsf_std, p1_rsf_lt = S_rsf_p1,
-    p2_cox_std = S_cox_std, p2_cox_lt = S_cox_p2,
-    p2_rsf_std = S_rsf_std, p2_rsf_lt = S_rsf_p2
+    p1_cox_std = r_cox_std$Shat, p1_cox_lt = r_cox_p1$Shat,
+    p1_rsf_std = r_rsf_std$Shat, p1_rsf_lt = r_rsf_p1$Shat,
+    p2_cox_std = r_cox_std$Shat, p2_cox_lt = r_cox_p2$Shat,
+    p2_rsf_std = r_rsf_std$Shat, p2_rsf_lt = r_rsf_p2$Shat
   )[ARM_KEYS]
 
   sc <- lapply(S, score_arm, ctx = ctx, scorer = scorer)
 
+  ## ---- C-index: each arm's own-data survival curve, real outcomes ----
+  Xtrain <- as.matrix(d[, xn, drop = FALSE])
+  Shat_own <- list(
+    p1_cox_std = cox_survival_matrix(r_cox_std$fit, Xtrain, tg),
+    p1_cox_lt  = cox_survival_matrix(r_cox_p1$fit,  Xtrain, tg),
+    p1_rsf_std = step_to_grid(r_rsf_std$fit$survival.oob, r_rsf_std$fit$time.interest, tg),
+    p1_rsf_lt  = step_to_grid(r_rsf_p1$fit$survival.oob,  r_rsf_p1$fit$time.interest, tg),
+    p2_cox_std = cox_survival_matrix(r_cox_std$fit, Xtrain, tg),  # phase-invariant, as above
+    p2_cox_lt  = cox_survival_matrix(r_cox_p2$fit,  Xtrain, tg),
+    p2_rsf_std = step_to_grid(r_rsf_std$fit$survival.oob, r_rsf_std$fit$time.interest, tg),
+    p2_rsf_lt  = step_to_grid(r_rsf_p2$fit$survival.oob,  r_rsf_p2$fit$time.interest, tg)
+  )[ARM_KEYS]
+  cindex <- vapply(Shat_own, cindex_arm, numeric(1),
+                   time = train$time, status = train$status, entry = entry)
+
   list(
     overall = vapply(sc, `[[`, numeric(1), "overall"),
     by_time = do.call(rbind, lapply(sc, `[[`, "by_time")),
-    noop    = noop
+    noop    = noop,
+    cindex  = cindex
   )
 }
 
@@ -302,10 +361,12 @@ run_experiment <- function(n_rep, setup, sim, sources,
     overall      = as.data.frame(do.call(rbind, lapply(res, `[[`, "overall"))),
     by_time      = by_time,
     noop         = as.data.frame(do.call(rbind, lapply(res, `[[`, "noop"))),
+    cindex       = as.data.frame(do.call(rbind, lapply(res, `[[`, "cindex"))),
     tgrid        = setup$time_grid,
     n_rep        = n_rep,
     m_test       = m_test,
     scorer_label = scorer$label,
+    cindex_label = "C-index error (1-C, truncation-aware, lower=better) on training sample",
     sim_name     = sim$name
   )
 }
