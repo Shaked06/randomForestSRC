@@ -103,6 +103,13 @@ TIME_QUANTILE <- 0.90
 N_POOL        <- 50000L
 N_LTRC        <- 5000L       # matches simulation 01's run size
 C_L           <- 0
+
+# --- RSF tuning ---
+# See simulation 01's Stage 0 for why: tuning on the left-truncated pilot
+# tends to select a small nodesize (this DGP landed on 2 -- deeper trees than
+# simulation 01's 4), which exhausts memory on a laptop. Set TRUE on a
+# machine with more headroom to re-enable the real OOB search.
+RUN_TUNE      <- FALSE
 ```
 
 # Censoring parameter $\theta$ (untruncated reference)
@@ -197,14 +204,37 @@ cat(sprintf("cU = %.3f sits at grid position %d of %d\n",
 
 # RSF hyperparameters
 
-Same two choices as simulation 01: tuning runs on the left-truncated pilot
-(the regime Stage 1 fits), and is entry-agnostic (`tune()`'s internal holdout
-does not subset extra arguments alongside it, and hyperparameters should not
-be selected using information only two of the four Stage 1 arms receive).
+Same two choices as simulation 01 when tuning runs: on the left-truncated
+pilot (the regime Stage 1 fits), and entry-agnostic (`tune()`'s internal
+holdout does not subset extra arguments alongside it, and hyperparameters
+should not be selected using information only two of the four Stage 1 arms
+receive).
 
-```{r rsf-tune}
+`RUN_TUNE` gates the search (`eval=RUN_TUNE`, so the chunk is skipped
+entirely). It was run once by hand (`ntree.try=300`, ~5.6 min, not itself
+too costly) and it picked `nodesize=1, mtry=1` — the deepest tree possible.
+That is not a mistake: `tune()` minimizes OOB prediction error only, and a
+random forest's OOB error barely rises with tree depth at all, because
+bagging averages away most of what a single overfit tree gets wrong. On
+smooth, low-noise synthetic data like this, deeper trees can even score
+marginally *better* on that one metric. But `tune()` has no notion of
+memory or runtime cost, and `nodesize=1` is also the most expensive forest
+to store: `ntree x (N/nodesize) x ntime` terminal-node survival curves,
+which is what actually drives this simulation's RAM use (measured at
+~1.1 GB per fit at `nodesize=8`; `nodesize=1` would be roughly 8x that).
+
+So `RUN_TUNE <- FALSE` here on purpose, not as a placeholder for a
+future re-run: `rsf_hp` falls back to a manually chosen `ntree=500,
+mtry=1, nodesize=16` — the package's own default tree count, and a
+nodesize deliberately larger than sim 01's, trading a little accuracy
+tune() would have squeezed out for a forest that is roughly 4x smaller
+in memory and proportionally faster to fit.
+
+```{r rsf-tune-setup}
 xn <- c("x1", "x2", "x3", "z1", "z2")
+```
 
+```{r rsf-tune, eval=RUN_TUNE}
 rsf_tune <- tune(
   Surv(time, status) ~ .,
   data      = df_pilot[, c(xn, "time", "status")],
@@ -212,14 +242,19 @@ rsf_tune <- tune(
   do.best   = FALSE,
   seed      = MASTER_SEED
 )
+```
 
-rsf_hp <- list(
-  ntree    = 1000L,
-  mtry     = as.integer(rsf_tune$optimal["mtry"]),
-  nodesize = as.integer(rsf_tune$optimal["nodesize"])
-)
+```{r rsf-hp}
+rsf_hp <- if (RUN_TUNE) {
+  list(ntree    = 1000L,
+       mtry     = as.integer(rsf_tune$optimal["mtry"]),
+       nodesize = as.integer(rsf_tune$optimal["nodesize"]))
+} else {
+  list(ntree = 500L, mtry = 1L, nodesize = 16L)   # memory/speed, see above
+}
 
-cat(sprintf("RSF tuned (OOB): mtry=%d, nodesize=%d, ntree=%d\n",
+cat(sprintf("RSF hyperparameters (%s): mtry=%d, nodesize=%d, ntree=%d\n",
+            if (RUN_TUNE) "OOB-tuned" else "fixed, memory/speed-chosen",
             rsf_hp$mtry, rsf_hp$nodesize, rsf_hp$ntree))
 ```
 
@@ -296,7 +331,7 @@ setup <- list(
     emp_retained  = mean(kept),
     emp_censor_lt = mean(df_pilot$status == 0),
     grid_source   = "ltrc",
-    tuned_on      = "ltrc",
+    tuned_on      = if (RUN_TUNE) "ltrc" else "fixed (previous settings, RUN_TUNE=FALSE)",
     master_seed   = MASTER_SEED,
     source        = "Survival-Deep2512.10570v2.pdf, Section 7.1"
   )

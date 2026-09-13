@@ -1,0 +1,382 @@
+---
+title: "Survival Simulation 05 — Stage 0: Setup (DGP, Calibration, Tuning)"
+subtitle: "RIST paper Scenario 3 (Gamma survival times, high-dimensional correlated), with left truncation"
+author: "Shaked"
+date: "`r format(Sys.Date(), '%d/%m/%Y')`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    theme: readable
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo    = TRUE,
+  message = FALSE,
+  warning = FALSE,
+  cache   = TRUE,
+  fig.align = "center"
+)
+options(digits = 4)
+```
+
+# Background
+
+This is the fifth simulation in this project, reusing the two-stage format
+established by simulations 01-04 — same shared engine
+(`../_common/sim_engine.R`), same reporting (`../_common/sim_report.R`) — on
+a fifth DGP.
+
+The DGP is Scenario 3 from Zhu and Kosorok (2012), "Recursively Imputed
+Survival Trees," Section 4.1
+(`../../papers/Recursively Imputed Survival Trees.pdf`, p. 334): survival
+times drawn from a **Gamma** distribution, not Exponential — a genuinely
+different distributional family from simulations 03 and 04, not just a
+different link function.
+
+## What is taken from the paper, and what we add
+
+Taken from RIST's Scenario 3 (unchanged):
+
+- $p=25$, $X\sim N(0,V)$, $V_{ij}=\rho^{|i-j|}$, $\rho=0.75$ (simulation
+  03's Scenario 1 uses $\rho=0.9$; this is a milder correlation).
+- $\mu(X) = 0.5 + 0.3\,|\sum_{i=11}^{15}x_i|$ — only 5 of the 25 covariates
+  ($x_{11},\dots,x_{15}$) drive the model; the rest are noise.
+- $T\sim\mathrm{Gamma}(\text{shape}=\mu(X),\ \text{scale}=2)$
+- $C\sim\mathrm{Uniform}(0,U)$, a single shared upper bound
+- $\tau=10$ (administrative censoring)
+- target censoring rate $\approx20\%$
+
+## A subtlety this scenario has that simulation 04 does not
+
+In simulation 04 (Scenario 2), the censoring window's own bound ($\tau=6$)
+*was* the administrative cutoff — $C$ could never exceed it, so there was
+nothing else to fold in. Here the paper specifies the censoring window as
+$\mathrm{Unif}(0, 1.5\tau)$ — **wider** than $\tau$ itself. So a subject can
+be censored two structurally different ways: $C$ landing before $\tilde T$
+while both are still under $\tau$, or $\tilde T$ itself exceeding $\tau$
+(administrative censoring, regardless of $C$). `censoring_rate()` and
+`censoring_rate_lt()` in `dgp.R` branch on this explicitly, rather than
+folding $\tau$ into a single expression the way simulations 02/03 do for
+their memoryless Exponential censoring — that folding is only exact when
+the censoring distribution is memoryless, which a bounded Uniform window is
+not. The payoff shows up in Stage 0's own numbers below: analytic and
+empirical censoring rates land much closer together here than in earlier
+simulations.
+
+Added here, present in neither the paper nor this scenario (Scenario 3 has
+no left truncation):
+
+- entry time $R\sim\mathrm{Unif}(c_L,c_U)$, retention filtered on
+  $R\le\tilde T$ — the same mechanism simulations 01-04 use.
+- residual censoring after entry, keeping the paper's own **Uniform**
+  shape (as in simulation 04): $C = R + \mathrm{Unif}(0, w_{LT})$.
+- $c_U$, $U$ (reference), and $w_{LT}$ calibrated by root-find against a
+  target rate, following this project's established pattern, rather than
+  taken directly from the paper's fixed $1.5\tau=15$. RIST's
+  $\approx20\%$ is the design target for both.
+- sample sizes, matching simulations 01-04 rather than the paper's own
+  $n=300$: a population pool of $N_{\text{pool}} = 50{,}000$ filtered down
+  to $N_{\text{ltrc}} = 5{,}000$ per replication.
+- RSF hyperparameters: RIST's Section 4.2 recipe recomputed for $p=25$
+  (same as simulation 03): $\lfloor\sqrt{25}\rfloor=5$, $n_{\min}=6$.
+
+```{r libs}
+source("dgp.R")
+suppressPackageStartupMessages({
+  library(survival)
+  library(randomForestSRC)
+})
+```
+
+Outputs of this stage, all written to `setup.rds`:
+
+1. **$\Sigma$** — covariate correlation matrix (AR(1), $\rho=0.75$, PD).
+2. **$U$** — right-censoring upper bound for the untruncated reference DGP,
+   calibrated to $\approx20\%$ censoring.
+3. **$c_U$** — entry-window upper bound, calibrated so that $\approx\tfrac13$
+   of the population is truncated away.
+4. **$w_{LT}$** — censoring width under truncation, calibrated to
+   $\approx20\%$ censoring among the *retained* subjects.
+5. **Time grid** $t_1,\dots,t_M$.
+6. **RSF hyperparameters**.
+
+## Ordering
+
+As in simulations 01-04, the time grid and RSF tuning are derived from a
+**left-truncated** pilot sample, so the sequence runs
+$\Sigma \to U \to c_U \to w_{LT} \to$ pilot sample $\to$ grid $\to$ tuning.
+
+```{r params}
+MASTER_SEED   <- 20250321L   # distinct from simulations 01-04's seeds
+
+# --- calibration targets ---
+N_PILOT       <- 50000L
+TARGET_CENSOR <- 0.20        # RIST Scenario 3's stated ~20%, as a design target
+TARGET_TRUNC  <- 1/3         # same target as simulations 01-04
+M_TIMES       <- 100L
+TIME_QUANTILE <- 0.90
+SIGMA_RHO     <- 0.75        # RIST Scenario 3's value (Scenario 1 uses 0.9)
+SIGMA_TYPE    <- "ar1"
+
+# --- left-truncation settings ---
+N_POOL        <- 50000L
+N_LTRC        <- 5000L       # matches simulations 01-04's run size
+C_L           <- 0
+
+# --- RSF tuning ---
+# See simulation 01's Stage 0 for why RUN_TUNE defaults off. RUN_TUNE=FALSE
+# falls back to RIST's own RSF settings (Section 4.2), recomputed for
+# p=25 (same value as simulation 03, which also has p=25).
+RUN_TUNE      <- FALSE
+RSF_MTRY_DEFAULT     <- as.integer(floor(sqrt(P)))   # RIST Sec. 4.2: K = floor(sqrt(p))
+RSF_NODESIZE_DEFAULT <- 6L                            # RIST Sec. 4.2: n_min = 6
+```
+
+# Correlation matrix $\Sigma$
+
+```{r sigma}
+Sigma <- build_sigma(P, SIGMA_RHO, SIGMA_TYPE)
+stopifnot(min(eigen(Sigma, symmetric = TRUE, only.values = TRUE)$values) > 0)
+
+cat(sprintf("Sigma %dx%d (%s, rho=%.2f) — PD OK\n",
+            nrow(Sigma), ncol(Sigma), SIGMA_TYPE, SIGMA_RHO))
+round(Sigma[1:8, 1:8], 3)   # 25x25 is large to print in full
+```
+
+# Censoring upper bound $U$ (untruncated reference)
+
+$C \perp \tilde T$, so the censoring rate integrates out in closed form
+given the pilot's $\tilde T$ values, branching on whether $\tilde T$
+exceeds the administrative cutoff (see the note above):
+$$g(U)=\frac1n\sum_i \begin{cases} 1 & \tilde T_i > \tau \\ \min(\tilde T_i, U)/U & \tilde T_i \le \tau \end{cases}$$
+which is monotone decreasing in $U$ on the branch where it matters.
+`uniroot` therefore returns a unique root with no sampling noise.
+
+This parameter belongs to the untruncated DGP. Stage 1 fits only truncated
+data, so it is carried in `setup.rds` for reference rather than consumed
+downstream.
+
+```{r censoring-U}
+set.seed(MASTER_SEED)
+
+X_pilot      <- sample_X(N_PILOT, Sigma)
+Ttilde_pilot <- sample_event_times(X_pilot)
+
+U_hat <- uniroot(
+  f        = function(u) censoring_rate(u, Ttilde_pilot) - TARGET_CENSOR,
+  interval = c(1e-3, 200),
+  tol      = 1e-6
+)$root
+
+chk_df     <- make_survival_sample(N_PILOT, Sigma, U_hat)
+emp_censor <- mean(chk_df$status == 0)
+
+cat(sprintf("U = %.4f  (paper's own 1.5*tau = 15, for comparison)\n", U_hat))
+cat(sprintf("  censoring  analytic = %.3f | empirical = %.3f\n",
+            censoring_rate(U_hat, Ttilde_pilot), emp_censor))
+cat(sprintf("  P(T~ > tau=%d) = %.4f  (handled exactly, not folded/approximated)\n",
+            TAU, mean(Ttilde_pilot > TAU)))
+```
+
+# Entry window $c_U$
+
+Integrating out $R \sim \mathrm{Unif}(c_L, c_U)$ given the pilot's $\tilde T$:
+$$\mathbb P(R > \tilde T_i) =
+\begin{cases}
+1 & \tilde T_i < c_L\\[2pt]
+\dfrac{c_U - \tilde T_i}{c_U - c_L} & c_L \le \tilde T_i \le c_U\\[6pt]
+0 & \tilde T_i > c_U
+\end{cases}$$
+increasing in $c_U$.
+
+```{r cU}
+cU_hat <- uniroot(
+  f        = function(cu) trunc_rate(cu, Ttilde_pilot, C_L) - TARGET_TRUNC,
+  interval = c(C_L + 1e-6, 50 * max(Ttilde_pilot)),
+  tol      = 1e-6
+)$root
+
+cat(sprintf("cU = %.4f  (entry window: Unif(%.2f, %.2f))\n", cU_hat, C_L, cU_hat))
+cat(sprintf("  truncated away  analytic = %.3f  (target %.3f)\n",
+            trunc_rate(cU_hat, Ttilde_pilot, C_L), TARGET_TRUNC))
+```
+
+# Censoring under truncation, $w_{LT}$
+
+Calibrated on the **retained** subjects, since that is the population the
+models see. Same branching as $U$ above, with $d_i = \tilde T_i - R_i$ in
+place of $\tilde T_i$ on the non-administrative branch.
+
+```{r w-lt}
+set.seed(MASTER_SEED + 2L)
+
+R_pilot  <- runif(N_PILOT, C_L, cU_hat)
+kept     <- R_pilot <= Ttilde_pilot
+Tk_pilot <- Ttilde_pilot[kept]
+Rk_pilot <- R_pilot[kept]
+
+w_lt_hat <- uniroot(
+  f        = function(w) censoring_rate_lt(w, Tk_pilot, Rk_pilot) - TARGET_CENSOR,
+  interval = c(1e-6, 200),
+  tol      = 1e-6
+)$root
+
+cat(sprintf("retained %d / %d pool subjects (%.1f%%)\n",
+            sum(kept), N_PILOT, 100 * mean(kept)))
+cat(sprintf("w_LT = %.4f  (paper's own 1.5*tau = 15, for comparison)\n", w_lt_hat))
+cat(sprintf("  censoring (retained)  analytic = %.3f\n",
+            censoring_rate_lt(w_lt_hat, Tk_pilot, Rk_pilot)))
+```
+
+Both $U$ and $w_{LT}$ landing close to the paper's own $1.5\tau=15$ is a
+useful check on the calibration.
+
+# The left-truncated pilot sample
+
+One sample at the Stage 1 run size, used for both the grid and the tuning.
+
+```{r ltrc-pilot}
+set.seed(MASTER_SEED + 3L)
+df_pilot <- make_ltrc_sample(N_LTRC, N_POOL, Sigma, w_lt_hat, cU_hat, C_L)
+
+cat(sprintf("LTRC pilot: n=%d,  censoring=%.3f,  entry <= time on all rows: %s\n",
+            nrow(df_pilot), mean(df_pilot$status == 0),
+            all(df_pilot$entry <= df_pilot$time)))
+```
+
+# Time grid
+
+As in simulations 01-04, taken from the **left-truncated** pilot — the
+regime Stage 1 fits — up to the 90th percentile of observed follow-up.
+
+```{r grid}
+upper     <- as.numeric(quantile(df_pilot$time, TIME_QUANTILE))
+time_grid <- seq(0, upper, length.out = M_TIMES + 1L)[-1L]
+
+cat(sprintf("time grid: M=%d, range (%.3f, %.3f]\n",
+            length(time_grid), min(time_grid), max(time_grid)))
+cat(sprintf("cU = %.3f sits at grid position %d of %d\n",
+            cU_hat, sum(time_grid < cU_hat) + 1L, length(time_grid)))
+```
+
+# RSF hyperparameters
+
+Same choices as simulations 01-04 when tuning does run: on the
+left-truncated pilot, and entry-agnostic. `RUN_TUNE` gates the search; with
+`RUN_TUNE <- FALSE`, `rsf_hp` falls back to RIST's Section 4.2 recipe for
+$p=25$: `mtry = floor(sqrt(25)) = 5`, `nodesize = 6`.
+
+```{r rsf-tune, eval=RUN_TUNE}
+rsf_tune <- tune(
+  Surv(time, status) ~ .,
+  data      = df_pilot[, c(grep("^x", names(df_pilot), value = TRUE),
+                           "time", "status")],
+  ntree.try = 300,
+  do.best   = FALSE,
+  seed      = MASTER_SEED
+)
+```
+
+```{r rsf-hp}
+rsf_hp <- if (RUN_TUNE) {
+  list(ntree    = 1000L,
+       mtry     = as.integer(rsf_tune$optimal["mtry"]),
+       nodesize = as.integer(rsf_tune$optimal["nodesize"]))
+} else {
+  list(ntree = 500L, mtry = RSF_MTRY_DEFAULT, nodesize = RSF_NODESIZE_DEFAULT)
+}
+
+cat(sprintf("RSF hyperparameters (%s): mtry=%d, nodesize=%d, ntree=%d\n",
+            if (RUN_TUNE) "OOB-tuned" else "fixed, RIST Sec. 4.2 recipe",
+            rsf_hp$mtry, rsf_hp$nodesize, rsf_hp$ntree))
+```
+
+# Sanity checks
+
+**(a) $\mu(X)$ range.** Should stay $\ge 0.5$ (the intercept), since the
+slope term is non-negative by construction ($0.3\times|\cdot|$).
+
+```{r check-mu}
+mu_chk <- mu_shape(X_pilot)
+cat(sprintf("mu range [%.4f, %.4f], any below 0.5: %s\n",
+            min(mu_chk), max(mu_chk), any(mu_chk < MU_INTERCEPT - 1e-8)))
+```
+
+**(b) Monotonicity of $S$.**
+
+```{r check-surv}
+s_chk <- as.vector(true_survival_matrix(X_pilot[1, , drop = FALSE], time_grid))
+cat(sprintf("S range [%.3f, %.3f]; monotone decreasing: %s\n",
+            min(s_chk), max(s_chk), all(diff(s_chk) <= 0)))
+```
+
+**(c) $\Sigma$ — empirical vs theoretical correlation.**
+
+```{r check-sigma}
+cat(sprintf("max |empirical corr - Sigma| = %.3f\n",
+            max(abs(cor(X_pilot) - Sigma))))
+```
+
+**(d) Selection is present.** As in simulations 03/04 (and unlike
+simulation 01), larger $\mu(X)$ means a larger Gamma mean
+($\text{mean}=\mu(X)\times\text{scale}$), i.e. longer $\tilde T$ on
+average, so the retained set should skew toward **larger** $\mu(X)$.
+
+```{r check-selection}
+mu_pool <- mu_shape(X_pilot)
+cat(sprintf("mean mu(X)   pool = %.4f | retained = %.4f\n",
+            mean(mu_pool), mean(mu_pool[kept])))
+```
+
+Note that this shift does not by itself bias the target. The estimand is
+the conditional $S(t\mid x)$, and Stage 1 evaluates on covariates drawn
+from the population distribution. What matters is the risk set: under
+$R \perp (\tilde T, X)$ the delayed-entry risk set at each $t$ is a random
+subsample of the population risk set at $t$.
+
+**(e) Pool headroom.** The pool must retain at least `N_LTRC` subjects.
+
+```{r check-pool}
+cat(sprintf("need %d, expect ~%.0f retained from a pool of %d\n",
+            N_LTRC, (1 - TARGET_TRUNC) * N_POOL, N_POOL))
+```
+
+# Saving
+
+```{r save}
+setup <- list(
+  Sigma     = Sigma,
+  rsf_hp    = rsf_hp,
+  time_grid = time_grid,
+  cens_U    = U_hat,
+  tau       = TAU,
+  ltrc      = list(
+    cL     = C_L,
+    cU     = cU_hat,
+    w_lt   = w_lt_hat,
+    n_pool = N_POOL,
+    n_ltrc = N_LTRC
+  ),
+  meta      = list(
+    n_pilot       = N_PILOT,
+    target_censor = TARGET_CENSOR,
+    emp_censor    = emp_censor,
+    target_trunc  = TARGET_TRUNC,
+    emp_retained  = mean(kept),
+    emp_censor_lt = mean(df_pilot$status == 0),
+    grid_source   = "ltrc",
+    tuned_on      = if (RUN_TUNE) "ltrc" else "fixed (RIST Sec. 4.2 recipe, RUN_TUNE=FALSE)",
+    sigma_type    = SIGMA_TYPE,
+    sigma_rho     = SIGMA_RHO,
+    master_seed   = MASTER_SEED,
+    source        = "Recursively Imputed Survival Trees.pdf, Scenario 3 (p.334)"
+  )
+)
+saveRDS(setup, "setup.rds")
+cat("setup.rds saved — ready for Stage 1.\n")
+```

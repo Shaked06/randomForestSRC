@@ -75,6 +75,13 @@ SIGMA_TYPE    <- "ar1"
 N_POOL        <- 50000L  # population pool drawn before the truncation filter
 N_LTRC        <- 5000L   # retained sample size (= the Stage 1 run size)
 C_L           <- 0       # entry-window lower bound: R ~ Unif(C_L, cU)
+
+# --- RSF tuning ---
+# tune()'s default nodesize.try reaches down to 1, and searching on the
+# left-truncated pilot (see "RSF hyperparameters" below) tends to select a
+# small nodesize -- deep, memory-heavy trees. Set TRUE on a machine with
+# more headroom to re-enable the real OOB search.
+RUN_TUNE      <- FALSE
 ```
 
 # Correlation matrix $\Sigma$
@@ -211,7 +218,7 @@ cat(sprintf("cU = %.3f sits at grid position %d of %d\n",
 both have an interior optimum. `ntree` does not — OOB error decreases and then
 flattens — so it is fixed at 1000, past the plateau.
 
-Two deliberate choices here:
+Two deliberate choices when tuning does run:
 
 - Tuning runs on the **left-truncated** pilot, the regime Stage 1 fits.
 - Tuning is **entry-agnostic**. `tune()` carves out an internal holdout
@@ -221,7 +228,19 @@ Two deliberate choices here:
   hyperparameters, so those hyperparameters should not be selected using
   information that only two of the arms receive.
 
-```{r rsf-tune}
+`RUN_TUNE` gates the search itself (`eval=RUN_TUNE` below, so the chunk is
+skipped entirely rather than run and discarded). It was run once by hand and
+picked `nodesize=4` here (`nodesize=1` in simulation 02, tested directly) —
+`tune()` only minimizes OOB prediction error, which a random forest's
+bagging keeps almost flat as trees get deeper, so it has no reason to avoid
+the deepest, most expensive tree available. It has no notion of memory or
+runtime cost, which is what actually explodes with small nodesize
+(`ntree x (N/nodesize) x ntime` terminal-node survival curves stored per
+forest). `RUN_TUNE <- FALSE` here on purpose: `rsf_hp` falls back to a
+manually chosen `ntree=500, mtry=1, nodesize=16` (see simulation 02 for the
+measured memory/speed numbers this trades against tune()'s pick).
+
+```{r rsf-tune, eval=RUN_TUNE}
 rsf_tune <- tune(
   Surv(time, status) ~ .,
   data      = df_pilot[, c(grep("^x", names(df_pilot), value = TRUE),
@@ -230,14 +249,19 @@ rsf_tune <- tune(
   do.best   = FALSE,
   seed      = MASTER_SEED
 )
+```
 
-rsf_hp <- list(
-  ntree    = 1000L,
-  mtry     = as.integer(rsf_tune$optimal["mtry"]),
-  nodesize = as.integer(rsf_tune$optimal["nodesize"])
-)
+```{r rsf-hp}
+rsf_hp <- if (RUN_TUNE) {
+  list(ntree    = 1000L,
+       mtry     = as.integer(rsf_tune$optimal["mtry"]),
+       nodesize = as.integer(rsf_tune$optimal["nodesize"]))
+} else {
+  list(ntree = 500L, mtry = 1L, nodesize = 16L)   # memory/speed, see sim02
+}
 
-cat(sprintf("RSF tuned (OOB): mtry=%d, nodesize=%d, ntree=%d\n",
+cat(sprintf("RSF hyperparameters (%s): mtry=%d, nodesize=%d, ntree=%d\n",
+            if (RUN_TUNE) "OOB-tuned" else "fixed, previous settings",
             rsf_hp$mtry, rsf_hp$nodesize, rsf_hp$ntree))
 ```
 
@@ -318,7 +342,7 @@ setup <- list(
     emp_retained  = mean(kept),
     emp_censor_lt = mean(df_pilot$status == 0),
     grid_source   = "ltrc",
-    tuned_on      = "ltrc",
+    tuned_on      = if (RUN_TUNE) "ltrc" else "fixed (previous settings, RUN_TUNE=FALSE)",
     sigma_type    = SIGMA_TYPE,
     sigma_rho     = SIGMA_RHO,
     master_seed   = MASTER_SEED

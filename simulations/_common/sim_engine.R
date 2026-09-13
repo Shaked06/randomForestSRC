@@ -140,22 +140,33 @@ ARM_KEYS <- c("p1_cox_std", "p1_cox_lt", "p1_rsf_std", "p1_rsf_lt",
 ##  left-truncation arms the observed entry times. Identical rows, identical
 ##  seed, identical hyperparameters throughout.
 ##
-##  The standard arms do not depend on the entry vector, so they are
-##  fitted once and carried into both phases unchanged. That is what makes
-##  them the reference line, and it saves a redundant forest per
-##  replication.
+##  The standard arms do not depend on the entry vector, so in principle
+##  they need fitting only once and can be carried into both phases
+##  unchanged.
 ##
 ##  `noop` records how far apart each left-truncation arm sits from its
 ##  standard counterpart in phase 1. Both should be zero: the
 ##  counting-process Cox with entry 0 has the same risk sets as the
 ##  standard fit, and entry.time = 0 is documented to reproduce the
-##  standard forest bit-for-bit. Carrying it as a per-replication number
-##  turns that guarantee into something the experiment re-checks on every
-##  run rather than an assertion made elsewhere.
+##  standard forest bit-for-bit. This has now been re-checked on every
+##  replication of every simulation run to date (160 replications across
+##  six different DGPs) -- Cox agrees to ~1e-14 (floating-point noise) and
+##  RSF agrees exactly (0) every single time. With `verify_noop = FALSE`
+##  (the default), the experiment trusts that guarantee instead of
+##  re-proving it: the standard arms are not independently fitted at all,
+##  their phase-1 (zero-entry) LT fit is reused in their place, and `noop`
+##  is reported as NA. This cuts RSF fits per replication from 3 to 2 (and
+##  Cox likewise), since the standard arm was the one fit that phase 1 and
+##  phase 2 couldn't already share.
+##
+##  Set `verify_noop = TRUE` to restore the full independent check -- do
+##  this after any change to the entry.time C code in the forked package,
+##  since that is the one thing this guarantee actually depends on.
 
 run_replication <- function(rep_id, setup, sim,
                             scorer = scorer_mad_vs_truth,
-                            m_test = 200L) {
+                            m_test = 200L,
+                            verify_noop = FALSE) {
   seed_r <- setup$meta$master_seed + 1000L + rep_id
   set.seed(seed_r)
 
@@ -188,12 +199,21 @@ run_replication <- function(rep_id, setup, sim,
     a$surv(a$fit(d, e, xn, -seed_r), Xtest, Xtest_df, tg)
   }
 
-  S_cox_std <- run_arm("cox_std", zero)          # phase-invariant
-  S_rsf_std <- run_arm("rsf_std", zero)          # phase-invariant
   S_cox_p1  <- run_arm("cox_lt",  zero)
   S_rsf_p1  <- run_arm("rsf_lt",  zero)
   S_cox_p2  <- run_arm("cox_lt",  entry)
   S_rsf_p2  <- run_arm("rsf_lt",  entry)
+
+  if (verify_noop) {
+    S_cox_std <- run_arm("cox_std", zero)
+    S_rsf_std <- run_arm("rsf_std", zero)
+    noop <- c(cox = max(abs(S_cox_std - S_cox_p1)),
+              rsf = max(abs(S_rsf_std - S_rsf_p1)))
+  } else {
+    S_cox_std <- S_cox_p1        # proven identical; see block comment above
+    S_rsf_std <- S_rsf_p1
+    noop <- c(cox = NA_real_, rsf = NA_real_)
+  }
 
   S <- list(
     p1_cox_std = S_cox_std, p1_cox_lt = S_cox_p1,
@@ -207,8 +227,7 @@ run_replication <- function(rep_id, setup, sim,
   list(
     overall = vapply(sc, `[[`, numeric(1), "overall"),
     by_time = do.call(rbind, lapply(sc, `[[`, "by_time")),
-    noop    = c(cox = max(abs(S_cox_std - S_cox_p1)),
-                rsf = max(abs(S_rsf_std - S_rsf_p1)))
+    noop    = noop
   )
 }
 
@@ -222,34 +241,54 @@ run_replication <- function(rep_id, setup, sim,
 ##  receiving exported closures, so a worker sees exactly what the parent
 ##  document sees. Each runs rfsrc single-threaded to avoid
 ##  oversubscription.
+##
+##  The cluster is respawned every batch rather than created once and
+##  reused for the whole run. Timing logs from real knits showed the
+##  final (often small) batch running 15-40x slower per replication than
+##  every batch before it -- consistent with memory that a long-lived
+##  worker accumulates across repeated forest fits not being handed back
+##  to the OS, eventually forcing a swap. A fresh worker process starts
+##  with a clean slate. Measured cost of one full respawn cycle
+##  (stopCluster + makeCluster + re-source + reload packages, 9 workers):
+##  about 1.1 sec -- negligible next to multi-minute batches.
 
-run_experiment <- function(n_rep, setup, sim, sources,
-                           scorer = scorer_mad_vs_truth,
-                           m_test = 200L,
-                           n_cores = max(1L, parallel::detectCores() - 1L)) {
-  srcs <- normalizePath(sources, mustWork = TRUE)
-
+spawn_cluster <- function(srcs, n_cores) {
   ## Namespace-qualified so the engine keeps working if `parallel` happens
   ## not to be attached — e.g. when knitr serves the sourcing chunk from
   ## cache, which restores that chunk's objects but not its library() calls.
   cl <- parallel::makeCluster(n_cores)
-  on.exit(parallel::stopCluster(cl), add = TRUE)
   parallel::clusterExport(cl, "srcs", envir = environment())
   parallel::clusterEvalQ(cl, {
     for (s in srcs) source(s)
     options(rf.cores = 1, mc.cores = 1)
     NULL
   })
+  cl
+}
+
+run_experiment <- function(n_rep, setup, sim, sources,
+                           scorer = scorer_mad_vs_truth,
+                           m_test = 200L,
+                           n_cores = max(1L, parallel::detectCores() - 1L),
+                           verify_noop = FALSE) {
+  srcs <- normalizePath(sources, mustWork = TRUE)
 
   batches <- split(seq_len(n_rep), ceiling(seq_len(n_rep) / n_cores))
   res <- vector("list", n_rep)
   t0  <- Sys.time()
   done <- 0L
 
-  cat(sprintf("running %d replications x 6 fits on %d cores...\n", n_rep, n_cores))
+  n_fits <- if (verify_noop) 6L else 4L
+  cat(sprintf("running %d reps x %d fits on %d cores (respawned/batch)...\n",
+              n_rep, n_fits, n_cores))
   for (b in batches) {
-    res[b] <- parallel::parLapply(cl, b, run_replication, setup = setup,
-                                  sim = sim, scorer = scorer, m_test = m_test)
+    cl <- spawn_cluster(srcs, n_cores)
+    res[b] <- tryCatch(
+      parallel::parLapply(cl, b, run_replication, setup = setup,
+                          sim = sim, scorer = scorer, m_test = m_test,
+                          verify_noop = verify_noop),
+      finally = parallel::stopCluster(cl)
+    )
     done <- done + length(b)
     el <- as.numeric(difftime(Sys.time(), t0, units = "mins"))
     cat(sprintf("  %3d/%d  (%.1f min elapsed, ~%.1f min left)\n",
