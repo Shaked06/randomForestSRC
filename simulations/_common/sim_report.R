@@ -121,8 +121,13 @@ plot_score_by_time <- function(res, main = NULL) {
 
 ## Both phases of the two left-truncation arms. `field`/`ylab` -- see
 ## phase_table() above; ylab defaults to the label matching `field`.
-plot_phases_box <- function(res, field = "overall",
-                            ylab = if (field == "cindex") res$cindex_label else res$scorer_label) {
+field_label <- function(res, field) {
+  switch(field,
+        cindex = res$cindex_label,
+        brier  = res$brier_label,
+        res$scorer_label)
+}
+plot_phases_box <- function(res, field = "overall", ylab = field_label(res, field)) {
   keys <- c("p1_cox_lt", "p2_cox_lt", "p1_rsf_lt", "p2_rsf_lt")
   op <- par(mar = c(6, 4, 3, 1))
   on.exit(par(op), add = TRUE)

@@ -209,6 +209,26 @@ paired_shift(res, field = "cindex")
 plot_phases_box(res, field = "cindex")
 ```
 
+## Brier score / CRPS (calibration, training sample)
+
+C-index above checks *ranking*; this checks *calibration* -- how close the
+predicted probability itself is to the observed outcome, at each time point,
+integrated into one number (CRPS). Scored the same way as C-index: each
+arm's own-data survival curve, against the same real entry vector
+regardless of which arm produced the prediction. `r res$brier_label`.
+
+```{r brier-phase-table, cache=FALSE}
+phase_table(res, field = "brier")
+```
+
+```{r brier-paired, cache=FALSE}
+paired_shift(res, field = "brier")
+```
+
+```{r brier-plot-box, cache=FALSE, fig.width=7.5, fig.height=4.5}
+plot_phases_box(res, field = "brier")
+```
+
 ## Across the time axis
 
 A single summary figure averages over the whole grid and cannot show where along

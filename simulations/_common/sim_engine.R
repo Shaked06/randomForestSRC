@@ -125,6 +125,42 @@ cindex_arm <- function(Shat_own, time, status, entry) {
 
 
 ## ---------------------------------------------------------------------
+##  2c. Brier score / CRPS (calibration, scored on the training sample's
+##      real outcomes -- same data as the C-index scorer above)
+## ---------------------------------------------------------------------
+##  get.brier.survival() only accepts genuine rfsrc objects (it checks the
+##  class directly), so it can't take a Cox fit's predictions the way
+##  get.cindex() takes any vector. Wrapping each arm's own-data survival
+##  matrix in a minimal object with just the fields the function actually
+##  reads works for both families uniformly -- this is exactly the
+##  technique used to hand-verify get.brier.survival() itself, so it's
+##  already proven correct, not a new risk. cens.model="km" is used
+##  deliberately: cens.model="rfsrc" was found to be non-deterministic
+##  between calls (a pre-existing gap, unrelated to left truncation -- see
+##  docs/left_truncation_metrics_roadmap.md).
+##
+##  Reports crps: the Brier curve integrated over the whole time grid into
+##  one number, same shape as MAD's overall and the C-index scorer.
+
+brier_arm <- function(Shat_own, tg, time, status, entry) {
+  mort <- risk_score(Shat_own)
+  o <- list(
+    family        = "surv",
+    yvar          = cbind(time, status),
+    predicted     = mort,
+    predicted.oob = mort,
+    survival.oob  = Shat_own,
+    time.interest = tg,
+    forest        = list(yvar = cbind(time, status),
+                         xvar = data.frame(.dummy = rep(0, length(time)))),
+    imputed.indv  = NULL
+  )
+  class(o) <- c("rfsrc", "grow", "surv")
+  get.brier.survival(o, cens.model = "km", entry.time = entry)$crps
+}
+
+
+## ---------------------------------------------------------------------
 ##  3. Arms
 ## ---------------------------------------------------------------------
 ##  Four arms in two families. Within a family the two arms differ only in
@@ -281,12 +317,15 @@ run_replication <- function(rep_id, setup, sim,
   )[ARM_KEYS]
   cindex <- vapply(Shat_own, cindex_arm, numeric(1),
                    time = train$time, status = train$status, entry = entry)
+  brier <- vapply(Shat_own, brier_arm, numeric(1),
+                  tg = tg, time = train$time, status = train$status, entry = entry)
 
   list(
     overall = vapply(sc, `[[`, numeric(1), "overall"),
     by_time = do.call(rbind, lapply(sc, `[[`, "by_time")),
     noop    = noop,
-    cindex  = cindex
+    cindex  = cindex,
+    brier   = brier
   )
 }
 
@@ -362,11 +401,13 @@ run_experiment <- function(n_rep, setup, sim, sources,
     by_time      = by_time,
     noop         = as.data.frame(do.call(rbind, lapply(res, `[[`, "noop"))),
     cindex       = as.data.frame(do.call(rbind, lapply(res, `[[`, "cindex"))),
+    brier        = as.data.frame(do.call(rbind, lapply(res, `[[`, "brier"))),
     tgrid        = setup$time_grid,
     n_rep        = n_rep,
     m_test       = m_test,
     scorer_label = scorer$label,
     cindex_label = "C-index error (1-C, truncation-aware, lower=better) on training sample",
+    brier_label  = "CRPS (Brier score integrated over t, truncation-aware, lower=better) on training sample",
     sim_name     = sim$name
   )
 }
