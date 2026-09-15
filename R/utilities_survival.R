@@ -247,7 +247,16 @@ set.nodesize <- function(n, p, nodesize = NULL) {
   nodesize
 }
 ## main brier function
-get.brier.survival <- function(o, subset, cens.model = c("km", "rfsrc"), papply = lapply) {
+## entry.time: optional left-truncation (entry/late-entry) time, one per
+## TRAINING observation (same length and row order as the forest's own
+## yvar -- not the `subset` being scored). NULL (the default) reproduces
+## the standard Brier score exactly. See
+## docs/brier_score_left_truncation.md for the three adjustments this
+## implements: a per-time risk set restricted to subjects who had already
+## entered, the predicted curve conditioned on having survived to entry,
+## and a truncation weight alongside the existing censoring weight.
+get.brier.survival <- function(o, subset, cens.model = c("km", "rfsrc"), papply = lapply,
+                               entry.time = NULL) {
   ## incoming parameter checks
   if (is.null(o)) {
     return(NULL)
@@ -295,6 +304,17 @@ get.brier.survival <- function(o, subset, cens.model = c("km", "rfsrc"), papply 
   pred.no.y <- is.null(o$yvar)
   yvar <- o$forest$yvar
   o$yvar <- yvar
+  if (!is.null(entry.time)) {
+    if (length(entry.time) != nrow(yvar)) {
+      stop("entry.time must have one value per training observation")
+    }
+    if (any(is.na(entry.time)) || any(entry.time < 0)) {
+      stop("entry.time must be non-negative and non-missing")
+    }
+    if (any(entry.time > yvar[, 1], na.rm = TRUE)) {
+      stop("entry.time must not exceed the observed follow-up time for any subject")
+    }
+  }
   event.info <- get.event.info(o)
   ## obtain subset event info, but then put original yvar back
   if (!pred.no.y) {
@@ -376,6 +396,14 @@ get.brier.survival <- function(o, subset, cens.model = c("km", "rfsrc"), papply 
   else {
     cens.dist <- rep(1, length(censTime.pt))
   }
+  ## left truncation: empirical CDF of entry times, on the master grid.
+  ## Unlike the censoring distribution, entry times are directly observed
+  ## for every retained subject (no further censoring on entry itself), so
+  ## a plain empirical CDF is the right estimator here -- no KM/risk-set
+  ## machinery needed, unlike cens.dist above.
+  if (!is.null(entry.time)) {
+    GL.vec <- vapply(event.info$time.interest, function(tt) mean(entry.time <= tt), numeric(1))
+  }
   ## brier calculations
   brier.matx <- do.call(rbind, papply(1:ncol(surv.ensb), function(i) {
     tau <-  event.info$time
@@ -390,7 +418,44 @@ get.brier.survival <- function(o, subset, cens.model = c("km", "rfsrc"), papply 
       c1 <- 1 * (tau[i] <= t.unq & event[i] != 0)/c(1, cens.dist[, i])[1 + cens.pt]
       c2 <- 1 * (tau[i] > t.unq) / cens.dist[, i]
     }
-    (1 * (tau[i] > t.unq) - surv.ensb[, i])^2 * (c1 + c2)
+    surv.i <- surv.ensb[, i]
+    not.in.risk.set <- FALSE
+    ## left truncation adjustments -- see docs/brier_score_left_truncation.md.
+    ## entry.time indexed the same way as tau/event above (by i, not by the
+    ## `subset` argument): entry.time is supplied at the scale of the full
+    ## training sample, matching how tau/event are read from event.info,
+    ## which is itself unsubsetted (see comment above on subset.event.info).
+    if (!is.null(entry.time)) {
+      entry.i <- entry.time[i]
+      ## Adjustment 2: condition the predicted curve on having survived to
+      ## this subject's own entry time -- S(t|X) / S(entry|X).
+      S.entry.i <- c(1, surv.i)[1 + sIndex(t.unq, entry.i)]
+      surv.i <- surv.i / S.entry.i
+      ## Weighting: truncation-weight the same way c1/c2 already
+      ## censoring-weight, using G_L at the same two time arguments
+      ## (G_L(T_i^-) for c1, G_L(t) for c2). gl1 is computed directly
+      ## rather than by reusing cens.pt's grid-index trick: that trick
+      ## relies on the prepended value being exactly correct for any time
+      ## before the first grid point, which holds for cens.dist (survival
+      ## is exactly 1 at time 0) but not for G_L -- entries can easily
+      ## have already happened before the first *death* time in the grid,
+      ## so a prepended 0 is not a safe assumption here. Division is
+      ## always safe on cells that survive the risk-set filter below: if
+      ## this subject is in the risk set at t (entry.i <= t), it
+      ## contributes to G_L at t itself, so G_L cannot be zero there.
+      gl1 <- mean(entry.time < tau[i])
+      gl2 <- GL.vec
+      c1 <- c1 / gl1
+      c2 <- c2 / gl2
+      ## Adjustment 1: risk set R_L(t) = {i : entry_i <= t} -- exclude time
+      ## points this subject hadn't entered by yet. colMeans(na.rm=TRUE)
+      ## below then averages only over subjects actually in R_L(t),
+      ## exactly matching the spec's 1/|R_L(t)| normalization.
+      not.in.risk.set <- t.unq < entry.i
+    }
+    out <- (1 * (tau[i] > t.unq) - surv.i)^2 * (c1 + c2)
+    out[not.in.risk.set] <- NA_real_
+    out
   }))
   brier.score <- data.frame(time = event.info$time.interest,
                             brier.score = colMeans(brier.matx, na.rm = TRUE))
@@ -407,7 +472,8 @@ get.brier.survival <- function(o, subset, cens.model = c("km", "rfsrc"), papply 
        subset = subset,
        mort = mort,
        surv.aalen = surv.aalen,
-       surv.ensb = surv.ensb)
+       surv.ensb = surv.ensb,
+       GL = if (is.null(entry.time)) NULL else GL.vec)
 }
 ## ------------------------------------------------------------
 ## Uno weights

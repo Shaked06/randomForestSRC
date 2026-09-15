@@ -3,8 +3,8 @@
 Status of every evaluation tool listed earlier (see the project conversation),
 against whether it needs — and has — a left-truncation-aware version. Two
 tools already have their own detailed math spec in this folder:
-`c_index_left_truncation.md` (implemented) and `brier_score_left_truncation.md`
-(not yet implemented).
+`c_index_left_truncation.md` and `brier_score_left_truncation.md` — both now
+implemented.
 
 ## Why some tools need this and others don't
 
@@ -29,7 +29,7 @@ scoring tools below).
 | `print.rfsrc()` / `plot.rfsrc()` | Model summary / error-rate plot | **Done, for free** | Both just display `err.rate`, which is now computed correctly at grow time. |
 | `holdout.vimp.rfsrc()` | Holdout Variable Importance | **Done, for free** | Verified: its R wrapper forwards `entry.time` through `...` into its own `rfsrc()` calls, and its C-level performance computation (`summarizeHoldoutBlockPerformance()`) calls the same `getPerformance()` we patched. |
 | `subsample.rfsrc()` | VIMP confidence intervals (subsampling) | **Not done — real gap, not just unverified** | Checked the source: it takes an *already-fitted* forest and refits on row subsamples using a hand-picked parameter list (`ntree`, `mtry`, `nodesize`, `bootstrap`, ...) pulled back off that object. `entry.time` is not one of them. Even a forest originally fit with `entry.time=` loses it on every subsample refit inside this function — confirmed by grep: `entry.time` appears nowhere in the R source except `rfsrc.R` itself. Fixing this means adding `entry.time` to the recycled parameter list *and* subsetting it in sync with each subsample's row indices (`entry.time[pt]`), not just passing it through. |
-| `get.brier.survival()` | Brier Score (IPCW) | **Spec written, not implemented** | `brier_score_left_truncation.md` has the full math (risk-set filtering *and* conditional-survival reweighting — a bigger change than C-index's pair filter). Natural next candidate. |
+| `get.brier.survival()` | Brier Score (IPCW) | **Done** | Modified in place (pure R, no C involved). Implements all three adjustments from `brier_score_left_truncation.md`: risk-set restriction (`R_L(t)`, via `colMeans(na.rm=TRUE)` over cells masked `NA` when `entry > t`), conditional-survival reweighting (`S(t\|X)/S(entry\|X)`), and the truncation weight `1/G_L(...)` alongside the existing censoring weight. `entry.time = NULL` (default) is byte-identical to the untouched function. Verified against a fully hand-computed example (exact match to 6 decimal places) after an initial bug (a boundary-value assumption borrowed from the censoring-weight code that didn't transfer to the truncation weight) was caught and fixed. One caveat found and left alone as out of scope: `cens.model = "rfsrc"` was already non-deterministic between calls before this change (its internal censoring-forest refit has no fixed seed) — confirmed unrelated to left truncation; the default `cens.model = "km"` path is fully deterministic and is what's been verified. |
 | `get.auc()` | Time-dependent AUC | **Needs a spec — none written yet** | Time-dependent AUC has the same risk-set-at-time-*t* issue as Brier score. No design work done. |
 | `predict()`'s test-set error/C-index/VIMP | (test-set versions of the above) | **Out of scope (explicit decision)** | `predict()` has no entry-time channel at all for new data — no R argument, no `RF_fentryTime` global. Making this truncation-aware needs new plumbing roughly the size of this session's whole C-index change, on its own. This is exactly why our simulations score C-index on the *training* sample instead of the test set. |
 | `max.subtree.rfsrc()` | Maximal Subtree (minimal depth importance) | **Not applicable** | Purely structural (tree depth/topology), not outcome-pair-based. Already correct, since it reads a tree that was grown with entry-time-aware splitting. |
@@ -41,14 +41,13 @@ scoring tools below).
    `holdout.vimp.rfsrc()` confirmed free; `subsample.rfsrc()` confirmed
    *not* free — it's a real gap (see table above), not just an unverified
    assumption.
-2. **Fix `subsample.rfsrc()`**, if VIMP confidence intervals under
+2. ~~Implement Brier score~~ — **done**. Not yet wired into `sim_engine.R`
+   as a third scorer alongside MAD and C-index — that's a separate step,
+   same shape as the C-index wiring, whenever wanted.
+3. **Fix `subsample.rfsrc()`**, if VIMP confidence intervals under
    truncation become something the project actually needs — add
    `entry.time` to its recycled parameter list and subset it per-sample
    (`entry.time[pt]`) alongside the row subsampling itself.
-3. **Implement Brier score** — the spec already exists, and it's the other
-   metric our own `sim_engine.R` would plausibly want (MAD-vs-truth is
-   already Brier-score-shaped; a real, outcome-based Brier score would be a
-   natural third scorer alongside MAD and C-index).
 4. **AUC** only if a concrete need shows up — no spec exists yet, and it's
    the least central of the three to this project's actual questions.
 5. **`predict()` entry-time plumbing** is the biggest remaining piece, and
