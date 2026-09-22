@@ -28,7 +28,7 @@ scoring tools below).
 | `tune.rfsrc()` | Hyperparameter tuning (`mtry`/`nodesize`) | **Done, for free** | Selects `mtry`/`nodesize` by OOB error — inherits the fix transitively, same reasoning as VIMP. (Separately, we already found `tune()`'s OOB-only objective isn't a good fit for our project regardless of truncation — see sim02's `stage0_setup.Rmd`.) |
 | `print.rfsrc()` / `plot.rfsrc()` | Model summary / error-rate plot | **Done, for free** | Both just display `err.rate`, which is now computed correctly at grow time. |
 | `holdout.vimp.rfsrc()` | Holdout Variable Importance | **Done, for free** | Verified: its R wrapper forwards `entry.time` through `...` into its own `rfsrc()` calls, and its C-level performance computation (`summarizeHoldoutBlockPerformance()`) calls the same `getPerformance()` we patched. |
-| `subsample.rfsrc()` | VIMP confidence intervals (subsampling) | **Not done — real gap, not just unverified** | Checked the source: it takes an *already-fitted* forest and refits on row subsamples using a hand-picked parameter list (`ntree`, `mtry`, `nodesize`, `bootstrap`, ...) pulled back off that object. `entry.time` is not one of them. Even a forest originally fit with `entry.time=` loses it on every subsample refit inside this function — confirmed by grep: `entry.time` appears nowhere in the R source except `rfsrc.R` itself. Fixing this means adding `entry.time` to the recycled parameter list *and* subsetting it in sync with each subsample's row indices (`entry.time[pt]`), not just passing it through. |
+| `subsample.rfsrc()` | VIMP confidence intervals (subsampling) | **Done** | Turned out to need one step more than expected: `rfsrc()` never *stored* `entry.time` on the grow object at all — it was passed to C and discarded — so there was nothing for the refit to recycle. Fixed in two parts. (1) `rfsrc()` now returns `entry.time` on the grow object, storing `NULL` rather than the zero vector when none was supplied, so ordinary forests are byte-identical and carry no extra n-vector. (2) Both refit sites — `subsample.rfsrc()`'s subsampling loop and `bootsample()`'s double-bootstrap loop — now pass it through, **subset by the same row index they subset the data with** (`entry.time[pt]`, `entry.time[smp.unq]`). That subsetting is the whole difficulty: unlike every other recycled parameter, this one is per-subject, so passing the full vector would attach entry times to the wrong people. Verified by capturing every refit's actual arguments: each receives a vector matching its own row count, and every `(entry, time)` pair is a genuine pair from the original data. The fix measurably changes the intervals — entry-blind refits understate the importance of true signal variables. |
 | `get.brier.survival()` | Brier Score (IPCW) | **Done** | Modified in place (pure R, no C involved). Implements all three adjustments from `brier_score_left_truncation.md`: risk-set restriction (`R_L(t)`, via `colMeans(na.rm=TRUE)` over cells masked `NA` when `entry > t`), conditional-survival reweighting (`S(t\|X)/S(entry\|X)`), and the truncation weight `1/G_L(...)` alongside the existing censoring weight. `entry.time = NULL` (default) is byte-identical to the untouched function. Verified against a fully hand-computed example (exact match to 6 decimal places) after an initial bug (a boundary-value assumption borrowed from the censoring-weight code that didn't transfer to the truncation weight) was caught and fixed. One caveat found and left alone as out of scope: `cens.model = "rfsrc"` was already non-deterministic between calls before this change (its internal censoring-forest refit has no fixed seed) — confirmed unrelated to left truncation; the default `cens.model = "km"` path is fully deterministic and is what's been verified. |
 | `get.auc.survival()` | Time-dependent AUC (cumulative/dynamic) | **Done** | New function — see `auc_left_truncation.md`. Same risk-set-at-time-*t* issue as the Brier score, and the same three adjustments: risk-set restriction to `entry ≤ t` (which provably only ever drops *controls*, since a case always has `entry ≤ T ≤ t`), conditional marker `1 - S(t\|X)/S(entry\|X)`, and joint censoring/truncation weights at `T_i^-` for cases and `t` for controls. Verified against a literal double-loop transcription of the spec (agreement to 1e-13) and against two null cases: an identical-curve marker returns *exactly* 0.5, and a permuted marker centers on 0.5 (mean 0.506 over 40 draws, p = 0.36). Note it is **higher-is-better**, unlike every other metric here. |
 | `get.auc()` | Multiclass classification AUC (Hand & Till 2001) | **Not applicable** | Listed in earlier versions of this table as "time-dependent AUC" — that was wrong. It scores classification probabilities, has no time axis and no risk set, so left truncation cannot apply to it. The survival AUC is the separate `get.auc.survival()` above. |
@@ -50,10 +50,21 @@ scoring tools below).
    wired into `sim_engine.R` as a fourth scorer — same shape as the Brier
    wiring, but note it is higher-is-better, so the engine (which assumes
    lower-is-better throughout) needs `1 - auc`.
-4. **Fix `subsample.rfsrc()`**, if VIMP confidence intervals under
-   truncation become something the project actually needs — add
-   `entry.time` to its recycled parameter list and subset it per-sample
-   (`entry.time[pt]`) alongside the row subsampling itself.
-5. **`predict()` entry-time plumbing** is the biggest remaining piece, and
+4. ~~Fix `subsample.rfsrc()`~~ — **done**, along with `bootsample()`'s
+   double-bootstrap path and the missing `entry.time` slot on the grow
+   object that both depended on. See the table above.
+5. **Guard rail on split rules** — the one gap found outside this table, and
+   the most dangerous, because it fails silently. Only the *default*
+   `splitrule = "logrank"` is entry-aware. `logrankscore` (splits on
+   precomputed `survivalRank[]`), `logrankCR` / `logrankCRGeneral`, and
+   `bs.gradient` (`brierScoreGradient1`) contain no entry-time guard at
+   all, so supplying `entry.time` with any of them silently grows trees on
+   biased risk sets while the curve estimation stays correct. The cheap fix
+   is not to implement them but to make `rfsrc()` warn or error on that
+   combination; implementing them properly comes after. Finding is from
+   reading the C source, not runtime testing — confirm before acting.
+6. **`predict()` entry-time plumbing** is the biggest remaining piece, and
    only worth it if test-set (not training-sample) truncation-aware scoring
-   becomes something the project actually needs.
+   becomes something the project actually needs. There is no
+   `RF_fentryTime` counterpart to `RF_entryTime` in the C layer, so this
+   is new plumbing rather than a wiring change.

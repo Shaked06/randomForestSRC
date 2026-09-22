@@ -157,6 +157,18 @@ subsample.rfsrc <- function(obj,
   ##--------------------------------------------------------------
   dta <- data.frame(obj$yvar, obj$xvar)
   colnames(dta)[1:length(obj$yvar.names)] <- obj$yvar.names
+  ## Left truncation: entry.time cannot travel in rf.prms with the other
+  ## recycled settings, because unlike every one of them it is per-subject.
+  ## Each refit below draws its own row subset, so the entry vector has to be
+  ## cut to match that subset -- passing the full-length vector would attach
+  ## entry times to the wrong people. `dta` is in the original training row
+  ## order, so the same index vector serves both.
+  ## NULL here means the forest was grown without left truncation; the refits
+  ## then carry no entry.time at all, exactly as before.
+  entry.time <- obj$entry.time
+  if (!is.null(entry.time) && length(entry.time) != n) {
+    stop("entry.time on the grow object does not match the training sample size")
+  }
   ##--------------------------------------------------------------
   ##
   ## call vimp to extract importance if not available in original object
@@ -228,8 +240,11 @@ subsample.rfsrc <- function(obj,
       pt <- sample(1:n, size = (n * subratio), replace = FALSE)
     }
     ## calculate VMP on the subsampled data
+    ## entry.time is subset by the same `pt` that subsets the rows (see above)
     rf.b <-  do.call("rfsrc",
-                     c(list(data = dta[pt,, drop = FALSE], importance = importance), rf.prms))
+                     c(list(data = dta[pt,, drop = FALSE], importance = importance),
+                       if (!is.null(entry.time)) list(entry.time = entry.time[pt]),
+                       rf.prms))
     vmp.b <- get.mv.vimp(rf.b, FALSE, FALSE)
     if (joint && !performance.only) {
       vmp.b.joint <- get.mv.vimp(get.subsample.joint.vimp(rf.b, rf.prms, xvar.names), FALSE, FALSE)

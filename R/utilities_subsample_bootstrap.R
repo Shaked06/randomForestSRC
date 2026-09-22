@@ -14,6 +14,13 @@ bootsample <- function(obj, rf.prms, B, block.size, joint, xvar.names,
   dta <- data.frame(obj$yvar, obj$xvar)
   colnames(dta)[1:length(obj$yvar.names)] <- obj$yvar.names
   n <- nrow(obj$xvar)
+  ## left truncation -- see the matching comment in subsample.rfsrc(). Each
+  ## refit below is on the unique rows of a bootstrap draw, so entry.time has
+  ## to be cut to those same rows. NULL means no left truncation was used.
+  entry.time <- obj$entry.time
+  if (!is.null(entry.time) && length(entry.time) != n) {
+    stop("entry.time on the grow object does not match the training sample size")
+  }
   ##--------------------------------------------------------------
   ##
   ## call vimp to extract importance if not available in original object
@@ -71,9 +78,12 @@ bootsample <- function(obj, rf.prms, B, block.size, joint, xvar.names,
     dbl.smp <- make.double.boot.sample(rf.prms$ntree, n, smp,
                              size = rf.prms$sampsize, replace = rf.prms$samptype == "swr")
     ## calculate VIMP from the double boostrap forest
+    ## entry.time is subset by the same smp.unq that subsets the rows
     rf.b <- do.call("rfsrc",
                     c(list(data = dta[smp.unq,, drop = FALSE], importance = importance,
-                           bootstrap = "by.user", samp = dbl.smp), rf.prms))
+                           bootstrap = "by.user", samp = dbl.smp),
+                      if (!is.null(entry.time)) list(entry.time = entry.time[smp.unq]),
+                      rf.prms))
     vmp.b <- get.mv.vimp(rf.b, FALSE, FALSE)
     if (joint && !performance.only) {
       vmp.b.joint <- get.mv.vimp(get.subsample.joint.vimp(rf.b, rf.prms, xvar.names), FALSE, FALSE)

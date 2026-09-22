@@ -171,6 +171,15 @@ rfsrc <- function(formula, data, ntree = 500,
   ## Left-truncation (delayed entry) time: L_i, default zero for every subject.
   ## entry.time = rep(0, n) reproduces the standard right-censored analysis exactly,
   ## since the at-risk interval [0, time_i] collapses to the usual tail 1(time_i >= t).
+  ##
+  ## The user's original argument is kept separately and returned on the grow
+  ## object. Functions that refit the forest on resampled rows --
+  ## subsample.rfsrc() and bootsample() -- rebuild their rfsrc() call from a
+  ## hand-picked list of settings read back off this object, so a setting that
+  ## is not stored here is silently lost on every refit. Storing NULL rather
+  ## than the zero vector when none was supplied keeps ordinary forests exactly
+  ## as they were, with no extra n-vector carried around.
+  entry.time.user <- entry.time
   if (is.null(entry.time)) {
     entry.time <- rep(0, n)
   }
@@ -979,6 +988,7 @@ rfsrc <- function(formula, data, ntree = 500,
     xvar = if (big.data) NULL else xvar,
     xvar.names = xvar.names,
     event.info = event.info,
+    entry.time = entry.time.user,
     subj = subj,
     subj.names = subj.names,
     xvar.wt = xvar.wt,
