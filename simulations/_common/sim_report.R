@@ -102,7 +102,8 @@ noop_table <- function(res, cox_tol = 1e-8) {
 ## the time axis the arms separate, which a single summary figure cannot.
 ## MAD-vs-truth only -- the C-index is a single rank-based number per
 ## replication (not evaluated at each grid point), so it has no by-time
-## curve to plot here.
+## curve to plot here. The time-dependent AUC does, and gets its own
+## function below (plot_auc_by_time).
 plot_score_by_time <- function(res, main = NULL) {
   keys <- c("cox_std", "cox_lt", "rsf_std", "rsf_lt")
   labs <- vapply(keys, arm_label, character(1), sep = ", ")
@@ -117,6 +118,50 @@ plot_score_by_time <- function(res, main = NULL) {
           } else main)
   legend("topleft", legend = labs, col = cols, lty = ltys, lwd = 2,
          bty = "n", cex = 0.85)
+  invisible(Y)
+}
+
+
+## Time-dependent AUC as a function of t, for BOTH phases of the two
+## left-truncation arms -- the one place the phase-1/phase-2 contrast can be
+## seen at each time point rather than collapsed into a single average.
+##
+## This is worth a plot of its own precisely because the average hides the
+## effect. Entry times matter most early, while a large share of subjects
+## have not entered yet; by late follow-up nearly everyone has entered and
+## the phases converge. Two curves that differ substantially at early t can
+## therefore produce nearly identical iAUC values.
+##
+## Plotted on the AUC scale (higher = better discrimination) rather than the
+## 1-AUC error scale the tables use, because a reader looking at a ROC-style
+## quantity expects 0.5 to mean chance. The 0.5 reference line is drawn for
+## that reason.
+plot_auc_by_time <- function(res, main = NULL) {
+  if (is.null(res$auc_by_time)) {
+    plot.new()
+    text(0.5, 0.5, "no AUC by-time curve in this run\n(re-run the simulation)",
+         cex = 0.95, col = "grey35")
+    return(invisible(NULL))
+  }
+  keys <- c("cox_lt", "rsf_lt")
+  cols <- c("#e6550d", "#31a354")
+  ## stored as 1 - AUC to match the tables; flip back for display
+  Y <- 1 - res$auc_by_time[c("p1_cox_lt", "p2_cox_lt",
+                             "p1_rsf_lt", "p2_rsf_lt"), , drop = FALSE]
+  ok <- colSums(is.finite(Y)) > 0        # drop grid times undefined everywhere
+  matplot(res$tgrid[ok], t(Y[, ok, drop = FALSE]), type = "l", lwd = 2,
+          col = rep(cols, each = 2), lty = c(2, 1, 2, 1),
+          ylim = c(min(0.45, min(Y[, ok], na.rm = TRUE)), 1),
+          xlab = "t", ylab = "AUC(t)   (higher = better)", las = 1,
+          main = if (is.null(main)) {
+            sprintf("Time-dependent AUC (%d replications)", res$n_rep)
+          } else main)
+  abline(h = 0.5, col = "grey55", lty = 3, lwd = 1.5)
+  legend("bottomright", bty = "n", cex = 0.8,
+         col = c(cols[1], cols[1], cols[2], cols[2], "grey55"),
+         lty = c(2, 1, 2, 1, 3), lwd = c(2, 2, 2, 2, 1.5),
+         legend = c("Cox, entry 0", "Cox, entry used",
+                    "RSF, entry 0", "RSF, entry used", "chance (0.5)"))
   invisible(Y)
 }
 

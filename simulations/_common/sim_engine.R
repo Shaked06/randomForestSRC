@@ -182,10 +182,31 @@ brier_arm <- function(Shat_own, tg, time, status, entry) {
 ##  every other column in these tables already follows (get.cindex() does
 ##  exactly the same thing, returning 1 - C rather than C). Nothing
 ##  downstream then needs a per-metric sign rule.
+##
+##  Unlike the C-index, this scorer is evaluated separately at every grid
+##  time, so it has a genuine by-time curve to report alongside the summary
+##  number -- and that curve carries information the average destroys. The
+##  entry-aware and entry-blind versions tend to separate at EARLY times,
+##  where a large share of subjects have not entered yet, then converge once
+##  nearly everyone has. Time-averaging the two into single numbers can make
+##  them look nearly identical while the curves differ substantially.
+##
+##  So both are returned: `overall` (1 - iauc, the scalar that goes in the
+##  tables) and `by_time` (1 - AUC(t) on the shared grid). The curve comes
+##  back on the caller's own tgrid, so it lines up with MAD's by_time and
+##  can be averaged across replications the same way. NA grid points -- times
+##  with no cases or no controls, routine at the very start and end -- are
+##  preserved and handled by na.rm at aggregation.
 
 auc_arm <- function(Shat_own, tg, time, status, entry) {
-  1 - get.auc.survival(rfsrc_shim(Shat_own, tg, time, status),
-                       cens.model = "km", entry.time = entry)$iauc
+  a <- get.auc.survival(rfsrc_shim(Shat_own, tg, time, status),
+                        cens.model = "km", entry.time = entry)
+  ## get.auc.survival() evaluates on event.info$time.interest, which for the
+  ## shim is tg itself -- assert rather than assume, since a silent length
+  ## mismatch would misalign every by-time curve downstream.
+  stopifnot(length(a$auc$auc) == length(tg))
+  list(overall = 1 - a$iauc,
+       by_time = 1 - a$auc$auc)
 }
 
 
@@ -348,16 +369,19 @@ run_replication <- function(rep_id, setup, sim,
                    time = train$time, status = train$status, entry = entry)
   brier <- vapply(Shat_own, brier_arm, numeric(1),
                   tg = tg, time = train$time, status = train$status, entry = entry)
-  auc <- vapply(Shat_own, auc_arm, numeric(1),
-                tg = tg, time = train$time, status = train$status, entry = entry)
+  ## AUC returns a scalar and a curve; keep them apart so `auc` stays the
+  ## same 8-column shape as cindex/brier and phase_table() keeps working.
+  auc_full <- lapply(Shat_own, auc_arm,
+                     tg = tg, time = train$time, status = train$status, entry = entry)
 
   list(
-    overall = vapply(sc, `[[`, numeric(1), "overall"),
-    by_time = do.call(rbind, lapply(sc, `[[`, "by_time")),
-    noop    = noop,
-    cindex  = cindex,
-    brier   = brier,
-    auc     = auc
+    overall     = vapply(sc, `[[`, numeric(1), "overall"),
+    by_time     = do.call(rbind, lapply(sc, `[[`, "by_time")),
+    noop        = noop,
+    cindex      = cindex,
+    brier       = brier,
+    auc         = vapply(auc_full, `[[`, numeric(1), "overall"),
+    auc_by_time = do.call(rbind, lapply(auc_full, `[[`, "by_time"))
   )
 }
 
@@ -427,6 +451,15 @@ run_experiment <- function(n_rep, setup, sim, sources,
 
   by_time <- Reduce(`+`, lapply(res, `[[`, "by_time")) / n_rep
   rownames(by_time) <- ARM_KEYS
+  ## AUC's curve is averaged the same way, but element-wise with na.rm: a
+  ## grid time can be undefined (no cases or no controls) in some
+  ## replications and not others, so a plain sum would poison the whole
+  ## column with NA. Times undefined in *every* replication stay NA and are
+  ## simply not plotted.
+  auc_stack   <- simplify2array(lapply(res, `[[`, "auc_by_time"))
+  auc_by_time <- apply(auc_stack, c(1, 2), mean, na.rm = TRUE)
+  auc_by_time[is.nan(auc_by_time)] <- NA_real_
+  rownames(auc_by_time) <- ARM_KEYS
 
   list(
     overall      = as.data.frame(do.call(rbind, lapply(res, `[[`, "overall"))),
@@ -435,6 +468,7 @@ run_experiment <- function(n_rep, setup, sim, sources,
     cindex       = as.data.frame(do.call(rbind, lapply(res, `[[`, "cindex"))),
     brier        = as.data.frame(do.call(rbind, lapply(res, `[[`, "brier"))),
     auc          = as.data.frame(do.call(rbind, lapply(res, `[[`, "auc"))),
+    auc_by_time  = auc_by_time,
     tgrid        = setup$time_grid,
     n_rep        = n_rep,
     m_test       = m_test,

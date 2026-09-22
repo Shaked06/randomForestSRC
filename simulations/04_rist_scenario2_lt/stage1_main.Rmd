@@ -229,6 +229,16 @@ paired_shift(res, field = "auc")
 plot_phases_box(res, field = "auc")
 ```
 
+The single number above averages over the whole time axis, which can hide
+the effect: entry times matter most *early*, while many subjects have not
+entered yet, and matter less once nearly everyone has. The curve below shows
+the AUC at each time point for both phases, on the AUC scale (higher is
+better, 0.5 is chance).
+
+```{r auc-by-time, cache=FALSE, fig.width=7.5, fig.height=4.5}
+plot_auc_by_time(res)
+```
+
 ## Across the time axis
 
 ```{r plot-time, cache=FALSE, fig.width=8, fig.height=5}
