@@ -47,11 +47,11 @@ that arm/metric worse.
 
 ## By metric
 
-Same numbers as the table above, as three small multiples (one axis each
-— MAD, C-index, and Brier live on very different scales, so one shared
-axis would be misleading). The zero line is the reference: bars crossing
-below it are where entry time made that arm/metric *worse*, which only
-shows up for RSF’s C-index in a few sims.
+Same numbers as the table above, as 3 small multiples (one axis each —
+MAD, C-idx, and Brier live on very different scales, so one shared axis
+would be misleading). The zero line is the reference: bars crossing
+below it are where entry time made that arm/metric *worse* — in this
+run, C-idx RSF.
 
 ![](RESULTS_files/figure-gfm/plot-mad-1.png)<!-- -->
 

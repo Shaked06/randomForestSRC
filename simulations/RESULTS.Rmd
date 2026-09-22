@@ -47,12 +47,22 @@ dgp_label <- c(
   "05" = "RIST Sc.3 (Gamma, PH violation)",
   "06" = "RIST Sc.4 (Lognormal, PH violation)"
 )
-metrics <- c(overall = "MAD", cindex = "C-idx", brier = "Brier")
+metrics <- c(overall = "MAD", cindex = "C-idx", brier = "Brier", auc = "AUC")
 
 res_list <- lapply(sims, function(d) {
   readRDS(file.path(d, "results_phases.rds"))
 })
 names(res_list) <- names(sims)
+
+## Keep only the scorers every simulation actually carries. A saved run
+## predates any scorer added after it was produced, so this report has to
+## work on a mixed set: it shows what is there today and picks up a new
+## column on its own once every sim has been re-run. Requiring *all* sims to
+## have the field keeps every row of the table comparable.
+metrics <- metrics[vapply(names(metrics), function(f) {
+  all(vapply(res_list, function(r) !is.null(r[[f]]), logical(1)))
+}, logical(1))]
+has_auc <- "auc" %in% names(metrics)
 
 ## % improvement from phase 1 -> phase 2, lower-is-better for every metric
 ## here, so positive = entry time helped.
@@ -125,13 +135,24 @@ plot_metric_bars <- function(field, label) {
   legend("topright", legend = c("Cox", "RSF"), fill = c(COL_COX, COL_RSF),
          border = NA, bty = "n", cex = 0.85)
 }
+
+## Which arm/metric combinations actually went backwards, read off the data
+## rather than asserted in prose -- so this sentence cannot go stale against
+## the numbers it describes when the run size changes.
+neg_cells <- unlist(lapply(names(metrics), function(f) {
+  m  <- pct_matrix(f)
+  ix <- which(m < 0, arr.ind = TRUE)
+  if (!nrow(ix)) NULL else sprintf("%s %s", metrics[[f]], colnames(m)[ix[, "col"]])
+}))
+neg_txt <- if (!length(neg_cells)) "no arm/metric in this run" else
+  knitr::combine_words(sort(unique(neg_cells)))
 ```
 
-Same numbers as the table above, as three small multiples (one axis each —
-MAD, C-index, and Brier live on very different scales, so one shared axis
-would be misleading). The zero line is the reference: bars crossing below it
-are where entry time made that arm/metric *worse*, which only shows up for
-RSF's C-index in a few sims.
+Same numbers as the table above, as `r length(metrics)` small multiples (one
+axis each — `r knitr::combine_words(unname(metrics))` live on very different
+scales, so one shared axis would be misleading). The zero line is the
+reference: bars crossing below it are where entry time made that arm/metric
+*worse* — in this run, `r neg_txt`.
 
 ```{r plot-mad, fig.width=7, fig.height=4}
 plot_metric_bars("overall", "MAD vs true S")
@@ -143,6 +164,10 @@ plot_metric_bars("cindex", "C-index (ranking)")
 
 ```{r plot-brier, fig.width=7, fig.height=4}
 plot_metric_bars("brier", "Brier / CRPS (calibration)")
+```
+
+```{r plot-auc, fig.width=7, fig.height=4, eval=has_auc}
+plot_metric_bars("auc", "Time-dependent AUC (ranking at each t)")
 ```
 
 Raw phase-table numbers (all three metrics, all six sims) are in each sim's

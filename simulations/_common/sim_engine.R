@@ -125,24 +125,24 @@ cindex_arm <- function(Shat_own, time, status, entry) {
 
 
 ## ---------------------------------------------------------------------
-##  2c. Brier score / CRPS (calibration, scored on the training sample's
-##      real outcomes -- same data as the C-index scorer above)
+##  2c. Curve-based scorers on the training sample's real outcomes
+##      (Brier/CRPS and time-dependent AUC -- same data as the C-index
+##      scorer above)
 ## ---------------------------------------------------------------------
-##  get.brier.survival() only accepts genuine rfsrc objects (it checks the
-##  class directly), so it can't take a Cox fit's predictions the way
-##  get.cindex() takes any vector. Wrapping each arm's own-data survival
-##  matrix in a minimal object with just the fields the function actually
-##  reads works for both families uniformly -- this is exactly the
-##  technique used to hand-verify get.brier.survival() itself, so it's
-##  already proven correct, not a new risk. cens.model="km" is used
-##  deliberately: cens.model="rfsrc" was found to be non-deterministic
-##  between calls (a pre-existing gap, unrelated to left truncation -- see
-##  docs/left_truncation_metrics_roadmap.md).
+##  get.brier.survival() and get.auc.survival() only accept genuine rfsrc
+##  objects (they check the class directly), so neither can take a Cox
+##  fit's predictions the way get.cindex() takes any vector. Wrapping each
+##  arm's own-data survival matrix in a minimal object carrying just the
+##  fields those functions actually read works for both families uniformly
+##  -- this is exactly the technique used to hand-verify
+##  get.brier.survival() itself, so it's already proven correct, not a new
+##  risk. Both scorers read the same fields, so one shim serves both.
 ##
-##  Reports crps: the Brier curve integrated over the whole time grid into
-##  one number, same shape as MAD's overall and the C-index scorer.
+##  cens.model="km" is used deliberately: cens.model="rfsrc" was found to be
+##  non-deterministic between calls (a pre-existing gap, unrelated to left
+##  truncation -- see docs/left_truncation_metrics_roadmap.md).
 
-brier_arm <- function(Shat_own, tg, time, status, entry) {
+rfsrc_shim <- function(Shat_own, tg, time, status) {
   mort <- risk_score(Shat_own)
   o <- list(
     family        = "surv",
@@ -156,7 +156,36 @@ brier_arm <- function(Shat_own, tg, time, status, entry) {
     imputed.indv  = NULL
   )
   class(o) <- c("rfsrc", "grow", "surv")
-  get.brier.survival(o, cens.model = "km", entry.time = entry)$crps
+  o
+}
+
+##  Reports crps: the Brier curve integrated over the whole time grid into
+##  one number, same shape as MAD's overall and the C-index scorer.
+
+brier_arm <- function(Shat_own, tg, time, status, entry) {
+  get.brier.survival(rfsrc_shim(Shat_own, tg, time, status),
+                     cens.model = "km", entry.time = entry)$crps
+}
+
+##  Time-dependent (cumulative/dynamic) AUC -- see
+##  docs/auc_left_truncation.md. A third view of the same fits, distinct
+##  from both neighbours: MAD asks whether the predicted curve is
+##  numerically right, Brier whether it is calibrated, the C-index whether
+##  the ranking is right overall -- and this whether the ranking is right
+##  *at each time point*, against the risk set actually alive then. That
+##  last distinction is the one left truncation attacks, which is why a
+##  time-resolved ranking metric earns its place next to the C-index.
+##
+##  get.auc.survival() reports iauc, the AUC curve time-averaged into one
+##  number, and it is HIGHER-is-better -- the only scorer here that is.
+##  Reporting 1 - iauc converts it to an error, matching the convention
+##  every other column in these tables already follows (get.cindex() does
+##  exactly the same thing, returning 1 - C rather than C). Nothing
+##  downstream then needs a per-metric sign rule.
+
+auc_arm <- function(Shat_own, tg, time, status, entry) {
+  1 - get.auc.survival(rfsrc_shim(Shat_own, tg, time, status),
+                       cens.model = "km", entry.time = entry)$iauc
 }
 
 
@@ -319,13 +348,16 @@ run_replication <- function(rep_id, setup, sim,
                    time = train$time, status = train$status, entry = entry)
   brier <- vapply(Shat_own, brier_arm, numeric(1),
                   tg = tg, time = train$time, status = train$status, entry = entry)
+  auc <- vapply(Shat_own, auc_arm, numeric(1),
+                tg = tg, time = train$time, status = train$status, entry = entry)
 
   list(
     overall = vapply(sc, `[[`, numeric(1), "overall"),
     by_time = do.call(rbind, lapply(sc, `[[`, "by_time")),
     noop    = noop,
     cindex  = cindex,
-    brier   = brier
+    brier   = brier,
+    auc     = auc
   )
 }
 
@@ -402,12 +434,14 @@ run_experiment <- function(n_rep, setup, sim, sources,
     noop         = as.data.frame(do.call(rbind, lapply(res, `[[`, "noop"))),
     cindex       = as.data.frame(do.call(rbind, lapply(res, `[[`, "cindex"))),
     brier        = as.data.frame(do.call(rbind, lapply(res, `[[`, "brier"))),
+    auc          = as.data.frame(do.call(rbind, lapply(res, `[[`, "auc"))),
     tgrid        = setup$time_grid,
     n_rep        = n_rep,
     m_test       = m_test,
     scorer_label = scorer$label,
     cindex_label = "C-index error (1-C, truncation-aware, lower=better) on training sample",
     brier_label  = "CRPS (Brier score integrated over t, truncation-aware, lower=better) on training sample",
+    auc_label    = "AUC error (1-AUC, time-averaged, truncation-aware, lower=better) on training sample",
     sim_name     = sim$name
   )
 }

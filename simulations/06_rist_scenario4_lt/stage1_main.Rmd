@@ -208,6 +208,28 @@ paired_shift(res, field = "brier")
 plot_phases_box(res, field = "brier")
 ```
 
+## Time-dependent AUC (ranking at each time point, training sample)
+
+The C-index asks whether the ranking is right *overall*, collapsing every
+comparable pair into one number. This asks whether it is right *at each time
+point* -- at time `t`, do the subjects who fail by `t` get ranked riskier than
+those still event-free, among only those actually under observation then? That
+last clause is the one left truncation attacks, which is why a time-resolved
+ranking metric earns its place alongside the C-index. Scored on the same data
+as both scorers above. `r res$auc_label`.
+
+```{r auc-phase-table, cache=FALSE}
+phase_table(res, field = "auc")
+```
+
+```{r auc-paired, cache=FALSE}
+paired_shift(res, field = "auc")
+```
+
+```{r auc-plot-box, cache=FALSE, fig.width=7.5, fig.height=4.5}
+plot_phases_box(res, field = "auc")
+```
+
 ## Across the time axis
 
 ```{r plot-time, cache=FALSE, fig.width=8, fig.height=5}

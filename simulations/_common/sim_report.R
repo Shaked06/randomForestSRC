@@ -31,10 +31,12 @@ arm_label <- function(key, sep = " ") {
 
 ## Mean score per arm in each phase, and the phase-1 -> phase-2 shift.
 ## `field` selects which per-replication table to summarize: "overall" is
-## MAD-vs-truth (the default, on the population test set); "cindex" is the
-## truncation-aware C-index error (on the training sample's real outcomes,
-## see sim_engine.R). Both are 8-column, lower-is-better tables of the same
-## shape, so one function serves both.
+## MAD-vs-truth (the default, on the population test set); "cindex",
+## "brier" and "auc" are the truncation-aware C-index error, CRPS and AUC
+## error (all on the training sample's real outcomes, see sim_engine.R).
+## Every one is an 8-column, lower-is-better table of the same shape -- the
+## engine converts AUC to 1-AUC precisely so that stays true -- so one
+## function serves them all.
 phase_table <- function(res, field = "overall") {
   m    <- colMeans(res[[field]])
   keys <- c("cox_std", "cox_lt", "rsf_std", "rsf_lt")
@@ -125,6 +127,7 @@ field_label <- function(res, field) {
   switch(field,
         cindex = res$cindex_label,
         brier  = res$brier_label,
+        auc    = res$auc_label,
         res$scorer_label)
 }
 plot_phases_box <- function(res, field = "overall", ylab = field_label(res, field)) {
