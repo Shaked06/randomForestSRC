@@ -255,16 +255,23 @@ set.nodesize <- function(n, p, nodesize = NULL) {
 ## implements: a per-time risk set restricted to subjects who had already
 ## entered, the predicted curve conditioned on having survived to entry,
 ## and a truncation weight alongside the existing censoring weight.
-get.brier.survival <- function(o, subset, cens.model = c("km", "rfsrc"), papply = lapply,
-                               entry.time = NULL) {
-  ## incoming parameter checks
-  if (is.null(o)) {
-    return(NULL)
-  }
+## ------------------------------------------------------------
+##  Shared setup for the curve-based survival scorers
+## ------------------------------------------------------------
+##  get.brier.survival() and get.auc.survival() need exactly the same
+##  ingredients: the fitted object's OOB (or in-bag) survival matrix mapped
+##  onto the master time grid, the IPCW censoring distribution on that same
+##  grid, and -- under left truncation -- the entry-time CDF G_L on that
+##  grid. Factoring that block out is what keeps the two scorers from
+##  drifting apart in how they build their weights.
+##
+##  `subset` arrives already resolved (NULL means "everything"), and
+##  `cens.model` already match.arg'd by the caller.
+survival.score.setup <- function(o, subset, cens.model, papply, entry.time) {
   if (o$family != "surv") {
     stop("this function only supports right-censored survival settings")
   }
-  if (sum(inherits(o, c("rfsrc", "grow"), TRUE) == c(1, 2)) != 2 &      
+  if (sum(inherits(o, c("rfsrc", "grow"), TRUE) == c(1, 2)) != 2 &
       sum(inherits(o, c("rfsrc", "forest"), TRUE) == c(1, 2)) != 2 &
       sum(inherits(o, c("rfsrc", "predict"), TRUE) == c(1, 2)) != 2) {
     stop("This function only works for objects of class `(rfsrc, grow)', '(rfsrc, forest)' or '(rfsrc, predict)'")
@@ -283,10 +290,8 @@ get.brier.survival <- function(o, subset, cens.model = c("km", "rfsrc"), papply 
   if (!is.null(o$yvar) && !is.null(o$imputed.indv)) {
     o$yvar[o$imputed.indv, ] <- o$imputed.data[, 1:2]
   }
-  ## verify the cens.model option
-  cens.model <- match.arg(cens.model, c("km", "rfsrc"))
   ## subsetting: assumes entire data set to be used if not specified
-  if (missing(subset) || is.null(subset)) {
+  if (is.null(subset)) {
     subset <- 1:length(o$predicted)
   }
   else {
@@ -322,6 +327,9 @@ get.brier.survival <- function(o, subset, cens.model = c("km", "rfsrc"), papply 
     subset.event.info <- get.event.info(o)
     o$yvar <- yvar
   }
+  else {
+    subset.event.info <- NULL
+  }
   ## use OOB values if available
   if (is.null(o$predicted.oob)) {
     mort <- o$predicted[subset]
@@ -330,25 +338,6 @@ get.brier.survival <- function(o, subset, cens.model = c("km", "rfsrc"), papply 
   else {
     mort <- o$predicted.oob[subset]
     surv.ensb <- t(o$survival.oob[subset,, drop = FALSE])
-  }
-  ##-------------------------------------------------------------------------------
-  ##
-  ## KM for training/testing data - for testing, there must be y
-  ## match time to grow master list, time.interest
-  ##
-  ##-------------------------------------------------------------------------------
-  if (!pred.no.y) {
-    km.obj <- do.call(rbind, papply(1:length(subset.event.info$time.interest), function(j) {
-      c(sum(subset.event.info$time >= subset.event.info$time.interest[j], na.rm = TRUE),
-        sum(subset.event.info$time[subset.event.info$cens != 0] == subset.event.info$time.interest[j], na.rm = TRUE))
-    }))
-    Y <- km.obj[, 1]
-    d <- km.obj[, 2]
-    r <- d / (Y + 1 * (Y == 0))
-    surv.aalen <- exp(-cumsum(r))[1 + sIndex(subset.event.info$time.interest, event.info$time.interest)]
-  }
-  else {
-    surv.aalen <- NULL
   }
   ##-------------------------------------------------------------------------------
   ##
@@ -378,7 +367,7 @@ get.brier.survival <- function(o, subset, cens.model = c("km", "rfsrc"), papply 
       cens.dta <- data.frame(time = o$forest$yvar[, 1],
                              cens = 1 * (o$forest$yvar[, 2] == 0),
                              o$forest$xvar)
-      cens.o <- rfsrc(Surv(time, cens) ~ ., cens.dta,                      
+      cens.o <- rfsrc(Surv(time, cens) ~ ., cens.dta,
                       ntree = 50,
                       nsplit = 1,
                       splitrule = "random",
@@ -403,6 +392,61 @@ get.brier.survival <- function(o, subset, cens.model = c("km", "rfsrc"), papply 
   ## machinery needed, unlike cens.dist above.
   if (!is.null(entry.time)) {
     GL.vec <- vapply(event.info$time.interest, function(tt) mean(entry.time <= tt), numeric(1))
+  }
+  else {
+    GL.vec <- NULL
+  }
+  list(o = o,
+       subset = subset,
+       pred.no.y = pred.no.y,
+       yvar = yvar,
+       event.info = event.info,
+       subset.event.info = subset.event.info,
+       mort = mort,
+       surv.ensb = surv.ensb,
+       cens.dist = cens.dist,
+       GL = GL.vec)
+}
+get.brier.survival <- function(o, subset, cens.model = c("km", "rfsrc"), papply = lapply,
+                               entry.time = NULL) {
+  ## incoming parameter checks
+  if (is.null(o)) {
+    return(NULL)
+  }
+  ## verify the cens.model option
+  cens.model <- match.arg(cens.model, c("km", "rfsrc"))
+  ## everything from here down to the KM block is shared with
+  ## get.auc.survival() -- see survival.score.setup() above.
+  setup <- survival.score.setup(o, if (missing(subset)) NULL else subset,
+                                cens.model, papply, entry.time)
+  o                 <- setup$o
+  subset            <- setup$subset
+  pred.no.y         <- setup$pred.no.y
+  yvar              <- setup$yvar
+  event.info        <- setup$event.info
+  subset.event.info <- setup$subset.event.info
+  mort              <- setup$mort
+  surv.ensb         <- setup$surv.ensb
+  cens.dist         <- setup$cens.dist
+  GL.vec            <- setup$GL
+  ##-------------------------------------------------------------------------------
+  ##
+  ## KM for training/testing data - for testing, there must be y
+  ## match time to grow master list, time.interest
+  ##
+  ##-------------------------------------------------------------------------------
+  if (!pred.no.y) {
+    km.obj <- do.call(rbind, papply(1:length(subset.event.info$time.interest), function(j) {
+      c(sum(subset.event.info$time >= subset.event.info$time.interest[j], na.rm = TRUE),
+        sum(subset.event.info$time[subset.event.info$cens != 0] == subset.event.info$time.interest[j], na.rm = TRUE))
+    }))
+    Y <- km.obj[, 1]
+    d <- km.obj[, 2]
+    r <- d / (Y + 1 * (Y == 0))
+    surv.aalen <- exp(-cumsum(r))[1 + sIndex(subset.event.info$time.interest, event.info$time.interest)]
+  }
+  else {
+    surv.aalen <- NULL
   }
   ## brier calculations
   brier.matx <- do.call(rbind, papply(1:ncol(surv.ensb), function(i) {
@@ -474,6 +518,171 @@ get.brier.survival <- function(o, subset, cens.model = c("km", "rfsrc"), papply 
        surv.aalen = surv.aalen,
        surv.ensb = surv.ensb,
        GL = if (is.null(entry.time)) NULL else GL.vec)
+}
+## ---------------------------------------------------------------------
+##  Time-dependent (cumulative/dynamic) AUC -- see docs/auc_left_truncation.md
+## ---------------------------------------------------------------------
+##  Sits between the two metrics already here. Like get.cindex() it is
+##  rank-based -- it never asks whether a predicted probability is
+##  numerically right, only whether the ordering is right. Like
+##  get.brier.survival() it is evaluated at a fixed time t against the risk
+##  set alive at t, which is precisely where left truncation does damage.
+##
+##  NOT to be confused with the exported get.auc(), which is the Hand & Till
+##  multiclass *classification* AUC and has nothing to do with survival.
+##
+##  At each grid time t the sample splits into cases (T_i <= t, delta_i = 1)
+##  and controls (T_j > t); each subject carries the marker
+##  M_i(t) = 1 - S(t|X_i), i.e. predicted risk of the event by t. The AUC is
+##  the IPCW-weighted probability that a case outranks a control.
+##
+##  Note this is HIGHER-is-better, unlike MAD, the Brier score, and
+##  get.cindex()'s error-rate convention. Callers wanting a common direction
+##  should use 1 - auc.
+##
+##  entry.time = NULL (the default) gives the ordinary right-censored
+##  estimator; supplying it applies all three left-truncation adjustments
+##  from the spec.
+get.auc.survival <- function(o, subset, cens.model = c("km", "rfsrc"), papply = lapply,
+                             entry.time = NULL) {
+  ## incoming parameter checks
+  if (is.null(o)) {
+    return(NULL)
+  }
+  ## verify the cens.model option
+  cens.model <- match.arg(cens.model, c("km", "rfsrc"))
+  setup <- survival.score.setup(o, if (missing(subset)) NULL else subset,
+                                cens.model, papply, entry.time)
+  subset     <- setup$subset
+  event.info <- setup$event.info
+  mort       <- setup$mort
+  surv.ensb  <- setup$surv.ensb      ## grid x subject, subject in `subset` order
+  cens.dist  <- setup$cens.dist
+  GL.vec     <- setup$GL
+  t.unq <- event.info$time.interest
+  n <- ncol(surv.ensb)
+  ## Subject-level outcomes, aligned to the COLUMNS of surv.ensb. event.info
+  ## is built from the full training yvar, while surv.ensb holds only the
+  ## `subset` rows, so the two must be brought onto a common index before
+  ## they can be paired. (get.brier.survival() pairs them without this step;
+  ## harmless on the default subset = everything, which is all the
+  ## simulations use, but not in general.)
+  tau     <- event.info$time[subset]
+  event   <- event.info$cens[subset]
+  entry.s <- if (is.null(entry.time)) NULL else entry.time[subset]
+  ##-------------------------------------------------------------------------------
+  ##
+  ## subject-level quantities that do not depend on the evaluation time
+  ##
+  ##-------------------------------------------------------------------------------
+  ## grid index of each subject's own observed time, for reading G_C(T_i^-)
+  cens.pt <- sIndex(t.unq, tau)
+  if (cens.model == "km") {
+    gc.case <- c(1, cens.dist)[1 + cens.pt]
+  }
+  else {
+    gc.case <- vapply(1:n, function(i) c(1, cens.dist[, i])[1 + cens.pt[i]], numeric(1))
+  }
+  w.case <- 1 / gc.case
+  if (!is.null(entry.s)) {
+    ## Adjustment 3 (case half): truncation weight 1/G_L(T_i^-). Computed
+    ## directly rather than by the grid-index trick used for the censoring
+    ## weight -- that trick relies on a prepended value being exactly right
+    ## before the first grid point, which holds for a survival function
+    ## (exactly 1 at time 0) but not for G_L, since entries routinely
+    ## happen before the first death time in the grid.
+    ## The marginal G_L is estimated from the FULL entry vector, not the
+    ## subset: it is a property of the study's entry process, not of
+    ## whichever subjects are being scored.
+    gl.case <- vapply(tau, function(ti) mean(entry.time < ti), numeric(1))
+    w.case <- w.case / gl.case
+    ## Adjustment 2: condition each predicted curve on having survived to
+    ## that subject's own entry time -- S(t|X)/S(entry|X). This genuinely
+    ## reorders subjects rather than rescaling them all alike (the divisor
+    ## is subject-specific), so a rank-based metric cannot skip it.
+    S.entry <- vapply(1:n, function(i) {
+      c(1, surv.ensb[, i])[1 + sIndex(t.unq, entry.s[i])]
+    }, numeric(1))
+    surv.ensb <- sweep(surv.ensb, 2, S.entry, "/")
+  }
+  ##-------------------------------------------------------------------------------
+  ##
+  ## AUC at each evaluation time
+  ##
+  ##-------------------------------------------------------------------------------
+  auc.vec <- unlist(papply(1:length(t.unq), function(k) {
+    tk <- t.unq[k]
+    ## marker = predicted risk of the event by t. Ranking on 1 - S is the
+    ## same as ranking on -S, but the explicit form keeps "higher marker =
+    ## higher risk = should be the case" readable.
+    marker <- 1 - surv.ensb[k, ]
+    is.case <- (tau <= tk) & (event != 0)
+    is.ctrl <- (tau > tk)
+    if (!is.null(entry.s)) {
+      ## Adjustment 1: risk set R_L(t) = {i : entry_i <= t}. For a case this
+      ## is automatic (entry_i <= T_i <= t), so in practice this only ever
+      ## drops controls who had not yet entered at t -- which is exactly the
+      ## group an unadjusted AUC wrongly credits the model for ranking
+      ## "correctly" as event-free.
+      in.risk.set <- entry.s <= tk
+      is.case <- is.case & in.risk.set
+      is.ctrl <- is.ctrl & in.risk.set
+    }
+    ## control weight 1/(G_C(t) G_L(t)), read at the evaluation time
+    gc.ctrl <- if (cens.model == "km") cens.dist[k] else cens.dist[k, ]
+    w.ctrl <- rep_len(1 / gc.ctrl, n)
+    if (!is.null(entry.s)) {
+      w.ctrl <- w.ctrl / GL.vec[k]
+    }
+    ## a subject with a non-finite weight (zero estimated G_C or G_L) carries
+    ## no usable information at this time point
+    is.case <- is.case & is.finite(w.case) & is.finite(marker)
+    is.ctrl <- is.ctrl & is.finite(w.ctrl) & is.finite(marker)
+    if (!any(is.case) || !any(is.ctrl)) {
+      return(NA_real_)
+    }
+    mi <- marker[is.case]; wi <- w.case[is.case]
+    mj <- marker[is.ctrl]; wj <- w.ctrl[is.ctrl]
+    ## Weighted Mann-Whitney numerator, done by sorting rather than by an
+    ## outer product: the case x control matrix is O(n^2) per time point and
+    ## there is one time point per death, which is quadratic-in-n work
+    ## repeated n times on realistic sample sizes.
+    ord <- order(mj)
+    mj.s <- mj[ord]
+    ## cw[1 + m] = total control weight among the m smallest markers
+    cw <- c(0, cumsum(wj[ord]))
+    ## findInterval counts controls with marker <= mi; left.open = TRUE
+    ## counts those strictly below. The gap between them is the tie mass,
+    ## which gets half credit. Ties are not a corner case here: subjects
+    ## sharing terminal nodes across every tree get identical curves.
+    W.le <- cw[1 + findInterval(mi, mj.s)]
+    W.lt <- cw[1 + findInterval(mi, mj.s, left.open = TRUE)]
+    num <- sum(wi * (W.lt + 0.5 * (W.le - W.lt)))
+    den <- sum(wi) * sum(wj)
+    if (den <= 0) NA_real_ else num / den
+  }))
+  auc <- data.frame(time = t.unq, auc = auc.vec)
+  ## Headline figure: time-averaged AUC over the range where it is defined.
+  ## Restricting the integral to the non-NA points (rather than dropping
+  ## them and integrating across the hole) keeps the summary number and the
+  ## plotted curve from disagreeing, same contract as crps.std.
+  ok <- !is.na(auc.vec)
+  iauc <- if (sum(ok) >= 2 && diff(range(t.unq[ok])) > 0) {
+    trapz(t.unq[ok], auc.vec[ok]) / diff(range(t.unq[ok]))
+  }
+  else {
+    NA_real_
+  }
+  ## return the goodies
+  list(auc = auc,
+       iauc = iauc,
+       cens.dist = cens.dist,
+       time = t.unq,
+       event.info = event.info,
+       subset = subset,
+       mort = mort,
+       surv.ensb = surv.ensb,
+       GL = GL.vec)
 }
 ## ------------------------------------------------------------
 ## Uno weights

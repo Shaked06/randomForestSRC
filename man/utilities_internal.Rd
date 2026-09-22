@@ -17,6 +17,7 @@
 \alias{get.pr.curve}
 \alias{get.rfq.threshold}
 \alias{get.auc}
+\alias{get.auc.survival}
 \alias{get.bayes.rule}
 \alias{get.brier.error}
 \alias{get.cindex}
