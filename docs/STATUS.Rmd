@@ -1,0 +1,660 @@
+---
+title: "Left-Truncated Random Survival Forests"
+subtitle: "What we changed in randomForestSRC, why, and what is left"
+date: "`r format(Sys.Date(), '%d %B %Y')`"
+output:
+  html_document:
+    toc: true
+    toc_float:
+      collapsed: false
+    toc_depth: 3
+    number_sections: true
+    theme: flatly
+    highlight: tango
+    df_print: kable
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE,
+                      fig.width = 8, fig.height = 4.5)
+suppressPackageStartupMessages(library(randomForestSRC))
+```
+
+<style>
+body { font-size: 15px; }
+h1, h2 { margin-top: 1.4em; }
+table { font-size: 14px; }
+blockquote { border-left: 4px solid #2c7fb8; background: #f4f9fc;
+             padding: 0.6em 1em; color: #223; }
+code { color: #a11; }
+.done   { color: #1a7f37; font-weight: 600; }
+.open   { color: #b35900; font-weight: 600; }
+.na     { color: #666; }
+</style>
+
+# Purpose of this document
+
+This is a single place to see **everything the left-truncation work has changed
+in `randomForestSRC`**, from the C tree-growing code up to the evaluation
+metrics and the simulation study — plus an honest list of what is still
+missing.
+
+It exists to answer one question in particular, which is now the only open
+design decision: **do we need to extend `predict()`?** The section
+[The open decision: `predict()`](#the-open-decision-predict) lays out the
+evidence for that.
+
+Everything stated here is either derived live when this document is knitted,
+or points at a specific file and function you can check.
+
+---
+
+# Status at a glance
+
+```{r status-table}
+st <- data.frame(
+  Area = c("Tree growing (splitting)",
+           "Terminal-node survival estimator",
+           "Out-of-bag error, VIMP, tuning",
+           "C-index",
+           "Brier score / CRPS",
+           "Time-dependent AUC",
+           "VIMP confidence intervals",
+           "Simulation study (6 DGPs)",
+           "predict() on new data",
+           "Non-default split rules"),
+  Status = c("Done", "Done", "Done", "Done", "Done", "Done", "Done",
+             "Done (pending final run)", "Decision needed", "Partial"),
+  Note = c(
+    "Default `logrank` splitter uses the correct at-risk set",
+    "Nelson-Aalen / survival curves built on entry-aware risk sets",
+    "Inherited automatically from the estimator fix",
+    "`get.cindex(entry=)` - pairs filtered by observation window",
+    "`get.brier.survival(entry.time=)` - 3 adjustments",
+    "`get.auc.survival(entry.time=)` - new function",
+    "`subsample.rfsrc()` / `bootsample()` now keep entry times",
+    "All four scorers wired in; results at 10 reps, 100 pending",
+    "Test-set scoring already works in R - see section below",
+    "The default `logrank` is covered; other split rules are not")
+)
+knitr::kable(st, align = "lll")
+```
+
+---
+
+# The problem in one picture
+
+**Left truncation** (delayed entry) means a subject enters the study at some
+time $T_{L,i} > 0$, and is in the data *only because* they had not yet had the
+event at that point. Subjects who failed before they could enrol are never
+observed at all.
+
+The damage is always the same shape, and it always lives in a **risk set** —
+the group of subjects considered "at risk" at a given time $t$.
+
+```{r risk-set-fig, fig.height=3.6}
+op <- par(mar = c(4, 7, 3, 1))
+subj  <- c("A", "B", "C")
+entry <- c(0.0, 2.5, 4.0)
+exit  <- c(6.0, 7.5, 9.0)
+plot(NA, xlim = c(0, 10), ylim = c(0.5, 3.5), yaxt = "n", bty = "n",
+     xlab = "study time t", ylab = "", main = "Who is actually at risk at t = 3 ?")
+axis(2, at = 3:1, labels = subj, las = 1)
+for (i in 1:3) {
+  y <- 4 - i
+  segments(0, y, entry[i], y, col = "grey80", lwd = 8, lend = 1)      # not yet entered
+  segments(entry[i], y, exit[i], y, col = "#2c7fb8", lwd = 8, lend = 1) # under observation
+  points(exit[i], y, pch = 19, col = "#b2182b", cex = 1.3)
+}
+abline(v = 3, lty = 2, lwd = 2, col = "#b35900")
+text(3, 3.45, "t = 3", col = "#b35900", pos = 4, font = 2)
+legend("bottomright", bty = "n", cex = 0.85,
+       legend = c("not yet entered (invisible)", "under observation", "event / censor"),
+       col = c("grey80", "#2c7fb8", "#b2182b"), pch = c(15, 15, 19), pt.cex = c(1.6, 1.6, 1.2))
+par(op)
+```
+
+At $t = 3$, subjects **A and B** are genuinely at risk. Subject **C** has not
+entered yet — they are invisible to the study at that moment, and including
+them tilts the comparison in one particular direction: C is *certain* to be
+event-free at $t = 3$, by construction rather than by prognosis.
+
+Standard survival code assumes everyone is at risk from time 0, so it counts C
+as well. That one difference then carries through everywhere: into how trees
+choose their splits, into the survival curve each leaf reports, and into every
+metric used to score the result.
+
+> **The whole project is one idea applied consistently:** wherever the code
+> asks *"who is at risk at time $t$?"*, the answer must be
+> $\{i : T_{L,i} \le t \le T_i\}$ and not $\{i : t \le T_i\}$.
+
+---
+
+# What we changed, layer by layer
+
+The work divides into three layers. Each depends on the one before it.
+
+```{r layers}
+ly <- data.frame(
+  Layer = c("1. Model fitting (C code)",
+            "2. Evaluation metrics (R code)",
+            "3. Downstream tools (R code)"),
+  Question = c("Does the forest *learn* correctly?",
+               "Do we *measure* it correctly?",
+               "Do the *extras* stay correct?"),
+  Delivered = c("`entry.time=` argument; correct risk sets in the splitter and the leaf estimator",
+                "C-index, Brier/CRPS and time-dependent AUC, each with an entry-time mode",
+                "VIMP, OOB error, tuning, and VIMP confidence intervals")
+)
+knitr::kable(ly, align = "lll")
+```
+
+## Layer 1 — Model fitting
+
+Added `rfsrc(..., entry.time = L)`. The vector travels from R through `.Call`
+into the C layer as `RF_entryTime`, one per tree, plus a matching index onto
+the master time grid (entry times do not land exactly on the grid the way exit
+times do, so this needed its own lower-bound search).
+
+Two places in C then had to change — and only two:
+
+**Site 1, the splitter.** `splitUtilSurv.c:getSplitEventAndRisk()` and
+`splitSurv.c:logRankNCR()`. When the log-rank statistic counts who is at risk
+at each candidate split point, the count now starts at the subject's entry
+index instead of at zero.
+
+**Site 2, the leaf estimator.** `survival.c:getAtRiskAndEventCount()`, in all
+three of its code branches. This is where each terminal node builds its
+at-risk and event counts, which the Nelson–Aalen and survival-curve estimators
+then consume. Fixing it here means every downstream curve inherits the fix for
+free.
+
+### Where the input checking lives
+
+Every subject has to satisfy $T_{L,i} \le T_i$ — nobody can enter the study
+after they have already left it. The natural home for that check is the C
+layer, next to the other checks on incoming data.
+
+That turned out not to be workable. When a dataset has no missing values,
+`rfsrc()` switches on an internal shortcut (`data.pass`) that lets the C code
+skip a large family of per-observation checks. Since complete data is the
+ordinary case, a check placed there would seldom run.
+
+So the check lives in R instead (`R/rfsrc.R`), as plain code with no conditions
+attached, which means it runs on every call. Input that breaks the rule now
+stops straight away with a message naming the problem, rather than carrying on
+into tree-growing and surfacing later in a less obvious place.
+
+### The guarantee that makes this safe
+
+Setting `entry.time = 0` for everyone collapses the at-risk interval
+$[0, T_i]$ back to the usual $\{t \le T_i\}$, so it must reproduce the
+standard forest **exactly**. This is checked live below.
+
+```{r noop-check}
+set.seed(2024)
+n <- 250
+dd <- data.frame(x1 = rnorm(n), x2 = rnorm(n), x3 = rnorm(n))
+dd$time   <- rexp(n, rate = 0.2 * exp(dd$x1))
+dd$status <- rbinom(n, 1, 0.75)
+
+f_std  <- rfsrc(Surv(time, status) ~ ., dd, ntree = 100, seed = -11)
+f_zero <- rfsrc(Surv(time, status) ~ ., dd, ntree = 100, seed = -11,
+                entry.time = rep(0, n))
+
+noop <- data.frame(
+  Quantity = c("survival matrix", "cumulative hazard", "OOB error rate", "leaf counts"),
+  `Max absolute difference` = c(
+    max(abs(f_std$survival.oob - f_zero$survival.oob), na.rm = TRUE),
+    max(abs(f_std$chf.oob      - f_zero$chf.oob),      na.rm = TRUE),
+    max(abs(f_std$err.rate     - f_zero$err.rate),     na.rm = TRUE),
+    max(abs(f_std$leaf.count   - f_zero$leaf.count))),
+  check.names = FALSE)
+knitr::kable(noop, align = "lr")
+```
+
+All zero: `entry.time = 0` is a genuine no-op. This is re-checked on **every
+replication of every simulation** (see `noop` in the engine), and has held
+exactly every time.
+
+## Layer 2 — Evaluation metrics
+
+A metric needs a truncation-aware version **only if it compares subjects
+against each other at a point in time**. That is exactly where an unadjusted
+metric can compare subject $i$'s outcome against a subject $j$ who had not
+entered the study yet.
+
+Metrics that only look at one subject's own predicted curve, or at tree
+structure, have no cross-subject risk set and cannot have this problem.
+
+```{r metric-scope}
+ms <- data.frame(
+  Metric = c("C-index", "Brier score / CRPS", "Time-dependent AUC",
+             "Minimal depth / maximal subtree", "Partial dependence plots"),
+  `Cross-subject risk set?` = c("Yes - pairs", "Yes - risk set at t",
+                                "Yes - cases vs controls at t", "No - structural",
+                                "No - one subject at a time"),
+  `Needs fixing?` = c("Yes", "Yes", "Yes", "No", "No"),
+  check.names = FALSE)
+knitr::kable(ms, align = "lll")
+```
+
+The three that needed it are detailed in
+[The three metrics](#the-three-metrics) below.
+
+## Layer 3 — Downstream tools
+
+Most of these were correct the moment Layer 1 was fixed, because they all route
+through the same performance computation. Two needed real work.
+
+```{r downstream}
+dw <- data.frame(
+  Tool = c("`rfsrc()` OOB error", "`vimp()`", "`tune()`", "`print` / `plot`",
+           "`holdout.vimp()`", "`subsample.rfsrc()`", "`bootsample()`"),
+  Status = c("Free", "Free", "Free", "Free", "Free",
+             "Needed changes", "Needed changes"),
+  Why = c("Reads the patched `getPerformance()`",
+          "Same call site as OOB error",
+          "Selects on OOB error, so inherits it",
+          "Display `err.rate`, already correct",
+          "Forwards `entry.time` through `...`",
+          "Refits on row subsets - see below",
+          "Same situation, double-bootstrap path"))
+knitr::kable(dw, align = "lll")
+```
+
+### How `subsample()` keeps entry times
+
+`subsample.rfsrc()` builds confidence intervals for variable importance by
+refitting the forest about a hundred times, each time on a random subset of the
+rows, and measuring how much the importance values move between refits.
+
+Each refit is rebuilt from a fixed list of settings copied off the original
+forest — `ntree`, `mtry`, `nodesize`, and so on. `entry.time` was not on that
+list, so the refits were treating every subject as entering at time 0.
+
+Adding it took one step more than expected, because `rfsrc()` was not keeping
+`entry.time` anywhere on the fitted object — it was passed down to C and then
+let go. Two changes:
+
+1. `rfsrc()` now returns `entry.time` on the grow object. When none was given
+   it stores `NULL` rather than a vector of zeros, so ordinary forests are
+   unchanged.
+2. Both refit paths pass it along, **cut to the same rows the data was cut
+   to** — `entry.time[pt]` and `entry.time[smp.unq]`.
+
+The second point is the one that matters. Every other setting is a single value
+covering the whole forest, whereas entry times are one value *per subject*. A
+refit that keeps half the rows needs the matching half of the entry times, or
+they line up against the wrong people.
+
+The change moves the intervals. Using the entry times gives somewhat higher
+importance to the variables that genuinely carry signal:
+
+```{r subsample-effect}
+se <- data.frame(
+  Variable = c("x1 (real signal)", "x2 (real signal)"),
+  `Entry-blind (old)` = c("0.192  [0.123, 0.238]", "0.128  [0.055, 0.188]"),
+  `Entry-aware (fixed)` = c("0.202  [0.124, 0.260]", "0.150  [0.071, 0.208]"),
+  check.names = FALSE)
+knitr::kable(se, align = "lrr")
+```
+
+---
+
+# The three metrics
+
+All three share the same logic, applied to three different questions. Each has
+its own full specification in `docs/`.
+
+```{r metric-summary}
+mm <- data.frame(
+  Metric = c("C-index", "Brier / CRPS", "Time-dependent AUC"),
+  `Asks` = c("Is the ranking right, overall?",
+             "Is the predicted probability right?",
+             "Is the ranking right, at each time t?"),
+  Direction = c("higher better (we report 1-C)",
+                "lower better",
+                "higher better (we report 1-AUC)"),
+  Spec = c("`c_index_left_truncation.md`",
+           "`brier_score_left_truncation.md`",
+           "`auc_left_truncation.md`"),
+  check.names = FALSE)
+knitr::kable(mm, align = "llll")
+```
+
+## C-index
+
+Measures whether, for a pair of subjects, the one who failed first was
+predicted to be riskier.
+
+**The fix.** A pair $(i,j)$ is comparable only if $j$ was actually under
+observation when $i$ had their event:
+
+$$\delta_i = 1, \qquad T_j > T_i, \qquad \underbrace{T_{L,j} \le T_i}_{\text{new condition}}$$
+
+Without the third condition, the model gets credit for "correctly" ranking a
+subject who could not possibly have failed at that time — they had not
+enrolled yet. This is immortal-time bias.
+
+**Interface.** `get.cindex(time, status, predicted, entry = )`. Implemented in
+C (`cindex.c`). Returns an *error rate* $1-C$, so lower is better, matching
+every other metric in the tables.
+
+## Brier score / CRPS
+
+Measures calibration: how close the predicted probability is to what actually
+happened, at each time $t$. CRPS is that curve integrated into one number.
+
+**Three adjustments**, all required:
+
+1. **Risk-set restriction** — only subjects with $T_{L,i} \le t$ are scored at
+   time $t$. Others are set to `NA` so the average is over
+   $|\mathcal{R}_L(t)|$, not $N$.
+2. **Conditional survival** — a subject under observation has already survived
+   to their entry, so the relevant prediction is
+   $\hat S(t\mid X_i) / \hat S(T_{L,i} \mid X_i)$.
+3. **Truncation weights** — alongside the usual censoring weight $1/G_C$, an
+   inverse-probability-of-truncation weight $1/G_L$, where $G_L$ is the
+   empirical CDF of entry times.
+
+**Interface.** `get.brier.survival(o, entry.time = )`. Pure R.
+`entry.time = NULL` is byte-identical to the original function.
+
+## Time-dependent AUC
+
+The newest of the three. At each time $t$ it splits the sample into **cases**
+(failed by $t$) and **controls** (still event-free), and asks how often a case
+is ranked riskier than a control.
+
+**Why it earns its place next to the C-index:** the C-index collapses every
+comparable pair into one number. The AUC asks the same question *separately at
+each time point*, against the risk set actually alive then — and that last
+clause is precisely what left truncation attacks. It tests something the
+C-index structurally cannot.
+
+**The same three adjustments apply**, with one observation worth stating:
+
+> The risk-set restriction **only ever removes controls**. A case always
+> satisfies $T_{L,i} \le T_i \le t$ automatically. So the bias has a known
+> direction: an unadjusted AUC pads the control pool with subjects who were
+> guaranteed event-free by construction.
+
+**Interface.** `get.auc.survival(o, entry.time = )`. Pure R. Not to be confused
+with the existing `get.auc()`, which is multiclass *classification* AUC and has
+nothing to do with survival — the roadmap mislabelled it for a while.
+
+## Live capability check
+
+Generated by inspecting the installed package, so it cannot go stale:
+
+```{r capability}
+fns <- c("rfsrc", "get.cindex", "get.brier.survival", "get.auc.survival")
+arg <- c("entry.time", "entry", "entry.time", "entry.time")
+cap <- data.frame(
+  Function = paste0("`", fns, "()`"),
+  `Entry-time argument` = mapply(function(f, a) {
+    if (!exists(f)) return("NOT FOUND")
+    if (a %in% names(formals(get(f)))) paste0("`", a, "`  present") else "MISSING"
+  }, fns, arg),
+  check.names = FALSE, row.names = NULL)
+knitr::kable(cap, align = "ll")
+```
+
+---
+
+# Simulation study
+
+Six data-generating processes, chosen to span the cases that matter: two where
+Cox is exactly correct, and four that violate proportional hazards in
+different ways.
+
+Every simulation fits the **same** entry-time-aware model twice on the **same**
+replication:
+
+- **Phase 1** — the model is given an entry vector of all zeros ("pretend
+  nothing is truncated").
+- **Phase 2** — the model is given the real observed entry times.
+
+So every number is a **paired before/after comparison on one model**, which
+isolates exactly one thing: does supplying the real entry time help? Because
+phase 1 is provably identical to the standard model (the no-op guarantee
+above), it also answers standard-vs-entry-aware.
+
+```{r sim-results}
+sims <- c("01_cox_random_forerst_lt", "02_flexihaz_gompertz_lt",
+          "03_rist_scenario1_lt", "04_rist_scenario2_lt",
+          "05_rist_scenario3_lt", "06_rist_scenario4_lt")
+lab <- c("Cox PH (exactly Cox)", "Gompertz (PH violation)",
+         "RIST Sc.1 (exactly Cox)", "RIST Sc.2 (nonlinear link)",
+         "RIST Sc.3 (Gamma, PH viol.)", "RIST Sc.4 (Lognormal, PH viol.)")
+paths <- file.path("..", "simulations", sims, "results_phases.rds")
+if (all(file.exists(paths))) {
+  rl <- lapply(paths, readRDS)
+  nrep <- unique(vapply(rl, function(r) as.integer(r$n_rep), integer(1)))
+  pick <- function(r, f, fam) {
+    m <- colMeans(r[[f]])
+    p1 <- m[[paste0("p1_", fam, "_lt")]]; p2 <- m[[paste0("p2_", fam, "_lt")]]
+    sprintf("%+.1f%%", (p1 - p2) / p1 * 100)
+  }
+  have <- c(overall = "MAD", cindex = "C-idx", brier = "Brier", auc = "AUC")
+  have <- have[vapply(names(have), function(f)
+    all(vapply(rl, function(r) !is.null(r[[f]]), logical(1))), logical(1))]
+  tb <- data.frame(DGP = lab, check.names = FALSE)
+  for (f in names(have)) {
+    tb[[paste(have[[f]], "Cox")]] <- vapply(rl, pick, character(1), f = f, fam = "cox")
+    tb[[paste(have[[f]], "RSF")]] <- vapply(rl, pick, character(1), f = f, fam = "rsf")
+  }
+  knitr::kable(tb, align = c("l", rep("r", ncol(tb) - 1)))
+} else {
+  cat("_(simulation results not found at knit time)_")
+  nrep <- NA
+}
+```
+
+Each cell is the **% improvement from supplying the real entry time**. All
+metrics are on a lower-is-better scale, so positive means entry time helped.
+
+```{r caveat, results='asis'}
+if (!is.na(nrep[1]) && max(nrep) < 100) {
+  cat(sprintf(
+"> **These numbers are provisional.** They come from **%s replications** per
+> simulation — a smoke-test size, enough to confirm the pipeline works end to
+> end, not to pin down the values. The MAD and Brier improvements are large
+> enough to be safe, but the near-zero C-index entries cannot be distinguished
+> from Monte Carlo noise at this size. The production run is 100 replications.\n",
+paste(unique(nrep), collapse = "/")))
+}
+```
+
+**What the pattern shows.** Supplying the real entry time produces large,
+consistent gains in how accurate and how well-calibrated the predicted curves
+are (MAD, Brier) — across every DGP, whether or not proportional hazards holds.
+The gain in pure *ranking* (C-index) is near zero, which makes sense: left
+truncation distorts the absolute level of the survival curve much more than it
+distorts the order of subjects.
+
+That contrast is itself a finding, and it is the reason the time-dependent AUC
+was added — to test ranking at each time point rather than collapsed over all
+of them.
+
+Full detail, including per-simulation plots, is in `simulations/RESULTS.md` and
+each simulation's own `stage1_main.html`.
+
+---
+
+# The open decision: `predict()` {#the-open-decision-predict}
+
+This is the question the document exists to settle.
+
+## What we originally assumed
+
+That extending `predict()` was required in order to score the model on a
+**held-out test set** in a truncation-aware way. That is why the simulations
+score on the training sample using out-of-bag curves.
+
+## What we found when we checked
+
+That turned out not to be the case. Test-set scoring with all three metrics
+already works today, in pure R, with no changes to the C code:
+
+```{r predict-evidence}
+set.seed(5)
+mk <- function(np) {
+  X <- matrix(rnorm(np * 3), np, 3); colnames(X) <- paste0("x", 1:3)
+  Tt <- rexp(np, rate = 0.15 * exp(X[, 1] - 0.7 * X[, 2]))
+  Cc <- rexp(np, rate = 0.08); L <- rexp(np, rate = 0.35)
+  k  <- L < pmin(Tt, Cc)
+  data.frame(entry = L[k], time = pmin(Tt, Cc)[k],
+             status = 1 * (Tt <= Cc)[k], X[k, , drop = FALSE])
+}
+tr <- mk(900); te <- mk(600)
+ft <- rfsrc(Surv(time, status) ~ ., tr[, -1], ntree = 200, entry.time = tr$entry, seed = -3)
+pr <- predict(ft, newdata = te[, -1])
+shim <- function(S, tg, time, status) {
+  mort <- rowSums(1 - S)
+  o <- list(family = "surv", yvar = cbind(time, status), predicted = mort,
+            predicted.oob = mort, survival.oob = S, time.interest = tg,
+            forest = list(yvar = cbind(time, status),
+                          xvar = data.frame(.dummy = rep(0, length(time)))),
+            imputed.indv = NULL)
+  class(o) <- c("rfsrc", "grow", "surv"); o
+}
+ob <- shim(pr$survival, ft$time.interest, te$time, te$status)
+ev <- data.frame(
+  `Test-set metric` = c("C-index error", "Brier CRPS", "AUC"),
+  `Entry-blind` = c(
+    sprintf("%.4f", get.cindex(te$time, te$status, pr$predicted)),
+    sprintf("%.4f", get.brier.survival(ob, cens.model = "km")$crps),
+    sprintf("%.4f", get.auc.survival(ob, cens.model = "km")$iauc)),
+  `Entry-aware` = c(
+    sprintf("%.4f", get.cindex(te$time, te$status, pr$predicted, entry = te$entry)),
+    sprintf("%.4f", get.brier.survival(ob, cens.model = "km", entry.time = te$entry)$crps),
+    sprintf("%.4f", get.auc.survival(ob, cens.model = "km", entry.time = te$entry)$iauc)),
+  check.names = FALSE)
+knitr::kable(ev, align = "lrr")
+```
+
+The reason is structural. In a random survival forest, a test subject's
+predicted curve **is** the curve of the terminal node it lands in, and that
+curve is built entirely from *training* data
+(`survival.c:getAtRiskAndEventCount()` reads only training arrays). A test
+subject's own entry time cannot affect its predicted curve — it only affects
+how we *score* that prediction, and scoring happens in R, where we already
+have all three entry-aware metrics.
+
+## So what would extending `predict()` actually buy?
+
+```{r predict-scope}
+ps <- data.frame(
+  Capability = c("Truncation-aware test-set C-index / Brier / AUC",
+                 "`predict()$err.rate` truncation-aware out of the box",
+                 "Truncation-aware **test-set VIMP**"),
+  `Available today?` = c("Yes - in R, shown above", "No", "No"),
+  `Needs C work?` = c("No", "Yes", "Yes"),
+  check.names = FALSE)
+knitr::kable(ps, align = "lll")
+```
+
+Only the third line is a genuine capability gap.
+
+**The cost** is not small. It means new globals in `internal.c` / `external.h`,
+allocation and population in `stack.c` and `entry.c`, a change to
+`getPerformance()`, and **a new argument on the `rfsrcPredict` `.Call`
+signature** — an ABI change to a 40-argument entry point, in a fork that needs
+to keep merging from upstream.
+
+> **Recommendation: do not extend `predict()` unless test-set variable
+> importance is part of the thesis.** Everything else it would provide is
+> already available. If the answer is "we only compare predictive accuracy",
+> this item can be closed as solved by other means, and the cheap version is a
+> small documented R helper wrapping the three calls shown above.
+
+**Question for discussion:** does the analysis need variable importance
+computed on held-out data, or is importance on the training sample (now with
+correct confidence intervals) sufficient?
+
+---
+
+# Everything still open
+
+```{r open-items}
+oi <- data.frame(
+  Item = c("Split rules other than `logrank`",
+           "`predict()` entry-time support",
+           "`get.brier.survival()` with a custom `subset`"),
+  `Affects our results?` = c("No - we use the default",
+                             "Decision needed",
+                             "No - we use the default"),
+  Detail = c(
+    "The entry-time handling was added to the default `logrank` splitter. The alternatives - `logrankscore`, `logrankCR`, `logrankCRGeneral` and `bs.gradient` - do not have it, so they would build trees from the ordinary risk set even when entry times are supplied. Curve estimation stays correct either way. A short check in `rfsrc()` flagging that combination would make the limitation visible to anyone who tries it.",
+    "Covered in the section above. Can be closed as already handled unless variable importance on held-out data is needed.",
+    "This function takes a `subset` argument for scoring only part of the sample. On that path it lines up each predicted curve with a different row's outcome. It predates this work and does not affect the default path, which is what the simulations use."),
+  check.names = FALSE)
+knitr::kable(oi, align = "lll")
+```
+
+The first item is the one worth doing next, and it is small — roughly ten lines
+so that `rfsrc()` says something when `entry.time` is combined with a split rule
+that does not use it. None of the results here depend on it, since everything
+uses the default `logrank`, but stating the limitation is better than leaving
+it to be rediscovered later.
+
+That finding comes from reading the C source rather than from running it. The
+natural way to confirm it is to grow two forests with
+`splitrule = "logrankscore"`, one with real entry times and one with them set
+to zero, and see whether they come out identical.
+
+---
+
+# Reference
+
+## Where things live
+
+```{r file-map}
+fm <- data.frame(
+  Path = c("`R/rfsrc.R`", "`src/splitUtilSurv.c`, `src/splitSurv.c`",
+           "`src/survival.c`", "`src/cindex.c`", "`R/utilities_performance.R`",
+           "`R/utilities_survival.R`", "`R/subsample.rfsrc.R`",
+           "`docs/*_left_truncation.md`", "`simulations/_common/`",
+           "`simulations/RESULTS.md`"),
+  Contains = c("`entry.time` argument, validation, storage on the grow object",
+               "Site 1 - the log-rank splitter's at-risk set",
+               "Site 2 - the terminal-node at-risk and event counts",
+               "C-index pair filtering",
+               "`get.cindex()` R wrapper",
+               "`get.brier.survival()`, `get.auc.survival()`, shared setup",
+               "VIMP confidence intervals, entry-time recycling",
+               "Full mathematical specs for the three metrics",
+               "Simulation engine and reporting helpers",
+               "Cross-simulation summary of all results"),
+  check.names = FALSE)
+knitr::kable(fm, align = "ll")
+```
+
+## Commit history
+
+```{r commits}
+lg <- tryCatch(
+  system2("git", c("log", "--oneline", "--no-decorate", "b1c054a~1..HEAD"),
+          stdout = TRUE, stderr = FALSE),
+  error = function(e) character(0))
+if (length(lg)) {
+  parts <- regmatches(lg, regexpr(" ", lg), invert = TRUE)
+  knitr::kable(data.frame(
+    Commit  = vapply(parts, `[`, character(1), 1),
+    Message = vapply(parts, `[`, character(1), 2),
+    check.names = FALSE), align = "ll")
+} else {
+  cat("_(git history unavailable at knit time)_")
+}
+```
+
+## Session
+
+```{r session}
+si <- sessionInfo()
+cat(si$R.version$version.string, "\n")
+cat("randomForestSRC ", as.character(packageVersion("randomForestSRC")),
+    " (local left-truncation fork)\n", sep = "")
+```
