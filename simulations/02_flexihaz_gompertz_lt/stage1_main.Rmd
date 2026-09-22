@@ -106,7 +106,7 @@ setup <- readRDS("setup.rds")
 stopifnot(!is.null(setup$ltrc))
 
 M_TEST <- 200L      # test subjects per replication
-N_REP  <- 100L      # set lower for a fast pass
+N_REP  <- 10L      # set lower for a fast pass
 
 str(setup[c("rsf_hp", "ltrc")])
 cat(sprintf("\ntime grid: M=%d, range (%.3f, %.3f]\n",

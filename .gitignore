@@ -8,6 +8,10 @@ src/symbols.rds
 *_cache/
 *_files/
 *.html
+# ...except RESULTS.Rmd, which knits to github_document (RESULTS.md) rather
+# than html_document -- the .md and its plot images are meant to be checked
+# in and viewed directly on GitHub, not regenerated on demand.
+!RESULTS_files/
 
 # simulation outputs (regenerable via stage0/stage1 .Rmd; package data ships
 # as data/*.rda, never *.rds, so this only ever matches generated objects)
