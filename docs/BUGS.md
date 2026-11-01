@@ -7,8 +7,8 @@ after review and approval. A local commit does not imply a GitHub push.
 | ID | Priority | Bug | Origin | Status | Fix commit |
 |---|---|---|---|---|---|
 | 1 | P1 | Saved-model prediction crashes or uses entry times from another fit | LT integration | Fixed locally | `4127a1a` |
-| 2 | P1 | Missing follow-up imputation can place exit before entry and return negative survival | LT integration | Fixed locally | This commit |
-| 3 | P1 | Restored training error and standalone VIMP ignore entry | LT integration | Open | — |
+| 2 | P1 | Missing follow-up imputation can place exit before entry and return negative survival | LT integration | Fixed locally | `d057c9e` |
+| 3 | P1 | Restored training error and standalone VIMP ignore entry | LT integration | Fixed locally | This commit |
 | 4 | P1 | Cox time-grid indexing corrupts simulation predictions | Our simulations | Open | — |
 | 5 | P1 | LT Brier construction can favor incorrect survival probabilities | LT metric design | Open | — |
 | 6 | P1 | Brier/AUC weights mistake observed entry CDF for source entry CDF | LT metric design | Open | — |
@@ -40,7 +40,7 @@ P2: feature failure, compatibility gap, performance, or reproducibility issue.
 
 ### 2 — Missing follow-up with positive entry
 
-- Commit: this commit, `Reject missing follow-up times with delayed entry`.
+- Commit: `d057c9e`, `Reject missing follow-up times with delayed entry`.
 - Behavior: reject missing follow-up times for subjects with positive
   entry before calling the native algorithm. This is a safety restriction,
   not a new delayed-entry imputation estimator.
@@ -53,4 +53,31 @@ P2: feature failure, compatibility gap, performance, or reproducibility issue.
   missing status, zero-entry equivalence, mixed entry, and legacy restoration.
 - Verification: fresh package build and `R CMD check` with examples/manual/
   vignettes skipped; all three regression test files pass, status OK.
+- Approved for a local commit. No GitHub push authorized.
+
+### 3 — Entry-aware restored performance and VIMP
+
+- Commit: this commit, `Respect entry times in restored survival performance`.
+- Change: supply training entry times to concordance in both grow
+  and restore modes. New-data prediction must not use the training vector.
+- Scope: an omitted entry vector and an explicit zero vector give identical
+  results. Positive entries before all events can also be inert. The defect
+  matters when entry times remove otherwise comparable pairs; non-NULL alone
+  is not a sufficient trigger.
+- Before fix: a fixture has identical OOB predictions but grow error
+  0.5990415 versus restored error 0.6052801. With the fix both are
+  0.5990415.
+- Independent one-split-tree reference: anti-VIMP is 0.1974790; restoration
+  previously returned 0.2380165. Both individual and joint VIMP now match the
+  entry-aware reference.
+- Tests: `tests/entry-time-restored-performance.R` and
+  `tests/entry-time-restored-vimp.R`. Both fail on the pre-fix build and pass
+  with the change.
+- Covers both concordance weighting settings, both terminal-storage modes,
+  direct forest restoration, new-data and pseudo-restoration scoring, and
+  the reference importance/error used by subsampling and double bootstrap.
+  Interval-reference checks use the default Uno setting; they do not validate
+  every resampling option or the coverage of confidence intervals.
+- Verification: fresh source build and package checks with examples/manual/
+  vignettes skipped; all five regression test files pass, status OK.
 - Approved for a local commit. No GitHub push authorized.
