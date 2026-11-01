@@ -32,6 +32,7 @@ partial.rfsrc <- function(
   jitt <- is.hidden.jitt(user.option, "none", "na.omit", FALSE, partial = TRUE)
   ## data-pass
   data.pass <- is.hidden.data.pass(user.option)
+  entry.time <- object$entry.time
   ## acquire the forest --> hereafter the object is the forest
   if (sum(inherits(object, c("rfsrc", "grow"), TRUE) == c(1, 2)) == 2) {
     if (is.forest.missing(object)) {
@@ -42,6 +43,7 @@ partial.rfsrc <- function(
   else {
     ## object is already a forest.
   }
+  entry.time <- get.forest.entry.time(object, entry.time)
   ## convert oob to ensemble
   if (oob) {
     ensemble <- "oob"
@@ -265,7 +267,8 @@ partial.rfsrc <- function(
                                        as.double(0)), ## Quantiles disabled.
                                   as.integer(get.tree),
                                   NULL,
-                                  as.integer(get.rf.cores()))}, error = function(e) {
+                                  as.integer(get.rf.cores()),
+                                  as.double(entry.time))}, error = function(e) {
                                     print(e)
                                     NULL})
   ## check for error return condition in the native code

@@ -20,6 +20,7 @@
 
 ## Bug fixes
 
+- Saved survival forests now retain their training entry times and pass them explicitly during prediction, restoration, and partial dependence. This fixes fresh-session crashes and predictions changing after an unrelated fit. Older grow objects can recover entry times when available on their outer object; saved LT objects without entry times must be rebuilt.
 - Fixed `cache.learners` normalization in the OOD scoring path.
 - Fixed row-level OOD calibration reuse after post-fit changes to saved OOD weights.
 - Fixed percentile calibration when score-time weights differ from the original saved weighting scheme.

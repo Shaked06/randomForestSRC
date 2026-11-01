@@ -128,6 +128,8 @@ generic.predict.rfsrc <-
   ## hereafter we only need the forest and reassign "object" to the forest
   ## (TBD3) memory management "big.data" not currently implemented:
   big.data <- FALSE
+  ## Older grow objects kept entry times only outside the forest.
+  entry.time <- object$entry.time
   if (sum(inherits(object, c("rfsrc", "grow"), TRUE) == c(1, 2)) == 2) {
     if (inherits(object, "bigdata")) {
       big.data <- TRUE
@@ -140,6 +142,7 @@ generic.predict.rfsrc <-
       big.data <- TRUE
     }
   }
+  entry.time <- get.forest.entry.time(object, entry.time)
   ## confirm version coherence
   if (is.null(object$version)) {
     cat("\n  This function only works with objects created with the following minimum version of the package:")
@@ -473,6 +476,9 @@ generic.predict.rfsrc <-
     restore.mode <- TRUE
     ## set the dimensions
     n <- nrow(xvar)
+    ## Pseudo-restoration estimates outcomes from newdata, not the training
+    ## subjects. No test-entry channel exists, so preserve zero-entry behavior.
+    entry.time <- rep(0, n)
     r.dim <- r.dim.newdata
     ## pretend there is no test data, but do *not* get rid of it
     ## we need (and use) this data *after* the native code call
@@ -694,7 +700,8 @@ generic.predict.rfsrc <-
                                        if (is.null(prob.assign$prob.epsilon)) as.double(0) else as.double(prob.assign$prob.epsilon)),
                                   as.integer(get.tree),
                                   if (is.null(uno.weights.test)) NULL else as.double(uno.weights.test),
-                                  as.integer(get.rf.cores()))}, error = function(e) {
+                                  as.integer(get.rf.cores()),
+                                  as.double(entry.time))}, error = function(e) {
                                     print(e)
                                     NULL})
   ## Stop the C external timer.

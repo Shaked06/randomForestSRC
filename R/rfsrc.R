@@ -817,6 +817,9 @@ rfsrc <- function(formula, data, ntree = 500,
     ## family specific additions to the forest object
     if (grepl("surv", family)) {
       forest.out$time.interest <- event.info$time.interest
+      ## Prediction and partial dependence can receive this forest directly,
+      ## without the outer grow object or any preceding grow call.
+      forest.out$entry.time <- entry.time.user
     }
     ## Initialize the default class of the forest.
     class(forest.out) <- c("rfsrc", "forest", family)

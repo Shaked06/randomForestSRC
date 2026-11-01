@@ -247,6 +247,7 @@ SEXP rfsrcGrow(SEXP traceFlag,
   //    memoryCheck();
   //  }
   RF_cpuTime_[1] = (double) (clock() - cpuTimeStart) / CLOCKS_PER_SEC;
+  RF_entryTimeIn = NULL;
   R_ReleaseObject(RF_sexpVector[RF_OUTP_ID]);
   R_ReleaseObject(RF_sexpVector[RF_STRG_ID]);  
   return RF_sexpVector[RF_OUTP_ID];
@@ -313,7 +314,8 @@ SEXP rfsrcPredict(SEXP traceFlag,
                   SEXP quantile,
                   SEXP getTree,
                   SEXP unoWeight,
-                  SEXP numThreads) {
+                  SEXP numThreads,
+                  SEXP entryTime) {
   char mode;
   clock_t cpuTimeStart = clock();
   setUserTraceFlag(INTEGER(traceFlag)[0]);
@@ -324,6 +326,11 @@ SEXP rfsrcPredict(SEXP traceFlag,
   RF_vimpThreshold        = REAL(vimpThreshold)[0];
   RF_ntree                = INTEGER(ntree)[0];
   RF_observationSize      = INTEGER(observationSize)[0];
+  if (TYPEOF(entryTime) != REALSXP || XLENGTH(entryTime) != RF_observationSize) {
+    error("Training entry times must match the forest observation count.");
+  }
+  /* The .Call argument owns this vector for the duration of this call. */
+  RF_entryTimeIn          = REAL(entryTime); RF_entryTimeIn--;
   RF_ySize                = INTEGER(VECTOR_ELT(yInfo, 0))[0];
   if(VECTOR_ELT(yInfo, 1) != R_NilValue) {
     RF_rType = (char *) copy1DObject(VECTOR_ELT(yInfo, 1), NATIVE_TYPE_CHARACTER, RF_ySize, TRUE);
@@ -556,6 +563,7 @@ SEXP rfsrcPredict(SEXP traceFlag,
   //    memoryCheck();
   //  }
   RF_cpuTime_[1] = (double) (clock() - cpuTimeStart) / CLOCKS_PER_SEC;
+  RF_entryTimeIn = NULL;
   R_ReleaseObject(RF_sexpVector[RF_OUTP_ID]);
   R_ReleaseObject(RF_sexpVector[RF_STRG_ID]);
   return RF_sexpVector[RF_OUTP_ID];
