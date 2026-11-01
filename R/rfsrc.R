@@ -189,9 +189,7 @@ rfsrc <- function(formula, data, ntree = 500,
     }
     if (grepl("surv", family) && length(yvar.names) == 2) {
       observed.time <- data[, yvar.names[1]]
-      if (any(entry.time > observed.time, na.rm = TRUE)) {
-        stop("Invalid entry.time vector specified: entry.time must not exceed the observed follow-up time for any subject.")
-      }
+      validate.entry.time.followup(entry.time, observed.time)
     }
   }
   mtry <- get.grow.mtry(mtry, n.xvar, family, splitrule)

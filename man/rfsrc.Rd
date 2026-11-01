@@ -78,6 +78,7 @@ rfsrc(formula, data, ntree = 500,
   proximity = FALSE, distance = FALSE, forest.wt = FALSE,
   xvar.wt = NULL, yvar.wt = NULL, split.wt = NULL, case.wt  = NULL,
   case.depth = FALSE,
+  entry.time = NULL,
   forest = TRUE,
   use.uno = TRUE, save.memory = FALSE,
   var.used = c(FALSE, "all.trees", "by.tree"),
@@ -125,7 +126,9 @@ rfsrc.cart(formula, data, ntree = 1, mtry = ncol(data),
 
   \item{sampsize}{Bootstrap sample size (used when \code{bootstrap="by.root"}). Defaults: 0.632 x n for \code{swor}; n for \code{swr}. Can also be numeric.}
 
-  \item{na.action}{Missing data handling. \code{"na.omit"} (default) removes rows with any \code{NA}; \code{"na.impute"} performs fast internal imputation. See also \code{impute}.}
+  \item{na.action}{Missing data handling. \code{"na.omit"} (default) removes rows with any \code{NA}; \code{"na.impute"} performs fast internal imputation. Missing follow-up times cannot be imputed for subjects with positive \code{entry.time}. Missing predictors can still be imputed. See also \code{impute}.}
+
+  \item{entry.time}{Optional vector of non-negative entry times for survival data, one per observation. The default \code{NULL} uses zero entry times. Each entry must not exceed its observed follow-up time. A subject with positive entry must have a known follow-up time, including when \code{na.action = "na.impute"}.}
 
   \item{nimpute}{Number of iterations for internal imputation. If >1, OOB error rates may be optimistic.}
 
