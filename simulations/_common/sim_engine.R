@@ -43,9 +43,11 @@ surv_formula <- function(xn, lhs = "Surv(time, status)") {
 }
 
 cox_survival_matrix <- function(fit, Xtest, tgrid) {
-  bh  <- survival::basehaz(fit, centered = FALSE)   # Breslow, uncentered
+  bh  <- survival::basehaz(fit, centered = FALSE)   # uncentered cumulative hazard
   idx <- findInterval(tgrid, bh$time)
-  H0  <- ifelse(idx == 0, 0, bh$hazard[idx])
+  ## Prepend the pre-follow-up hazard instead of indexing with zero: R drops
+  ## zero indices, which shortens and recycles the lookup inside ifelse().
+  H0  <- c(0, bh$hazard)[idx + 1L]
   b   <- coef(fit)
   lp  <- as.vector(Xtest[, names(b), drop = FALSE] %*% b)
   exp(-outer(exp(lp), H0))

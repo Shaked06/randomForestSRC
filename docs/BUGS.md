@@ -8,8 +8,8 @@ after review and approval. A local commit does not imply a GitHub push.
 |---|---|---|---|---|---|
 | 1 | P1 | Saved-model prediction crashes or uses entry times from another fit | LT integration | Fixed locally | `4127a1a` |
 | 2 | P1 | Missing follow-up imputation can place exit before entry and return negative survival | LT integration | Fixed locally | `d057c9e` |
-| 3 | P1 | Restored training error and standalone VIMP ignore entry | LT integration | Fixed locally | This commit |
-| 4 | P1 | Cox time-grid indexing corrupts simulation predictions | Our simulations | Open | — |
+| 3 | P1 | Restored training error and standalone VIMP ignore entry | LT integration | Fixed locally | `a4c890e` |
+| 4 | P1 | Cox time-grid indexing corrupts simulation predictions | Our simulations | Fixed locally; results rerun pending | This commit |
 | 5 | P1 | LT Brier construction can favor incorrect survival probabilities | LT metric design | Open | — |
 | 6 | P1 | Brier/AUC weights mistake observed entry CDF for source entry CDF | LT metric design | Open | — |
 | 7 | P1 | Prediction-object scoring uses training outcomes | Inherited Brier bug; propagated to our AUC | Open | — |
@@ -57,7 +57,7 @@ P2: feature failure, compatibility gap, performance, or reproducibility issue.
 
 ### 3 — Entry-aware restored performance and VIMP
 
-- Commit: this commit, `Respect entry times in restored survival performance`.
+- Commit: `a4c890e`, `Respect entry times in restored survival performance`.
 - Change: supply training entry times to concordance in both grow
   and restore modes. New-data prediction must not use the training vector.
 - Scope: an omitted entry vector and an explicit zero vector give identical
@@ -81,3 +81,33 @@ P2: feature failure, compatibility gap, performance, or reproducibility issue.
 - Verification: fresh source build and package checks with examples/manual/
   vignettes skipped; all five regression test files pass, status OK.
 - Approved for a local commit. No GitHub push authorized.
+
+### 4 — Cox survival predictions on a shared grid
+
+- Commit: this commit, `Fix Cox survival predictions before the first follow-up time`.
+- Change: prepend a zero baseline hazard and use `idx + 1` to
+  preserve every grid position, including times before observed follow-up.
+  R drops zero indices in the original lookup; `ifelse` then recycles and
+  misaligns the shorter hazard vector.
+- Before fix: a simple curve rises from survival 0.2960 at time 9 to 0.8825
+  at time 12. The corrected curve remains at 0.2960.
+- Regression test: `simulations/tests/cox_survival_matrix.R`. It fails on
+  the pre-fix helper and passes with the change. Run it from the
+  repository root with `Rscript simulations/tests/cox_survival_matrix.R`.
+- Independent reference: `survival::survfit`, using a literal per-time lookup.
+  Covers 4 Cox fits (including delayed entry, ties, and early censoring),
+  7 grid cases, and both one and multiple test subjects. Checks values,
+  dimensions, probability bounds, and monotonicity.
+- Saved-run audit reconstructs both Cox phases for the existing ten draws
+  in all six scenarios. The old helper reproduces the stored MAD values;
+  all corrected curves agree with `survfit` within 1.6e-15. Scenarios 1, 2,
+  4, and 6 change; 3 and 5 do not.
+- Example: scenario 1 phase-2 Cox MAD changes from 0.02783970 to 0.01021246.
+  Full diagnostic values: `docs/review/evidence/fix4-cox-grid-impact.csv`.
+- An end-to-end scenario-1 smoke replication passes. Standard versus
+  zero-entry gaps are 2.33e-15 for Cox and exactly zero for RSF.
+- Existing saved results and rendered reports remain historical. Regeneration
+  is pending; metric corrections in bugs 5–6 are also still outstanding.
+- No R package source changed in this fix; simulation tests run separately
+  from the package regression tests. Approved for a local commit; no GitHub
+  push authorized.
