@@ -1,149 +1,136 @@
-# Time-Dependent AUC with Left Truncation
+# Time-dependent AUC with delayed entry
 
-The **time-dependent AUC** evaluates how well a model's predicted risk *ranks*
-subjects at a specific time point $t$. It sits between the two metrics already
-implemented here: like the $C$-index it is rank-based (it never asks whether a
-predicted probability is numerically right), but like the Brier score it is
-evaluated **at a fixed time $t$**, against the risk set alive at that time —
-which is exactly where left truncation does its damage.
+## Target and relation to the professor's outline
 
-> **Naming note.** The existing exported `get.auc()` in this package is the
-> Hand & Till (2001) *multiclass classification* AUC. It has nothing to do with
-> survival, time, or truncation. The estimator below is a new function,
-> `get.auc.survival()`, named to parallel `get.brier.survival()`.
+`get.auc.survival()` evaluates cumulative/dynamic discrimination at each
+prediction time. Higher AUC is better: 1 is perfect ranking, and equal
+markers receive half credit. The separate exported `get.auc()` evaluates
+classification rather than survival.
 
----
+The professor's project outline, section 9, specifies delayed-entry
+concordance and Brier evaluation. It does not specify an AUC estimator.
+Our AUC is an additional project metric, using the same enrolled-subject,
+entry-conditioned interpretation documented for Brier in
+`docs/brier_score_left_truncation.md`. The professor should review this
+extension before it is treated as settled in the thesis.
 
-## 1. Standard Time-Dependent AUC (Right-Censored Data)
+This evaluates ranking **among enrolled subjects after entry**. It is not
+an estimator of source-population AUC from time zero. That distinction is
+substantive: source-population methods require a justified correction for
+truncation and estimation of different nuisance distributions. For an
+example of that separate approach, see Li and Acharjee, sections 2 and 3.2:
+https://arxiv.org/html/2509.05693v1. Our estimator below is a project
+derivation, rather than their proposed source-population estimator.
 
-We use the **cumulative/dynamic** (C/D) definition. At evaluation time $t$ the
-sample splits into:
+## Entered-cohort estimator
 
-- **Cases** $\mathcal{D}(t) = \{i : T_i \le t,\ \delta_i = 1\}$ — subjects who
-  have had the event by $t$.
-- **Controls** $\mathcal{C}(t) = \{j : T_j > t\}$ — subjects still event-free
-  at $t$.
+Write `U_i = min(T_i,C_i)`, with `delta_i = 1` for an observed failure.
+At evaluation time `t`, subjects must have entered (`L_i <= t`). Cases
+have `U_i <= t, delta_i = 1`; controls have `U_i > t`. Subjects censored
+by `t` have unknown case/control membership and are handled through IPCW.
+This entered-subject set includes earlier observed failures; it is not
+just the set still at risk of failure at `t`.
 
-Each subject gets a **marker** $M_i(t)$: the predicted risk of the event
-occurring by $t$,
+The marker is conditional event risk from the subject's own entry:
 
-$$M_i(t) = 1 - \hat{S}(t \mid X_i)$$
+```text
+M_i(t) = 1 - S_hat(t | X_i) / S_hat(L_i^- | X_i).
+```
 
-The AUC is the probability that a randomly chosen case is ranked riskier than
-a randomly chosen control:
+The left limit respects inclusive entry (`T_i >= L_i`), so a failure
+exactly at entry remains possible. Conditioning can change the ranking
+between subjects with different entry times.
 
-$$\text{AUC}(t) = P\big(M_i(t) > M_j(t) \;\big|\; i \in \mathcal{D}(t),\, j \in \mathcal{C}(t)\big)$$
+Censoring survival `G_i` is estimated using delayed-entry risk sets.
+Observation weights conditional on reaching entry are
 
-### Handling Right Censoring (IPCW)
+```text
+w_case_i(t) = G_i(L_i^-)/G_i(U_i^-)
+w_control_j(t) = G_j(L_j^-)/G_j(t).
+```
 
-Censoring before $t$ hides whether a subject is a case or a control, so each
-subject is reweighted by the inverse of its probability of *not* being
-censored, using the Kaplan-Meier censoring distribution
-$\hat{G}_C(t) = P(C > t)$:
+Let `h(a,b) = I(a>b) + 0.5 I(a=b)`. Then
 
-$$w_i = \frac{1}{\hat{G}_C(T_i^-)} \quad (\text{cases}), \qquad w_j = \frac{1}{\hat{G}_C(t)} \quad (\text{controls})$$
+```text
+AUC_entry(t) = sum_case_i sum_control_j w_case_i w_control_j h(M_i,M_j)
+              / (sum_case_i w_case_i * sum_control_j w_control_j).
+```
 
-$$\widehat{\text{AUC}}(t) = \frac{\displaystyle\sum_{i \in \mathcal{D}(t)} \sum_{j \in \mathcal{C}(t)} w_i\, w_j \left[ \mathbb{I}(M_i > M_j) + \tfrac{1}{2}\mathbb{I}(M_i = M_j) \right]}{\displaystyle\left(\sum_{i \in \mathcal{D}(t)} w_i\right)\left(\sum_{j \in \mathcal{C}(t)} w_j\right)}$$
+With no censoring, every weight is one and this is plain pairwise ranking
+among entered subjects. No entry-distribution weights are included.
 
-- **Interpretation:** $0.5$ is coin-flip ranking, $1.0$ is perfect ranking.
-  Note this is **higher-is-better**, unlike MAD, $1-C$, and the Brier score.
-- The $\tfrac{1}{2}\mathbb{I}(M_i = M_j)$ term is not cosmetic here: forest
-  subjects landing in the same terminal nodes across all trees receive
-  *identical* survival curves, so exact ties are common.
+The shared censoring implementation is identical to Brier's: the `km`
+option retains exponential Nelson–Aalen survival with delayed-entry risk
+sets; the `rfsrc` option fits a random-split censoring forest using the
+covariates and entry, with delayed-entry risk sets and predictor imputation.
+Pooled `km` requires a common censoring hazard. More generally, independent
+censoring given the censoring-model information and positive observation
+probabilities over the evaluation horizon are required. The forest option
+is model-based, not a guarantee of valid censoring adjustment.
 
----
+## Why the old entry weights were removed
 
-## 2. Adapting the Time-Dependent AUC to Left Truncation
+The retained entry times do not generally have the source entry distribution.
+For independent source `L,T ~ Uniform(0,1)`, retaining `L<T` gives observed
+entry CDF `2l-l^2`. At `l=.5`, the observed CDF is `.75`, although the source
+CDF is `.5`. Treating one as the other is an inconsistency even in an
+arbitrarily large sample.
 
-The same three adjustments as the Brier score apply, for the same reasons —
-see `brier_score_left_truncation.md`.
+Replacing that empirical CDF with a source-CDF estimator would still require
+justifying a source-population AUC target. Our entered-cohort target does
+not require that distribution at all, matching the Brier decision in fix 5.
 
-### Adjustment 1: Dynamic Risk Set at Time $t$
+An exact uncensored example uses independent source `T` uniform on `{1,2,3}`
+and `L` uniform on `{0,1.5}`. Five equally likely combinations satisfy
+`L <= T`. At `t=2`, true conditional markers are `2/3` for early entrants
+and `1/2` for late entrants. Direct comparison of three cases with two
+controls gives `7/12 = 0.5833333`. The old entry weights instead give
+`27/44 = 0.6136364`. The corrected implementation matches the direct result.
 
-A subject entering at $T_{L,i} > t$ was not under observation at $t$ and
-cannot serve as a case or a control there:
+## API, computation, and limitations
 
-$$\mathcal{R}_L(t) = \{i : T_{L,i} \le t\}, \qquad
-\mathcal{D}_L(t) = \mathcal{D}(t) \cap \mathcal{R}_L(t), \qquad
-\mathcal{C}_L(t) = \mathcal{C}(t) \cap \mathcal{R}_L(t)$$
+Supply `entry.time` in full training-row order, even when scoring `subset`.
+Selected outcomes, predictions, and entries are aligned. Predicted survival
+must be valid for conditioning; zero survival at entry produces an error.
+Before-entry and missing OOB predictions are excluded from comparisons.
+A time with no usable cases or controls returns `NA`. Zero or undefined
+required censoring probabilities produce an error asking for a supported
+horizon; cases are not silently discarded for zero weights.
 
-> **Only controls are ever actually dropped.** For a case we always have
-> $T_{L,i} \le T_i \le t$, so $\mathcal{D}_L(t) = \mathcal{D}(t)$ identically.
-> The restriction bites only on the control side, removing subjects with
-> $T_j > t$ who had not yet entered at $t$. This is worth stating because it
-> pins down the direction of the bias: an unadjusted AUC pads the control
-> pool with subjects who were *guaranteed* to be event-free at $t$ by
-> construction, not by prognosis.
+`entry.time = NULL` retains the historical right-censored path. Explicit
+zero entry has the ordinary IPCW interpretation; actual-time lookup and
+left-limit handling can differ numerically from legacy coarse-grid/tie
+handling. Existing Brier results are unchanged by sharing its helpers.
 
-### Adjustment 2: Conditional Survival Predictions
+The implementation sorts control markers and uses cumulative weights,
+retaining half credit for ties without constructing a quadratic pair matrix.
+Groupwise normalization of log weights avoids overflow without changing
+the AUC ratio.
 
-A subject under observation has already survived to its own entry time, so
-the relevant predicted risk at $t$ is conditional on that:
+The output retains `auc`, `iauc`, `cens.dist`, `time`, `event.info`, `subset`,
+`mort`, and `surv.ensb`. The latter contains conditioned curves with `NA`
+before entry. `GL` is `NULL`; `score.type` names the target, and
+`censoring.at.entry` records the entry numerators.
 
-$$M_i(t) = 1 - \frac{\hat{S}(t \mid X_i)}{\hat{S}(T_{L,i} \mid X_i)}$$
+`iauc` retains its historical descriptive time average: trapezoidal
+integration over defined grid points divided by their time span. It can
+bridge interior undefined points. This is not an event-distribution-weighted
+population integrated AUC.
 
-This genuinely reorders subjects rather than rescaling them all the same way:
-the divisor $\hat{S}(T_{L,i} \mid X_i)$ is specific to subject $i$, so two
-subjects with the same $\hat{S}(t \mid X_i)$ but different entry times get
-different markers. A rank-based metric therefore does *not* get to ignore
-this adjustment.
+The inherited prediction-object issue (bug 7) remains open: shared setup
+uses training outcomes, so this correction does not validate new-data
+prediction-object scoring. Historical simulation outputs have not been
+regenerated.
 
-### Adjustment 3: Truncation Weights
+## Regression tests
 
-Alongside the censoring weight, each subject is weighted by the inverse
-probability of having been *observed at all* — i.e. of entering early enough
-to appear in the sample. With $G_L(t) = P(T_L \le t)$:
-
-$$w_i = \frac{1}{\hat{G}_C(T_i^-)\, \hat{G}_L(T_i^-)} \quad (\text{cases}),
-\qquad
-w_j = \frac{1}{\hat{G}_C(t)\, \hat{G}_L(t)} \quad (\text{controls})$$
-
-$G_L$ is estimated by the plain empirical CDF of the observed entry times.
-Unlike the censoring distribution, entry times are directly observed for
-every retained subject, so no risk-set/KM machinery is needed.
-
----
-
-## 3. Left-Truncated Time-Dependent AUC Formula ($\text{AUC}_{\text{LT}}$)
-
-$$\widehat{\text{AUC}}_{\text{LT}}(t) = \frac{\displaystyle\sum_{i \in \mathcal{D}_L(t)} \sum_{j \in \mathcal{C}_L(t)} w_i\, w_j \left[ \mathbb{I}(M_i > M_j) + \tfrac{1}{2}\mathbb{I}(M_i = M_j) \right]}{\displaystyle\left(\sum_{i \in \mathcal{D}_L(t)} w_i\right)\left(\sum_{j \in \mathcal{C}_L(t)} w_j\right)}$$
-
-with $M_i$ the conditional marker of Adjustment 2.
-
-### A useful cancellation (and why the code does not rely on it)
-
-Under `cens.model = "km"` the control weight
-$1/(\hat{G}_C(t)\hat{G}_L(t))$ is the *same constant for every control* at a
-given $t$, so it cancels exactly between numerator and denominator. Only the
-case weights actually matter there. The implementation still carries control
-weights explicitly, because under `cens.model = "rfsrc"` the censoring
-distribution is subject-specific and the cancellation no longer holds.
-
-### Undefined points
-
-$\widehat{\text{AUC}}_{\text{LT}}(t)$ is `NA` when either
-$\mathcal{D}_L(t)$ or $\mathcal{C}_L(t)$ is empty — routine at the very start
-and very end of the grid — or when the weights are not finite (a zero
-estimated $G_C$ or $G_L$ in the denominator).
-
-### Summary statistic
-
-The headline number is the **time-averaged AUC**: the trapezoidal integral of
-$\widehat{\text{AUC}}_{\text{LT}}(t)$ over the grid points where it is
-defined, divided by the width of that range. This mirrors how
-`get.brier.survival()` reports `crps.std`, and keeps the summary figure and
-the plotted curve from ever disagreeing.
-
----
-
-## 4. Summary
-
-The time-dependent AUC for left truncation evaluates ranking quality at a
-fixed time $t$ by:
-
-1. Restricting both the case and the control pool to subjects who had entered
-   by $t$ ($T_{L,i} \le t$) — which in practice only ever removes controls.
-2. Conditioning each predicted risk on survival up to that subject's own
-   delayed entry $T_{L,i}$.
-3. Weighting observations via joint IPCW / inverse probability of truncation
-   weighting, at $T_i^-$ for cases and at $t$ for controls.
+`tests/entry-time-auc.R` fails on the old implementation and checks the exact
+five-subject counterexample, an explicit weighted case-by-control reference,
+hand-computed delayed-entry censoring, event/censor ties, inclusive entry,
+no entrants/cases/controls, one-point grids, subset permutations, and missing
+OOB predictions. Random small fixtures compare against independently
+estimated cumulative hazards from `survival::survfit` and quadratic pair
+matrices. The forest-censoring check also verifies agreement with Brier's
+censoring curves under the same RNG seed, including missing predictors.
+An actual delayed-entry forest's OOB AUC is checked against the independent
+pairwise reference as well.

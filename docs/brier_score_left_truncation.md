@@ -121,7 +121,8 @@ reference overlay is supplied by this implementation.
 The inherited prediction-object outcome issue (bug 7) remains open: shared
 setup still uses training outcomes. Do not treat this change as validation
 of scoring new-data prediction objects. Ordinary Brier subsetting (bug 8)
-and AUC's entry weights/ties (bugs 6 and 9) also remain separate issues.
+remains open. AUC's entry weights and ties are addressed separately in
+fix 6, documented in `docs/auc_left_truncation.md`.
 
 ## Regression checks
 

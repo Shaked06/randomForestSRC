@@ -391,15 +391,6 @@ survival.score.setup <- function(o, subset, cens.model, papply, entry.time,
   else {
     cens.dist <- rep(1, length(censTime.pt))
   }
-  ## Legacy AUC entry weights, pending bug 6. The observed-entry empirical
-  ## CDF is generally not the source-population entry CDF after truncation.
-  ## The entry-restricted Brier path returns before this calculation.
-  if (!is.null(entry.time)) {
-    GL.vec <- vapply(event.info$time.interest, function(tt) mean(entry.time <= tt), numeric(1))
-  }
-  else {
-    GL.vec <- NULL
-  }
   list(o = o,
        subset = subset,
        pred.no.y = pred.no.y,
@@ -409,7 +400,7 @@ survival.score.setup <- function(o, subset, cens.model, papply, entry.time,
        mort = mort,
        surv.ensb = surv.ensb,
        cens.dist = cens.dist,
-       GL = GL.vec)
+       GL = NULL)
 }
 get.brier.survival <- function(o, subset, cens.model = c("km", "rfsrc"), papply = lapply,
                                entry.time = NULL) {
@@ -514,8 +505,8 @@ get.brier.survival <- function(o, subset, cens.model = c("km", "rfsrc"), papply 
 ##  should use 1 - auc.
 ##
 ##  entry.time = NULL (the default) gives the ordinary right-censored
-##  estimator; supplying it applies all three left-truncation adjustments
-##  from the spec.
+##  estimator; supplying it scores entry-conditioned ranking among enrolled
+##  subjects using delayed-entry censoring risk sets, without entry-CDF weights.
 get.auc.survival <- function(o, subset, cens.model = c("km", "rfsrc"), papply = lapply,
                              entry.time = NULL) {
   ## incoming parameter checks
@@ -524,6 +515,10 @@ get.auc.survival <- function(o, subset, cens.model = c("km", "rfsrc"), papply = 
   }
   ## verify the cens.model option
   cens.model <- match.arg(cens.model, c("km", "rfsrc"))
+  if (!is.null(entry.time)) {
+    return(get.auc.survival.lt(o, if (missing(subset)) NULL else subset,
+                              cens.model, papply, entry.time))
+  }
   setup <- survival.score.setup(o, if (missing(subset)) NULL else subset,
                                 cens.model, papply, entry.time)
   subset     <- setup$subset
@@ -542,7 +537,6 @@ get.auc.survival <- function(o, subset, cens.model = c("km", "rfsrc"), papply = 
   ## simulations use, but not in general.)
   tau     <- event.info$time[subset]
   event   <- event.info$cens[subset]
-  entry.s <- if (is.null(entry.time)) NULL else entry.time[subset]
   ##-------------------------------------------------------------------------------
   ##
   ## subject-level quantities that do not depend on the evaluation time
@@ -557,27 +551,6 @@ get.auc.survival <- function(o, subset, cens.model = c("km", "rfsrc"), papply = 
     gc.case <- vapply(1:n, function(i) c(1, cens.dist[, i])[1 + cens.pt[i]], numeric(1))
   }
   w.case <- 1 / gc.case
-  if (!is.null(entry.s)) {
-    ## Adjustment 3 (case half): truncation weight 1/G_L(T_i^-). Computed
-    ## directly rather than by the grid-index trick used for the censoring
-    ## weight -- that trick relies on a prepended value being exactly right
-    ## before the first grid point, which holds for a survival function
-    ## (exactly 1 at time 0) but not for G_L, since entries routinely
-    ## happen before the first death time in the grid.
-    ## The marginal G_L is estimated from the FULL entry vector, not the
-    ## subset: it is a property of the study's entry process, not of
-    ## whichever subjects are being scored.
-    gl.case <- vapply(tau, function(ti) mean(entry.time < ti), numeric(1))
-    w.case <- w.case / gl.case
-    ## Adjustment 2: condition each predicted curve on having survived to
-    ## that subject's own entry time -- S(t|X)/S(entry|X). This genuinely
-    ## reorders subjects rather than rescaling them all alike (the divisor
-    ## is subject-specific), so a rank-based metric cannot skip it.
-    S.entry <- vapply(1:n, function(i) {
-      c(1, surv.ensb[, i])[1 + sIndex(t.unq, entry.s[i])]
-    }, numeric(1))
-    surv.ensb <- sweep(surv.ensb, 2, S.entry, "/")
-  }
   ##-------------------------------------------------------------------------------
   ##
   ## AUC at each evaluation time
@@ -591,23 +564,10 @@ get.auc.survival <- function(o, subset, cens.model = c("km", "rfsrc"), papply = 
     marker <- 1 - surv.ensb[k, ]
     is.case <- (tau <= tk) & (event != 0)
     is.ctrl <- (tau > tk)
-    if (!is.null(entry.s)) {
-      ## Adjustment 1: risk set R_L(t) = {i : entry_i <= t}. For a case this
-      ## is automatic (entry_i <= T_i <= t), so in practice this only ever
-      ## drops controls who had not yet entered at t -- which is exactly the
-      ## group an unadjusted AUC wrongly credits the model for ranking
-      ## "correctly" as event-free.
-      in.risk.set <- entry.s <= tk
-      is.case <- is.case & in.risk.set
-      is.ctrl <- is.ctrl & in.risk.set
-    }
-    ## control weight 1/(G_C(t) G_L(t)), read at the evaluation time
+    ## control weight 1/G_C(t), read at the evaluation time
     gc.ctrl <- if (cens.model == "km") cens.dist[k] else cens.dist[k, ]
     w.ctrl <- rep_len(1 / gc.ctrl, n)
-    if (!is.null(entry.s)) {
-      w.ctrl <- w.ctrl / GL.vec[k]
-    }
-    ## a subject with a non-finite weight (zero estimated G_C or G_L) carries
+    ## a subject with a non-finite weight (zero estimated G_C) carries
     ## no usable information at this time point
     is.case <- is.case & is.finite(w.case) & is.finite(marker)
     is.ctrl <- is.ctrl & is.finite(w.ctrl) & is.finite(marker)
@@ -636,9 +596,9 @@ get.auc.survival <- function(o, subset, cens.model = c("km", "rfsrc"), papply = 
   }))
   auc <- data.frame(time = t.unq, auc = auc.vec)
   ## Headline figure: time-averaged AUC over the range where it is defined.
-  ## Restricting the integral to the non-NA points (rather than dropping
-  ## them and integrating across the hole) keeps the summary number and the
-  ## plotted curve from disagreeing, same contract as crps.std.
+  ## The historical summary integrates the finite grid points. This can
+  ## bridge interior gaps; it is a descriptive average, not a population
+  ## event-distribution-weighted integrated AUC.
   ok <- !is.na(auc.vec)
   iauc <- if (sum(ok) >= 2 && diff(range(t.unq[ok])) > 0) {
     trapz(t.unq[ok], auc.vec[ok]) / diff(range(t.unq[ok]))

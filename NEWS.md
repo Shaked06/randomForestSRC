@@ -20,6 +20,7 @@
 
 ## Bug fixes
 
+- Left-truncated cumulative/dynamic AUC now evaluates entry-conditioned ranking among enrolled subjects, using delayed-entry censoring probabilities without treating the observed entry CDF as a source-population distribution. Inclusive entry ties retain their cases. The NULL-entry path is unchanged.
 - Left-truncated Brier scoring now uses an entry-conditioned IPCW score with delayed-entry censoring risk sets and no additional entry-CDF weights. It handles inclusive entry ties and aligns selected subjects. The default `entry.time = NULL` path is unchanged.
 - Restored survival error rates and standalone variable importance now use the saved training entry times, matching entry-aware scoring during growing. This also corrects the reference importance computed lazily by subsampling and double bootstrap. New-data prediction continues to use its existing scoring behavior.
 - Missing follow-up times are now rejected for subjects with positive `entry.time`, preventing unconstrained response imputation from creating exits before entry and negative survival estimates. Missing predictors and zero-entry follow-up imputation remain supported.

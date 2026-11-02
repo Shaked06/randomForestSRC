@@ -10,11 +10,11 @@ after review and approval. A local commit does not imply a GitHub push.
 | 2 | P1 | Missing follow-up imputation can place exit before entry and return negative survival | LT integration | Fixed locally | `d057c9e` |
 | 3 | P1 | Restored training error and standalone VIMP ignore entry | LT integration | Fixed locally | `a4c890e` |
 | 4 | P1 | Cox time-grid indexing corrupts simulation predictions | Our simulations | Fixed locally; results rerun pending | `820b285` |
-| 5 | P1 | LT Brier construction can favor incorrect survival probabilities | LT metric design | Fixed locally | This commit |
-| 6 | P1 | Brier/AUC weights mistake observed entry CDF for source entry CDF | LT metric design | Brier avoids these weights in fix 5; AUC open | — |
+| 5 | P1 | LT Brier construction can favor incorrect survival probabilities | LT metric design | Fixed locally | `539df42` |
+| 6 | P1 | Brier/AUC weights mistake observed entry CDF for source entry CDF | LT metric design | Fixed locally | This commit |
 | 7 | P1 | Prediction-object scoring uses training outcomes | Inherited Brier bug; propagated to our AUC | Open | — |
 | 8 | P2 | Brier subsetting misaligns curves and outcomes | Inherited Brier bug; LT indexing repeats it | LT path covered in fix 5; ordinary Brier open | — |
-| 9 | P2 | Accepted entry/event ties cause infinite weights | LT metrics | Brier covered in fix 5; AUC open | — |
+| 9 | P2 | Accepted entry/event ties cause infinite weights | LT metrics | Fixed locally by fixes 5 and 6 | `539df42` + this commit |
 | 10 | P2 | NA omission does not subset entry times | LT integration | Open | — |
 | 11 | P2 | Tuning holdouts do not subset entry times | LT integration | Open | — |
 | 12 | P2 | Ordinary forests lose fast concordance scoring | LT integration | Open | — |
@@ -114,7 +114,7 @@ P2: feature failure, compatibility gap, performance, or reproducibility issue.
 
 ### 5 — Entry-restricted Brier score
 
-- Approved for a local commit, `Correct entry-conditioned Brier scoring`.
+- Commit: `539df42`, `Correct entry-conditioned Brier scoring`.
 - Governing reference: professor's project outline, section 9.2, page 7,
   in `docs/thesis/left_truncated_RSF_student_project.pdf`.
 - Interpretation: score conditional prediction after entry for enrolled
@@ -147,3 +147,45 @@ P2: feature failure, compatibility gap, performance, or reproducibility issue.
 - Formula, assumptions, and limits: `docs/brier_score_left_truncation.md`.
   Scientific review with the professor remains appropriate before treating
   this interpretation as settled in the thesis. No GitHub push authorized.
+
+### 6 — Remove source-entry weights from entered-cohort AUC
+
+- Approved for a local commit, `Correct entry-conditioned survival AUC`.
+  Brier no longer uses the erroneous CDF after fix 5; this correction
+  addresses AUC.
+- Cause: the empirical entry CDF among retained subjects is generally not
+  the source entry CDF. For independent uniform source entry and failure
+  times, the two CDFs at .5 are .75 and .5, respectively.
+- Target: cumulative/dynamic ranking among enrolled subjects after entry,
+  consistent with the Brier interpretation approved in fix 5. This is our
+  project extension: the professor's outline does not specify AUC.
+  It does not estimate source-population AUC from time zero.
+- Change: remove the inverse entry-CDF weights. Use conditional markers
+  based on `S(t)/S(L^-)` and observation weights `G(L^-)/G(U^-)` for cases,
+  `G(L^-)/G(t)` for controls. Share the already tested Brier conditioning
+  and delayed-entry censoring helpers, preserving its results.
+- Exact counterexample: five equally likely retained combinations from
+  source `T` uniform on `{1,2,3}` and `L` uniform on `{0,1.5}`. Direct
+  pairwise AUC at time 2 is 7/12 = 0.5833333; the old entry weights return
+  27/44 = 0.6136364. The corrected scorer matches the direct result.
+- Inclusive entry ties retain their cases, also resolving AUC's part of
+  bug 9. Unsupported required censoring probabilities raise an error;
+  absent cases or controls produce NA. Missing OOB predictions and subjects
+  who have not entered are excluded from pair comparisons.
+- Regression test: `tests/entry-time-auc.R`, fails before and passes after.
+  Includes hand-computed delayed-entry weights, event/censor ties, marker
+  ties, subsets, early horizons, one-point grids, missing OOB predictions,
+  independent `survfit` cumulative hazards, explicit quadratic weighted-pair
+  references on eight random fixtures, and an actual delayed-entry forest.
+  Forest-censoring curves also match Brier under the same seed with missing
+  predictors present.
+- Verification: isolated source build and `R CMD check` with examples/manual/
+  vignettes skipped, status OK; all seven regression files pass. The expanded
+  final AUC cases also pass on the installed isolated build.
+- Compatibility audit: NULL/LT Brier results and NULL-entry AUC results
+  are identical to fix 5 across two censoring models and four selections.
+- Details, modeling assumptions, and primary-source context:
+  `docs/auc_left_truncation.md`. The historical descriptive `iauc` average
+  is retained, including its possible bridging of undefined interior points.
+- Bug 7 (new-data prediction-object outcomes) remains open. Saved simulation
+  outputs are not regenerated. No GitHub push authorized.
