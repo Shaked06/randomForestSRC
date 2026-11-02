@@ -72,6 +72,16 @@
   
   The utility function \code{get.brier.survival} can be used to extract
   the Brier score among other useful quantities.
+
+  Supplying \code{entry.time} to \code{get.brier.survival} computes an
+  entry-restricted IPCW score. Supply one entry time per training subject.
+  At each evaluation time, only subjects who have entered are scored.
+  Survival predictions and censoring probabilities are conditioned on
+  reaching entry, and censoring risk sets account for delayed entry.
+  No additional entry-distribution weights are applied.
+  The \code{km} option retains the exponential cumulative-hazard censoring
+  estimator used by the ordinary scorer. With \code{entry.time = NULL},
+  the ordinary scoring path is retained.
   
 }
 \value{

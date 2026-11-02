@@ -20,6 +20,7 @@
 
 ## Bug fixes
 
+- Left-truncated Brier scoring now uses an entry-conditioned IPCW score with delayed-entry censoring risk sets and no additional entry-CDF weights. It handles inclusive entry ties and aligns selected subjects. The default `entry.time = NULL` path is unchanged.
 - Restored survival error rates and standalone variable importance now use the saved training entry times, matching entry-aware scoring during growing. This also corrects the reference importance computed lazily by subsampling and double bootstrap. New-data prediction continues to use its existing scoring behavior.
 - Missing follow-up times are now rejected for subjects with positive `entry.time`, preventing unconstrained response imputation from creating exits before entry and negative survival estimates. Missing predictors and zero-entry follow-up imputation remain supported.
 - Saved survival forests now retain their training entry times and pass them explicitly during prediction, restoration, and partial dependence. This fixes fresh-session crashes and predictions changing after an unrelated fit. Older grow objects can recover entry times when available on their outer object; saved LT objects without entry times must be rebuilt.

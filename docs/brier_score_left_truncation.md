@@ -1,60 +1,143 @@
-# Brier Score with Left Truncation
+# Brier score with delayed entry
 
-The **Brier Score** evaluates the overall performance and calibration of a survival model at a specific time point $t$. While metrics like the $C$-index evaluate relative ranking, the Brier Score measures the accuracy of individual predicted survival probabilities against observed outcomes.
+## Governing outline and interpretation
 
----
+The source of truth is the professor's project outline,
+`docs/thesis/left_truncated_RSF_student_project.pdf`, section 9.2, page 7.
+It specifies squared prediction error, conditioning on being under
+observation, restricting evaluation to subjects with entry `L_i <= t`,
+and censoring weights estimated using delayed-entry risk sets.
 
-## 1. Standard Brier Score (Right-Censored Data)
+The outline does **not** give a fully expanded estimator. The following
+entry-conditioned formula is our interpretation of its observation
+conditioning, rather than an equation quoted from the PDF. The professor
+should review this interpretation before the thesis treats it as settled.
 
-At a given evaluation time $t$, the Brier Score calculates the Mean Squared Error (MSE) between actual survival status $Y_i(t)$ and the model's predicted survival probability $\hat{S}(t \mid X_i) = P(T_i > t \mid X_i)$.
+This score evaluates prediction **after entry for enrolled subjects**.
+It does not estimate prediction error from time zero for the unobserved
+source population. In particular, it differs in target from the
+simulation's source-population truth-based MAD.
 
-### Observed Survival Status
-$$Y_i(t) = \mathbb{I}(T_i > t)$$
+## Predictions and score
 
-- **$Y_i(t) = 1$**: Subject survived past time $t$.
-- **$Y_i(t) = 0$**: Subject experienced the event on or before time $t$.
+Let `U_i = min(T_i, C_i)` and `delta_i` indicate an observed failure.
+The forest estimates survival from time zero, `S_hat(t | X_i)`.
+With inclusive entry `T_i >= L_i`, its entry-conditioned prediction is
 
-### Handling Right Censoring (IPCW)
-Because right-censoring prevents observing $Y_i(t)$ for subjects censored before time $t$, standard implementations apply **Inverse Probability of Censoring Weighting (IPCW)** using the Kaplan-Meier estimate of the censoring distribution $\hat{G}_C(t) = P(C > t)$:
+```text
+q_i(t) = S_hat(t | X_i) / S_hat(L_i^- | X_i),     t >= L_i.
+```
 
-$$\text{BS}(t) = \frac{1}{N} \sum_{i=1}^N \left[ \frac{(0 - \hat{S}(t \mid X_i))^2 \cdot \mathbb{I}(T_i \le t, \delta_i = 1)}{\hat{G}_C(T_i^-)} + \frac{(1 - \hat{S}(t \mid X_i))^2 \cdot \mathbb{I}(T_i > t)}{\hat{G}_C(t)} \right]$$
+The left limit matters when entry and an event time coincide: a failure
+exactly at entry remains possible. The stored prediction is a step function
+on the forest's time grid, with value 1 before its first point.
 
-- **Interpretation:** $0$ indicates perfect prediction accuracy; $0.25$ corresponds to an uninformative baseline model (predicting 50% probability for everyone).
+Let `G_i(u)` denote censoring survival from the original time origin,
+conditional on the covariates and entry information required by the
+censoring model. Observation probabilities after entry are ratios to
+`G_i(L_i^-)`. At time `t` the implemented score is
 
----
+```text
+BS_entry(t) = 1/n_t * sum over i with L_i <= t of
+  [ delta_i * I(U_i <= t) * q_i(t)^2 * G_i(L_i^-)/G_i(U_i^-)
+    + I(U_i > t) * (1-q_i(t))^2 * G_i(L_i^-)/G_i(t) ].
+```
 
-## 2. Adapting the Brier Score to Left Truncation
+Here `n_t` counts selected, entered subjects with a finite prediction.
+A subject censored by `t` contributes zero but stays in that denominator;
+IPCW accounts for the unavailable outcome. A subject not entered by `t`
+is excluded altogether. With no censoring this reduces to ordinary mean
+squared error of the conditional probabilities among entered subjects.
 
-Under **left truncation** (late entry $T_{L, i} > 0$), two crucial adjustments are necessary:
+No inverse entry-CDF weights are included. The old combination of such
+weights, entry-conditioned predictions, and entered-subject averaging
+could favor an incorrect conditional probability even without censoring.
+Also, the observed entry CDF is generally not the source entry CDF after
+selection. This correction avoids needing either CDF for this score.
 
-### Adjustment 1: Dynamic Risk Set at Time $t$
-Subjects who enter the study after evaluation time $t$ ($T_{L, i} > t$) were not observable at time $t$. They must be excluded from the evaluation set $\mathcal{R}_L(t)$:
+## Censoring models and assumptions
 
-$$\mathcal{R}_L(t) = \{i : T_{L, i} \le t\}$$
+The conditional IPCW argument requires independent failure and censoring
+given the information used by the censoring model, plus positive observation
+probabilities over the evaluation horizon. These are modeling assumptions,
+not properties guaranteed by the implementation.
 
-### Adjustment 2: Conditional Survival Predictions
-Subjects observed in the study have already survived up to their entry time $T_{L, i}$. The model must predict **conditional survival probability** given $T_i > T_{L, i}$:
+With `cens.model = "km"`, one pooled censoring hazard is estimated at each
+actual censoring time `u` using
 
-$$\hat{S}_{\text{cond}}(t \mid X_i, T_i > T_{L, i}) = \frac{\hat{S}(t \mid X_i)}{\hat{S}(T_{L, i} \mid X_i)}$$
+```text
+Y_C(u) = sum I(L_i <= u <= U_i)
+d_C(u) = sum I(U_i = u, delta_i = 0)
+G_hat(u) = exp(-sum over v <= u of d_C(v)/Y_C(v)).
+```
 
----
+Despite the historical option name `km`, the package uses exponential
+Nelson–Aalen cumulative hazard rather than a product-limit estimator.
+We retain that estimator and change its risk sets to account for entry.
+The pooled option assumes a common censoring hazard; conditional independence
+only given `X,L`, as permitted by the outline, does not establish that
+stronger assumption. Interpret scores accordingly when censoring varies
+with covariates or entry.
 
-## 3. Left-Truncated Brier Score Formula ($BS_{\text{LT}}$)
+With `cens.model = "rfsrc"`, a separate random-split censoring forest uses
+the original covariates and entry as predictors, with the same delayed-entry
+risk-set support used to fit the outcome forest. Its censoring survival
+curves provide subject-specific ratios. This is a model-based estimate,
+and a correctly specified censoring model remains necessary. Missing
+predictors use imputation so subject rows are preserved. With no censoring,
+both options use weights of one without fitting a censoring forest.
 
-To adjust for selection bias and delayed entry, weights combine censoring weights $G_C(t)$ with truncation weights $G_L(t) = P(T_L \le t)$:
+Both options evaluate event weights at `G(U_i^-)`, survival weights at
+`G(t)`, and the entry numerator at `G(L_i^-)`, using actual times even
+when the scoring grid omits a censoring time. Risk sets follow the outline's
+inclusive entry convention. Ties between entry and exit are allowed.
 
-$$w_i(t) = \begin{cases} 
-\frac{1}{G_C(T_i^-) \cdot G_L(T_i^-)} & \text{if } T_i \le t, \delta_i = 1 \\[8pt]
-\frac{1}{G_C(t) \cdot G_L(t)} & \text{if } T_i > t 
-\end{cases}$$
+## API and boundaries
 
-$$\text{BS}_{\text{LT}}(t) = \frac{1}{|\mathcal{R}_L(t)|} \sum_{i \in \mathcal{R}_L(t)} w_i(t) \cdot \left[ Y_i(t) - \hat{S}_{\text{cond}}(t \mid X_i, T_i > T_{L, i}) \right]^2$$
+Supply `entry.time` in the full training-row order, including when a subset
+is scored. The LT path aligns selected outcomes, entries, and predictions.
+Entry must be finite, nonnegative, and no later than follow-up; this scorer
+requires known follow-up and binary event status.
 
----
+`entry.time = NULL` retains the existing ordinary Brier implementation.
+Explicit zero entry reduces the new estimator to ordinary IPCW conceptually.
+Exact numeric agreement with the historical implementation is not guaranteed
+for every coarse grid or tie configuration because the LT path evaluates
+weights at their actual times and uses explicit left limits.
 
-## 4. Summary
+If no subject has entered, the score is undefined (`NA`), rather than zero.
+CRPS is also `NA` if any score on its integration grid is undefined; it does
+not silently bridge unsupported intervals. Zero predicted survival at entry
+or zero/undefined required censoring survival produces an informative error.
+Subjects without finite OOB predictions are omitted at the relevant time.
 
-The Brier Score for left truncation evaluates mean squared prediction error at a fixed time $t$ by:
-1. Restricting evaluation to subjects who entered the study on or before $t$ ($T_{L, i} \le t$).
-2. Conditioning predicted survival probabilities on survival up to delayed entry $T_{L, i}$.
-3. Weighting observations via joint IPCW / Inverse Probability of Truncation Weighting (IPTW).
+Existing output fields are retained. `surv.ensb` contains the original curves;
+`conditional.survival` contains the entry-conditioned curves, with `NA`
+before entry. `n.eligible` records the scoring denominator, and
+`censoring.at.entry` contains the entry numerators. `GL` and the legacy
+reference overlay `surv.aalen` are `NULL` for LT scoring; no comparable
+reference overlay is supplied by this implementation.
+
+The inherited prediction-object outcome issue (bug 7) remains open: shared
+setup still uses training outcomes. Do not treat this change as validation
+of scoring new-data prediction objects. Ordinary Brier subsetting (bug 8)
+and AUC's entry weights/ties (bugs 6 and 9) also remain separate issues.
+
+## Regression checks
+
+`tests/entry-time-brier.R` checks hand-computed uncensored and censored
+examples, delayed-entry risk sets, off-grid censoring weights, zero entry,
+inclusive entry ties, unsupported early horizons, and subset alignment.
+It independently checks censoring cumulative hazard against
+`survival::survfit` on untied counting-process data.
+
+A discrete oracle example has true post-entry survival `2/3`; its expected
+Brier score is `2/9`. The corrected score reproduces this and penalizes a
+distorted probability. A separate smoke test exercises the forest censoring
+model. The test fails on the old implementation.
+
+A five-subject exact sample from independent discrete source entry and
+failure times directly reproduces the original bug. At time 2 the old score
+is 0.2481481 for the true curve and 0.2463959 for a distorted curve: it prefers
+the wrong prediction. The revised scores are 0.2333333 and 0.2345034,
+respectively, so the true prediction scores better.

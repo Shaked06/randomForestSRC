@@ -9,12 +9,12 @@ after review and approval. A local commit does not imply a GitHub push.
 | 1 | P1 | Saved-model prediction crashes or uses entry times from another fit | LT integration | Fixed locally | `4127a1a` |
 | 2 | P1 | Missing follow-up imputation can place exit before entry and return negative survival | LT integration | Fixed locally | `d057c9e` |
 | 3 | P1 | Restored training error and standalone VIMP ignore entry | LT integration | Fixed locally | `a4c890e` |
-| 4 | P1 | Cox time-grid indexing corrupts simulation predictions | Our simulations | Fixed locally; results rerun pending | This commit |
-| 5 | P1 | LT Brier construction can favor incorrect survival probabilities | LT metric design | Open | — |
-| 6 | P1 | Brier/AUC weights mistake observed entry CDF for source entry CDF | LT metric design | Open | — |
+| 4 | P1 | Cox time-grid indexing corrupts simulation predictions | Our simulations | Fixed locally; results rerun pending | `820b285` |
+| 5 | P1 | LT Brier construction can favor incorrect survival probabilities | LT metric design | Fixed locally | This commit |
+| 6 | P1 | Brier/AUC weights mistake observed entry CDF for source entry CDF | LT metric design | Brier avoids these weights in fix 5; AUC open | — |
 | 7 | P1 | Prediction-object scoring uses training outcomes | Inherited Brier bug; propagated to our AUC | Open | — |
-| 8 | P2 | Brier subsetting misaligns curves and outcomes | Inherited Brier bug; LT indexing repeats it | Open | — |
-| 9 | P2 | Accepted entry/event ties cause infinite weights | LT metrics | Open | — |
+| 8 | P2 | Brier subsetting misaligns curves and outcomes | Inherited Brier bug; LT indexing repeats it | LT path covered in fix 5; ordinary Brier open | — |
+| 9 | P2 | Accepted entry/event ties cause infinite weights | LT metrics | Brier covered in fix 5; AUC open | — |
 | 10 | P2 | NA omission does not subset entry times | LT integration | Open | — |
 | 11 | P2 | Tuning holdouts do not subset entry times | LT integration | Open | — |
 | 12 | P2 | Ordinary forests lose fast concordance scoring | LT integration | Open | — |
@@ -84,7 +84,7 @@ P2: feature failure, compatibility gap, performance, or reproducibility issue.
 
 ### 4 — Cox survival predictions on a shared grid
 
-- Commit: this commit, `Fix Cox survival predictions before the first follow-up time`.
+- Commit: `820b285`, `Fix Cox survival predictions before the first follow-up time`.
 - Change: prepend a zero baseline hazard and use `idx + 1` to
   preserve every grid position, including times before observed follow-up.
   R drops zero indices in the original lookup; `ifelse` then recycles and
@@ -111,3 +111,39 @@ P2: feature failure, compatibility gap, performance, or reproducibility issue.
 - No R package source changed in this fix; simulation tests run separately
   from the package regression tests. Approved for a local commit; no GitHub
   push authorized.
+
+### 5 — Entry-restricted Brier score
+
+- Approved for a local commit, `Correct entry-conditioned Brier scoring`.
+- Governing reference: professor's project outline, section 9.2, page 7,
+  in `docs/thesis/left_truncated_RSF_student_project.pdf`.
+- Interpretation: score conditional prediction after entry for enrolled
+  subjects. Condition both outcome predictions and censoring probabilities
+  on reaching entry; estimate censoring with delayed-entry risk sets.
+  The expanded formula is our derivation, not a verbatim formula in the PDF.
+- Remove additional inverse entry-CDF weights. A five-row exact truncated
+  sample previously scores the true curve 0.2481481 and a distorted curve
+  0.2463959 (lower is better). The corrected scores are 0.2333333 and
+  0.2345034, restoring the correct ordering.
+- Preserve the historical exponential Nelson–Aalen censoring estimator
+  under the `km` option, changing its risk sets. The pooled model assumes
+  a common censoring hazard. The `rfsrc` option uses covariates and entry,
+  fits with delayed entry, and preserves rows with missing predictors.
+- Regression test: `tests/entry-time-brier.R`; fails before the fix and
+  passes on the rebuilt package. Includes exact oracle losses, hand
+  censoring calculations, an independent `survfit` cumulative-hazard
+  reference, off-grid weights, inclusive ties, subset/one-row alignment,
+  missing OOB predictions, undefined horizons, and forest censoring.
+- Verification: isolated build and `R CMD check` with examples/manual/
+  vignettes skipped, status OK; all six regression files pass. Expanded
+  final Brier cases also pass against the installed isolated build.
+- Compatibility audit: ordinary NULL-entry Brier and NULL/LT AUC results
+  are identical to the preceding code across four subject selections.
+  Explicit zero entry has the ordinary IPCW interpretation, but actual-time
+  lookups and left limits can differ from legacy coarse-grid/tie handling.
+- Overlap: Brier no longer needs bug 6's entry CDF; its LT path handles
+  bugs 8 and 9. AUC's CDF/tie bugs and ordinary Brier subsetting remain open.
+  Bug 7 (prediction-object outcomes) is not addressed.
+- Formula, assumptions, and limits: `docs/brier_score_left_truncation.md`.
+  Scientific review with the professor remains appropriate before treating
+  this interpretation as settled in the thesis. No GitHub push authorized.
