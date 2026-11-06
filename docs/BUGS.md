@@ -16,8 +16,8 @@ after review and approval. A local commit does not imply a GitHub push.
 | 8 | P2 | Brier subsetting misaligns curves and outcomes | Inherited Brier bug; LT indexing repeats it | Fixed locally by upstream integration | `cb60a6e`; LT fix `539df42` |
 | 9 | P2 | Accepted entry/event ties cause infinite weights | LT metrics | Fixed locally by fixes 5 and 6 | `539df42` + `42d7a66` |
 | 10 | P2 | NA omission does not subset entry times | LT integration | Fixed locally | `a62897b` |
-| 11 | P2 | Tuning holdouts do not subset entry times | LT integration | Fixed locally | This commit |
-| 12 | P2 | Ordinary forests lose fast concordance scoring | LT integration | Open after upstream merge | — |
+| 11 | P2 | Tuning holdouts do not subset entry times | LT integration | Fixed locally | `ef64356` |
+| 12 | P2 | Ordinary forests lose fast concordance scoring | LT integration | Fixed locally | This commit |
 | 13 | P2 | Unsupported splitting rules silently accept entry times | LT integration | Open after upstream merge | — |
 | 14 | P2 | Package fixes do not invalidate simulation caches | Our simulations | Open after upstream merge | — |
 | 15 | P2 | Full-ensemble partial dependence uses an OOB normalization array | Pre-LT source; exposed during fix 1 | Needs dedicated reproduction/test | — |
@@ -25,6 +25,14 @@ after review and approval. A local commit does not imply a GitHub push.
 P1: crash, incorrect results, or invalid statistical interpretation.
 P2: feature failure, compatibility gap, performance, or reproducibility issue.
 “Inherited” refers to our starting repository, not a verified current CRAN release.
+
+## Performance follow-up
+
+- Develop and validate a fast concordance algorithm for positive entry
+  times. Current LT scoring adapts the existing pairwise algorithm;
+  bug 12 restores the existing fast algorithm only for NULL/all-zero entry.
+  This is a separate enhancement, including weighted/unweighted scores,
+  entry/event ties, and independent correctness/performance comparisons.
 
 ## Fix records
 
@@ -293,7 +301,7 @@ four saved pre-integration forests preserve restored/new-data predictions.
 
 ### 11 — Match tuning entries to training and holdout subjects
 
-- Approved for a local commit, `Preserve entry times and LT scoring during tuning`.
+- Commit: `ef64356`, `Preserve entry times and LT scoring during tuning`.
 - Origin: LT integration in both `tune()` and `tune.nodesize()`. Before the
   fix, reserving a holdout passed the full entry vector to the smaller
   training frame. Joint tuning fails length validation; nodesize tuning
@@ -327,4 +335,45 @@ four saved pre-integration forests preserve restored/new-data predictions.
   existing preprocessing policy are outside this fix.
 - Verification: isolated build and `R CMD check`, status OK, with
   examples/manual/vignettes skipped; all ten regression files pass.
+- No GitHub push authorized.
+
+### 12 — Restore fast concordance for ordinary survival fits
+
+- Approved for a local commit, `Restore fast concordance for zero entry times`.
+- Origin: LT integration. Native grow/restore calls supply an all-zero
+  entry vector even for ordinary survival data. The LT guard treated any
+  non-NULL vector as requiring the pairwise algorithm, disabling the
+  existing fast algorithm for those ordinary fits.
+- Change: permit the existing automatic/explicit fast selection for NULL
+  or all-zero entry vectors. Any nonzero entry still forces the pairwise,
+  entry-aware calculation, even with `fast = TRUE`. Positive entries before
+  every failure also retain that conservative path. An explicit request for
+  the slow algorithm is respected. This restores ordinary scoring speed;
+  it does not implement a fast algorithm for positive LT entries.
+- Optional concordance tracing reports the chosen algorithm. Console
+  output is suppressed inside active OpenMP parallel regions.
+- Regression: `tests/entry-time-fast-concordance.R` checks actual algorithm
+  selection, score agreement, independent pair enumeration, event/risk
+  ties, missing/zero weights, both automatic thresholds, explicit fast/slow
+  choices, real grow/restore calls, and weighted/unweighted LT restrictions.
+  The zero-entry selection assertion fails against pre-fix dispatch with
+  only the same diagnostic added; all cases pass after the fix.
+- Verification: isolated source build and `R CMD check`, status OK, with
+  examples/manual/vignettes skipped; all eleven regression files pass.
+  The local build is serial; an OpenMP runtime build was not tested.
+- Timing evidence: `docs/review/evidence/fix12-concordance-timing.csv`,
+  reproduced by `docs/review/repros/fix12-concordance-timing.R` against
+  isolated before/after libraries. Each call scores 20,000 subjects; timings
+  average three calls. Zero-entry scoring drops from roughly one second
+  to about three milliseconds locally, matching the NULL-entry path.
+  These are illustrative single-machine timings, not test thresholds or
+  whole-forest speedup estimates.
+- Numerical scope: the existing fast/pairwise algorithms can differ
+  slightly through floating-point accumulation, and their epsilon-based
+  grouping of nearly equal values is not universally identical. The timing
+  fixture uses integer times/risks, checks score agreement within `1e-8`,
+  and records the actual scores; its weighted baseline difference is about
+  `1.5e-11`. Regression fixtures check their reference scores within `1e-12`.
+  This fix restores the upstream algorithm choice without redesigning
+  either concordance estimator.
 - No GitHub push authorized.

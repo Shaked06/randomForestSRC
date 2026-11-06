@@ -9,6 +9,7 @@
     
 
 #include "survivalE.h"
+#include "nativeUtil.h"
 #include "impute.h"
 #include "nrutil.h"
 #include "error.h"
@@ -266,13 +267,17 @@ double getConcordanceIndex(int     fastAction,
       }
     }
   }
-  // entry (left-truncation) times are only supported by the O(n^2)
-  // Original/Uno paths below -- the Fenwick fast paths use a sort-and-BIT
-  // trick keyed on time order alone, which a per-pair entry-time filter
-  // breaks. When entry is supplied, fall back to the exact paths
-  // regardless of size; correctness over speed for a filter this rare.
-  if (entry != NULL) {
-    fastFlag = FALSE;
+  // Ordinary grow/restore calls also supply an all-zero entry vector.
+  // It imposes no entry restriction and can use the existing Fenwick paths.
+  // Any nonzero entry still requires the pairwise LT comparability filter,
+  // even when the caller explicitly requests the fast algorithm.
+  if (fastFlag && entry != NULL) {
+    for (i = 1; i <= size; i++) {
+      if (entry[i] != 0.0) {
+        fastFlag = FALSE;
+        break;
+      }
+    }
   }
   if (weight == NULL) {
     genericWeight = denom;
@@ -299,6 +304,16 @@ double getConcordanceIndex(int     fastAction,
   }
   else if ((weight == NULL) &&  (fastFlag == FALSE)) {
     getConcordanceIndexActual = & getConcordanceIndexOriginal;
+  }
+  // R console output must not be called from an OpenMP worker region.
+#ifdef _OPENMP
+  if (getUserTraceFlag() && !omp_in_parallel()) {
+#else
+  if (getUserTraceFlag()) {
+#endif
+    RF_nativePrint("Concordance algorithm: %s (%s)\n",
+                   fastFlag ? "Fenwick" : "pairwise",
+                   weight == NULL ? "unweighted" : "Uno");
   }
   result = getConcordanceIndexActual(size,
                                      timePtr,
@@ -496,8 +511,8 @@ double getConcordanceIndexFenwick(uint    size,
                                   double *entry) {
   uint i;
   double result;
-  // entry is unused here: getConcordanceIndex() never dispatches to the
-  // Fenwick paths when entry != NULL (see there). The parameter exists
+  // entry is unused here: getConcordanceIndex() only dispatches to the
+  // Fenwick paths for NULL or all-zero entry (see there). The parameter exists
   // only so this function's signature matches the shared function-pointer
   // typedef used to select among all four algorithm variants.
   uint n = 0;

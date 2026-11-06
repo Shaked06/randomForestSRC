@@ -139,11 +139,15 @@ get.cindex(time, censoring, predicted, weight, fast, do.trace = FALSE, entry = N
 
   \item{fast}{For \code{get.cindex}, optional concordance-algorithm
     selector. Usually left unspecified so that the underlying library
-    chooses the algorithm. Ignored for weighted competing-risk
+    chooses the algorithm. An all-zero entry vector permits the same fast
+    selection as \code{entry = NULL}; any nonzero entry uses the pairwise
+    LT calculation, including when \code{fast = TRUE}.
+    Ignored for weighted competing-risk
     concordance.}
 
   \item{do.trace}{For \code{get.cindex}, display diagnostic output
-    from the underlying concordance calculation?}
+    from the underlying concordance calculation, including the selected
+    algorithm for ordinary right-censored concordance?}
 }
 \details{
   With \code{entry.time}, the scoring helpers condition survival and
