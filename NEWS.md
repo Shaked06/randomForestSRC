@@ -2,6 +2,7 @@
 
 ## Left truncation in this fork
 
+- Grow-time entry vectors now follow the exact rows retained by missing-data preprocessing, including entirely empty rows removed before imputation. Supply one entry time per original input row; stored entries align with the fitted subjects. This fixes valid LT fits being rejected after NA omission.
 - Integrated upstream updates while retaining delayed-entry growing, stored forest entry times, entry-aware restored performance, and the existing regression fixes.
 - Survival evaluation now keeps training and validation outcomes separate for ordinary and LT Brier/AUC scoring, including different-sized test sets and subsets. Both `get.auct.survival()` and the thesis compatibility name `get.auc.survival()` support explicit evaluation entry times.
 - The `km` censoring option follows upstream's product-limit estimator; LT risk sets account for entry. This replaces the earlier LT exponential cumulative-hazard weights. LT confidence intervals remain unsupported and are rejected explicitly.

@@ -137,7 +137,14 @@ rfsrc.cart(formula, data, ntree = 1, mtry = ncol(data),
 
   \item{na.action}{Missing data handling. \code{"na.omit"} (default) removes rows with any \code{NA}; \code{"na.impute"} performs fast internal imputation. Missing follow-up times cannot be imputed for subjects with positive \code{entry.time}. Missing predictors can still be imputed. See also \code{\link{impute.rfsrc}}.}
 
-  \item{entry.time}{Optional vector of non-negative entry times for survival data, one per observation. The default \code{NULL} uses zero entry times. Each entry must not exceed its observed follow-up time. A subject with positive entry must have a known follow-up time, including when \code{na.action = "na.impute"}.}
+  \item{entry.time}{Optional numeric vector of entry times for survival data,
+    one per row of the original input data, before missing-data processing.
+    When preprocessing removes a row, its entry time is removed with it.
+    Stored entry times follow the retained training rows. The default
+    \code{NULL} uses zero entry times. Retained entries must be finite,
+    non-negative, non-missing, and no greater than their observed follow-up
+    times. A retained subject with positive entry must have a known follow-up
+    time, including when \code{na.action = "na.impute"}.}
 
   \item{nimpute}{Number of iterations for internal imputation. If >1, OOB error rates may be optimistic.}
 

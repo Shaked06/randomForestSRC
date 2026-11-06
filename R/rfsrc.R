@@ -76,6 +76,10 @@ rfsrc <- function(formula, data, ntree = 500,
   if (!identical(class(data), "data.frame")) {
     data <- as.data.frame(data, optional = TRUE)
   }
+  ## Preserve input row identities before either missing-data cleanup step.
+  ## Entry values are positional in the original data, regardless of names
+  ## attached to the vector or the spelling/order of the data's row names.
+  entry.time.row.names <- if (!is.null(entry.time)) rownames(data) else NULL
   ## Autoencoder forests use copies of X as genuine responses.
   auto <- identical(splitrule, "auto")
   autoencoder <- NULL
@@ -216,21 +220,27 @@ rfsrc <- function(formula, data, ntree = 500,
   ## entry.time = rep(0, n) reproduces the standard right-censored analysis exactly,
   ## since the at-risk interval [0, time_i] collapses to the usual tail 1(time_i >= t).
   ##
-  ## The user's original argument is kept separately and returned on the grow
+  ## Store entry times in the retained data's row order on the grow
   ## object. Functions that refit the forest on resampled rows --
   ## subsample.rfsrc() and bootsample() -- rebuild their rfsrc() call from a
   ## hand-picked list of settings read back off this object, so a setting that
   ## is not stored here is silently lost on every refit. Storing NULL rather
   ## than the zero vector when none was supplied keeps ordinary forests exactly
   ## as they were, with no extra n-vector carried around.
+  if (!is.null(entry.time)) {
+    if (!is.numeric(entry.time) || length(entry.time) != length(entry.time.row.names)) {
+      stop("Invalid entry.time vector specified: supply a numeric vector with one value per row of the original input data, before NA processing.")
+    }
+    entry.time <- entry.time[match(data.row.names, entry.time.row.names)]
+    if (any(!is.finite(entry.time)) || any(entry.time < 0)) {
+      stop("Invalid entry.time vector specified: retained entry times must be finite, non-negative, and non-missing.")
+    }
+  }
   entry.time.user <- entry.time
   if (is.null(entry.time)) {
     entry.time <- rep(0, n)
   }
   else {
-    if (length(entry.time) != n || any(is.na(entry.time)) || any(entry.time < 0)) {
-      stop("Invalid entry.time vector specified: must be non-negative, non-missing, and of length nrow(data).")
-    }
     if (grepl("surv", family) && length(yvar.names) == 2) {
       observed.time <- data[, yvar.names[1]]
       validate.entry.time.followup(entry.time, observed.time)

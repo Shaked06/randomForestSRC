@@ -12,14 +12,14 @@ after review and approval. A local commit does not imply a GitHub push.
 | 4 | P1 | Cox time-grid indexing corrupts simulation predictions | Our simulations | Fixed locally; results rerun pending | `820b285` |
 | 5 | P1 | LT Brier construction can favor incorrect survival probabilities | LT metric design | Fixed locally | `539df42` |
 | 6 | P1 | Brier/AUC weights mistake observed entry CDF for source entry CDF | LT metric design | Fixed locally | `42d7a66` |
-| 7 | P1 | Prediction-object scoring uses training outcomes | Inherited from pre-LT snapshot; propagated to our AUC | Fixed locally by upstream integration | This merge; upstream `30d95e2` + LT adaptation |
-| 8 | P2 | Brier subsetting misaligns curves and outcomes | Inherited Brier bug; LT indexing repeats it | Fixed locally by upstream integration | This merge; LT fix `539df42` |
+| 7 | P1 | Prediction-object scoring uses training outcomes | Inherited from pre-LT snapshot; propagated to our AUC | Fixed locally by upstream integration | `cb60a6e`; upstream `30d95e2` + LT adaptation |
+| 8 | P2 | Brier subsetting misaligns curves and outcomes | Inherited Brier bug; LT indexing repeats it | Fixed locally by upstream integration | `cb60a6e`; LT fix `539df42` |
 | 9 | P2 | Accepted entry/event ties cause infinite weights | LT metrics | Fixed locally by fixes 5 and 6 | `539df42` + `42d7a66` |
-| 10 | P2 | NA omission does not subset entry times | LT integration | Open; persists in integration candidate | — |
-| 11 | P2 | Tuning holdouts do not subset entry times | LT integration | Open; persists in integration candidate | — |
-| 12 | P2 | Ordinary forests lose fast concordance scoring | LT integration | Open; persists in integration candidate | — |
-| 13 | P2 | Unsupported splitting rules silently accept entry times | LT integration | Open; persists in integration candidate | — |
-| 14 | P2 | Package fixes do not invalidate simulation caches | Our simulations | Open; persists in integration candidate | — |
+| 10 | P2 | NA omission does not subset entry times | LT integration | Fixed locally | This commit |
+| 11 | P2 | Tuning holdouts do not subset entry times | LT integration | Open after upstream merge | — |
+| 12 | P2 | Ordinary forests lose fast concordance scoring | LT integration | Open after upstream merge | — |
+| 13 | P2 | Unsupported splitting rules silently accept entry times | LT integration | Open after upstream merge | — |
+| 14 | P2 | Package fixes do not invalidate simulation caches | Our simulations | Open after upstream merge | — |
 | 15 | P2 | Full-ensemble partial dependence uses an OOB normalization array | Pre-LT source; exposed during fix 1 | Needs dedicated reproduction/test | — |
 
 P1: crash, incorrect results, or invalid statistical interpretation.
@@ -252,3 +252,41 @@ vignettes skipped), all eight regression files pass; all six reduced-size
 simulation smoke cases pass; 12 ordinary profiles match pristine upstream
 and explicit-zero integration across two RNG protocols and three families;
 four saved pre-integration forests preserve restored/new-data predictions.
+
+### 10 — Align grow-time entry values with retained observations
+
+- Approved for a local commit, `Align entry times with retained training rows`.
+- Origin: LT integration. Ordinary row omission already worked, but the
+  external entry vector was not updated when the data lost rows.
+- Before: a valid original-row entry vector is rejected after NA processing
+  reduces the fitted sample. The new regression's first fixture supplies
+  80 rows, omits 4, and fails on the previous build with the entry-length
+  error instead of fitting the 76 retained subjects.
+- Change: capture original input row identities before preprocessing and
+  align entries to the exact rows surviving both preliminary cleanup and
+  final NA omission. Preserve retained order and store that vector on the
+  grow object and its saved forest. Entry vector names do not override
+  positional alignment with input data.
+- This does not add row deletion or change the missing-data policy.
+  Entirely empty rows already removed during imputation preprocessing also
+  lose their entries; partially missing predictor rows remain imputable.
+  NULL retains ordinary zero-entry behavior without storing an entry vector.
+- Supply one entry per original input row, before NA processing. A shorter
+  pre-filtered vector paired with unfiltered data is rejected explicitly.
+  Retained values are checked for numeric type, finite/non-negative values,
+  missingness, and entry not exceeding follow-up. Omitted subjects' entry
+  values are discarded with them before retained-value validation.
+- Regression: `tests/entry-time-na-omission.R`; fails before and passes
+  against the rebuilt package. It compares grow predictions, OOB curves,
+  error rates, data alignment, saved entries, and restoration with manually
+  cleaned data and matching entries under the same seed.
+- Covers missing predictors/time/status, NA/NaN, first/middle/final rows,
+  entirely empty rows, both memory settings, matrix input, custom row names,
+  named entry vectors, factor-level cleanup, unused missing columns,
+  predictor imputation, explicit zeros/NULL, fast-wrapper delegation, and
+  invalid lengths/retained values. Custom bootstrap/weight alignment is not
+  changed by this fix.
+- Verification: isolated source build and `R CMD check`, status OK, with
+  examples/manual/vignettes skipped; all nine package regression files pass.
+- Bug 11's tuning-holdout subsetting remains a separate open task.
+  No GitHub push authorized.
