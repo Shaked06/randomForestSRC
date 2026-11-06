@@ -460,7 +460,9 @@ void summarizePartialCalculations(uint       treeID,
   uint    membershipSize;
   uint i, j, k;
   membershipSize  = RF_observationSize;
-  ensembleDen = RF_oobEnsembleDen;
+  // Match the contributing trees selected in updatePartialCalculations().
+  // A full-only call does not allocate an OOB denominator.
+  ensembleDen = (RF_opt & OPT_OENS) ? RF_oobEnsembleDen : RF_fullEnsembleDen;
   if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
     if (RF_eventTypeSize > 1) {
       if (RF_partialType == RF_PART_YRLS) {

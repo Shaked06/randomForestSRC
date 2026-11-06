@@ -2,6 +2,7 @@
 
 ## Left truncation in this fork
 
+- Full-ensemble partial predictions (`partial(..., oob = FALSE)`) now normalize by their full-ensemble tree counts. This fixes an inherited read from an unallocated/stale OOB count array, which could crash or corrupt partial predictions across outcome families. OOB partial predictions retain their existing count array.
 - Positive entry times now require single-event logrank or random splitting. Unsupported rules (including logrankscore, bs.gradient, and custom survival rules) raise a clear error instead of silently using splitting calculations that have not been adapted to delayed entry. NULL/all-zero entries retain ordinary rule selection.
 - Ordinary survival grow/restore scoring again permits the existing fast concordance algorithms when the entry vector is all zero. Nonzero entries retain the pairwise LT path. Optional concordance tracing now reports the selected algorithm.
 - Both tuning functions now align entry times with preprocessing, candidate training rows, holdout subjects, and the final full-data refit. LT holdout concordance uses the held-out subjects' entry times with the existing training-derived Uno weights. This fixes entry-length failures and entry-blind holdout scoring.

@@ -19,8 +19,8 @@ after review and approval. A local commit does not imply a GitHub push.
 | 11 | P2 | Tuning holdouts do not subset entry times | LT integration | Fixed locally | `ef64356` |
 | 12 | P2 | Ordinary forests lose fast concordance scoring | LT integration | Fixed locally | `107369e` |
 | 13 | P2 | Unsupported splitting rules silently accept entry times | LT integration | Fixed locally | `87887c3` |
-| 14 | P2 | Package fixes do not invalidate Stage 1 simulation caches | Our simulations | Fixed locally | This commit |
-| 15 | P2 | Full-ensemble partial dependence uses an OOB normalization array | Pre-LT source; exposed during fix 1 | Needs dedicated reproduction/test | — |
+| 14 | P2 | Package fixes do not invalidate Stage 1 simulation caches | Our simulations | Fixed locally | `cb9ff39` |
+| 15 | P1 | Full-ensemble partial dependence uses an OOB normalization array | Inherited pre-LT source; also in merged upstream snapshot | Fixed locally | This commit |
 
 P1: crash, incorrect results, or invalid statistical interpretation.
 P2: feature failure, compatibility gap, performance, or reproducibility issue.
@@ -424,7 +424,7 @@ four saved pre-integration forests preserve restored/new-data predictions.
 
 ### 14 — Invalidate Stage 1 caches after a package implementation change
 
-- Approved for a local commit, `Invalidate simulation caches after package implementation changes`.
+- Commit: `cb9ff39`, `Invalidate simulation caches after package implementation changes`.
 - Origin: our simulation caching design. The replication-loop keys hashed
   setup/DGP/engine files and replication/test counts but omitted the
   installed package implementation. A same-version reinstall could leave
@@ -466,4 +466,48 @@ four saved pre-integration forests preserve restored/new-data predictions.
   do not cover arbitrary in-memory namespace changes, every dependency,
   external system library, or compiler environment; this is not a complete
   environment lockfile. Paths/metadata may conservatively trigger extra runs.
+- No GitHub push authorized.
+
+### 15 — Normalize partial predictions with the requested ensemble's counts
+
+- Approved for a local commit, `Normalize partial predictions with the requested ensemble counts`.
+- Origin: inherited from the original package. The unconditional
+  `ensembleDen = RF_oobEnsembleDen` assignment exists in pre-LT snapshot
+  `145ac2f8692a724fcd451960dd4ef4fbe74ff08a` and unchanged upstream
+  `30d95e206b8e287863afb55970014497e3803a8f` (the merged 3.9.7 snapshot).
+  A separate ordinary-survival reproduction against the pristine upstream
+  installation also crashes with SIGSEGV in a fresh R process; the fixed
+  installation completes with finite survival probabilities. This verifies
+  that the failure does not require our LT changes. It is not a claim about
+  an independently checked CRAN release or later upstream commits.
+- Before: `partial(..., oob = FALSE)` sums contributions from all selected
+  trees, but the final division always reads the OOB count array. A full-only
+  invocation does not allocate that array, so its pointer can be NULL or
+  stale. A saved forest's first native partial call in a fresh process
+  crashes at address `0x8` on the pre-fix local build. Earlier in-session
+  observations of corrupted/infinite results remain recorded in
+  `docs/review/FOLLOWUP.md`. Severity raised to P1 after the crash reproduction.
+- Change: choose OOB counts when `OPT_OENS` is set and full-ensemble counts
+  otherwise, matching the membership selection in
+  `updatePartialCalculations()`. These counts reflect the selected valid
+  trees rather than a hard-coded total. No fitting, split, prediction, or
+  entry-time calculation is changed. Default OOB selection is preserved.
+- Regression: `tests/partial-full-ensemble.R`, fails before and passes after
+  the fix. The parent saves forests and the child performs full partial
+  prediction before any native grow/restore/OOB call can supply stale state.
+  Full partial predictions are compared with ordinary predictions on
+  covariates modified to the same primary grid and fixed secondary value.
+  OOB references explicitly average per-tree predictions using the known
+  bootstrap exclusions, independently of native partial normalization.
+- Covers 14 fitted profiles: ordinary/zero-entry/positive-LT survival,
+  regression, classification, mixed outcomes, and competing risks, each
+  under both memory settings. Checks all supported survival partial types,
+  all trees/three-tree subsets/single trees, full calls after OOB calls,
+  direct forest input, and both JIT restoration choices. Existing handling
+  of zero eligible trees is outside this fix; the OOB reference fixtures
+  give every subject at least one eligible tree.
+- Verification: isolated source build and `R CMD check`, status OK, with
+  examples/manual/vignettes skipped; all thirteen package regression files
+  pass. The build uses the local serial configuration; no OpenMP runtime
+  build or sanitizer check was performed for this fix.
 - No GitHub push authorized.

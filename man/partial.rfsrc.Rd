@@ -32,7 +32,9 @@ get.partial.plot.data(o, target, m.target = NULL, granule = FALSE)
     its training data. Anonymous forests are not supported.}
   \item{oob}{Logical. If \code{TRUE} (default), predict each observation
     using trees that excluded it during training. If \code{FALSE}, use
-    the non-OOB ensemble.}
+    all selected trees, regardless of whether the observation was in their
+    training samples. Predictions are averaged over the contributing trees
+    in the requested ensemble.}
   \item{partial.type}{Prediction summary for survival outcomes. For
     right-censored survival, choose \code{"mort"}, \code{"rel.freq"},
     \code{"surv"}, or \code{"chf"}. For competing risks, choose
