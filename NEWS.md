@@ -2,6 +2,7 @@
 
 ## Left truncation in this fork
 
+- Both tuning functions now align entry times with preprocessing, candidate training rows, holdout subjects, and the final full-data refit. LT holdout concordance uses the held-out subjects' entry times with the existing training-derived Uno weights. This fixes entry-length failures and entry-blind holdout scoring.
 - Grow-time entry vectors now follow the exact rows retained by missing-data preprocessing, including entirely empty rows removed before imputation. Supply one entry time per original input row; stored entries align with the fitted subjects. This fixes valid LT fits being rejected after NA omission.
 - Integrated upstream updates while retaining delayed-entry growing, stored forest entry times, entry-aware restored performance, and the existing regression fixes.
 - Survival evaluation now keeps training and validation outcomes separate for ordinary and LT Brier/AUC scoring, including different-sized test sets and subsets. Both `get.auct.survival()` and the thesis compatibility name `get.auc.survival()` support explicit evaluation entry times.

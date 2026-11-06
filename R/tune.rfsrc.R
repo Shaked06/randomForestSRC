@@ -28,12 +28,16 @@ tune.rfsrc <- function(formula, data,
   base.seed <- if (is.null(seed)) sample.int(.Machine$integer.max, 1L) else seed
   ## clean model frame via stump (handles NA & factor levels consistently)
   stump <- rfsrc(formula, data, nodedepth = 0, perf.type = "none",
-                 save.memory = TRUE, ntree = 1, splitrule = "random")
+                 save.memory = TRUE, ntree = 1, splitrule = "random",
+                 entry.time = dots[["entry.time"]])
   n <- stump$n
   yvar.names <- stump$yvar.names
   data <- data.frame(stump$yvar, stump$xvar)
   colnames(data)[seq_along(yvar.names)] <- yvar.names
   p <- ncol(data) - length(yvar.names)  ## number of predictors
+  ## Grow preprocessing aligns original-row entries with the cleaned frame.
+  entry.time <- stump$entry.time
+  dots$entry.time <- entry.time
   rm(stump)
   ## effective numeric ssize for tuning and holdout
   if (is.function(sampsize)) {
@@ -57,6 +61,11 @@ tune.rfsrc <- function(formula, data,
     trn <- seq_len(n)
     newdata <- NULL
   }
+  ## Candidate fits see training entries only; the final refit keeps the
+  ## complete cleaned vector in dots. Holdout scoring uses its own entries.
+  train.dots <- dots
+  if (!is.null(entry.time)) train.dots$entry.time <- entry.time[trn]
+  entry.test <- if (use.holdout && !is.null(entry.time)) entry.time[tst] else NULL
   ## admissible nodesize bound
   U.calc <- max(10L, ssize %/% 2L)
   ## evaluation kernel for a pair (nodesize, mtry) with CRN
@@ -77,7 +86,7 @@ tune.rfsrc <- function(formula, data,
                           perf.type = perf.type,
                           forest = FALSE,
                           save.memory = TRUE),
-                     dots)
+                     train.dots)
         fit <- tryCatch(do.call(rfsrc.fast, tr.args), error = function(e) e)
         if (inherits(fit, "error")) return(NA_real_)
         vals[j] <- tryCatch(mean(get.mv.error(fit, TRUE), na.rm = TRUE), error = function(e) NA_real_)
@@ -92,12 +101,12 @@ tune.rfsrc <- function(formula, data,
                           perf.type = "none",
                           forest = TRUE,
                           save.memory = FALSE),
-                     dots)
+                     train.dots)
         fit <- tryCatch(do.call(rfsrc.fast, tr.args), error = function(e) e)
         if (inherits(fit, "error")) return(NA_real_)
         pr <- tryCatch(predict(fit, newdata = newdata, perf.type = perf.type), error = function(e) e)
         if (inherits(pr, "error")) return(NA_real_)
-        vals[j] <- tryCatch(mean(get.mv.error(pr, TRUE), na.rm = TRUE), error = function(e) NA_real_)
+        vals[j] <- tryCatch(get.tuning.holdout.error(pr, entry.test), error = function(e) NA_real_)
       }
     }
     if (trace && is.finite(mean(vals))) {
@@ -122,7 +131,7 @@ tune.rfsrc <- function(formula, data,
                               c(list(formula = formula, data = data,
                                      ntree = ntree.try, mtry = mtry.start, nodesize = nsz,
                                      sampsize = ssize, nsplit = nsplit, perf.type = perf.type),
-                                dots)),
+                                train.dots)),
                       error = function(e) e)
         if (inherits(o, "error")) stop(conditionMessage(o))
         error.old <- mean(get.mv.error(o, TRUE), na.rm = TRUE)
@@ -132,10 +141,11 @@ tune.rfsrc <- function(formula, data,
                                      ntree = ntree.try, mtry = mtry.start, nodesize = nsz,
                                      sampsize = ssize, nsplit = nsplit, perf.type = "none",
                                      forest = TRUE, save.memory = FALSE),
-                                dots)),
+                                train.dots)),
                       error = function(e) e)
         if (inherits(o, "error")) stop(conditionMessage(o))
-        error.old <- mean(get.mv.error(predict(o, newdata, perf.type = perf.type), TRUE), na.rm = TRUE)
+        error.old <- get.tuning.holdout.error(
+          predict(o, newdata, perf.type = perf.type), entry.test)
       }
       mtry.start <- o$mtry
       mtry.max <- p

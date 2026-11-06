@@ -73,7 +73,7 @@
   \item{seed}{Optional integer seed for reproducible tuning, including
     the holdout sample when used.}
   \item{...}{Additional options for \code{\link{rfsrc.fast}}, such as
-    \code{splitrule} and \code{perf.type}. In \code{tune()},
+    \code{splitrule}, \code{perf.type}, and \code{entry.time}. In \code{tune()},
     \code{ntree}, \code{mtry}, \code{nodesize}, \code{forest}, and
     \code{save.memory} are controlled by the tuner; values supplied
     here are ignored.}
@@ -134,6 +134,16 @@
     \code{\link{get.mv.error}} with \code{standardize = TRUE}:
     regression errors are divided by the response variance, and errors
     for multivariate responses are averaged.
+
+    For delayed-entry right-censored survival data, supply \code{entry.time} with one
+    value per original input row, before preprocessing. Entry times follow
+    the cleaned rows into each training and holdout subset. Holdout
+    concordance uses the holdout subjects' own entry times: a later-time
+    subject must have entered by the earlier observed failure to form a
+    comparable pair. The existing Uno weighting choice is retained, using
+    the censoring fit from the training subset. Without a holdout, grow-time
+    OOB concordance uses the aligned training entries. The final forest
+    returned by \code{tune()} retains entries for all cleaned observations.
 
   }
 

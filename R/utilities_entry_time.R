@@ -25,3 +25,21 @@ validate.entry.time.followup <- function(entry.time, time) {
   }
   invisible(NULL)
 }
+
+## The native new-data error has no evaluation-entry argument. Tuners keep
+## entry times alongside the holdout rows and restrict concordance pairs
+## here, reusing prediction's training-derived Uno weights when present.
+get.tuning.holdout.error <- function(prediction, entry.time = NULL) {
+  if (is.null(entry.time) || !any(entry.time > 0) ||
+      prediction$family != "surv" || is.null(prediction$err.rate)) {
+    return(mean(get.mv.error(prediction, TRUE), na.rm = TRUE))
+  }
+  yvar <- prediction$yvar
+  if (is.null(yvar) || nrow(yvar) != length(entry.time)) {
+    stop("Held-out entry times must align with held-out outcomes.")
+  }
+  args <- list(time = yvar[, 1], censoring = yvar[, 2],
+               predicted = prediction$predicted, entry = entry.time)
+  if (!is.null(prediction$uno.weights)) args$weight <- prediction$uno.weights
+  do.call(get.cindex, args)
+}

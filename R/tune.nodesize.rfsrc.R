@@ -32,11 +32,15 @@ tune.nodesize.rfsrc <- function(formula, data,
   base.seed <- if (is.null(seed)) sample.int(.Machine$integer.max, 1L) else seed
   ## build stump to reconstruct a clean model frame (handles NA, factors, Surv, etc.)
   stump <- rfsrc(formula, data, nodedepth = 0, perf.type = "none",
-                 save.memory = TRUE, ntree = 1, splitrule = "random")
+                 save.memory = TRUE, ntree = 1, splitrule = "random",
+                 entry.time = dots[["entry.time"]])
   n <- stump$n
   yvar.names <- stump$yvar.names
   data <- data.frame(stump$yvar, stump$xvar)
   colnames(data)[seq_along(yvar.names)] <- yvar.names
+  ## Grow preprocessing aligns original-row entries with the cleaned frame.
+  entry.time <- stump$entry.time
+  dots$entry.time <- entry.time
   rm(stump)
   ## compute effective subsample size and coerce to integer bounds
   if (is.function(sampsize)) {
@@ -61,6 +65,11 @@ tune.nodesize.rfsrc <- function(formula, data,
     trn <- seq_len(n)
     newdata <- NULL
   }
+  ## Candidate fits see training entries only; the final refit keeps the
+  ## complete cleaned vector in dots. Holdout scoring uses its own entries.
+  train.dots <- dots
+  if (!is.null(entry.time)) train.dots$entry.time <- entry.time[trn]
+  entry.test <- if (use.holdout && !is.null(entry.time)) entry.time[tst] else NULL
   ## admissible upper bound on nodesize from the tree subsample size
   U.calc <- max(10L, ssize %/% 2L)
   ## filter the provided grid to admissible values
@@ -84,7 +93,7 @@ tune.nodesize.rfsrc <- function(formula, data,
                           perf.type = perf.type,
                           forest = FALSE,
                           save.memory = TRUE),
-                     dots)
+                     train.dots)
         fit <- tryCatch(do.call(rfsrc.fast, tr.args), error = function(e) e)
         if (inherits(fit, "error")) return(NA_real_)
         vals[j] <- tryCatch(mean(get.mv.error(fit, TRUE), na.rm = TRUE),
@@ -99,13 +108,13 @@ tune.nodesize.rfsrc <- function(formula, data,
                           perf.type = "none",
                           forest = TRUE,
                           save.memory = FALSE),
-                     dots)
+                     train.dots)
         fit <- tryCatch(do.call(rfsrc.fast, tr.args), error = function(e) e)
         if (inherits(fit, "error")) return(NA_real_)
         pr <- tryCatch(predict(fit, newdata = newdata, perf.type = perf.type),
                        error = function(e) e)
         if (inherits(pr, "error")) return(NA_real_)
-        vals[j] <- tryCatch(mean(get.mv.error(pr, TRUE), na.rm = TRUE),
+        vals[j] <- tryCatch(get.tuning.holdout.error(pr, entry.test),
                             error = function(e) NA_real_)
       }
     }

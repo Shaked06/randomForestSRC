@@ -15,8 +15,8 @@ after review and approval. A local commit does not imply a GitHub push.
 | 7 | P1 | Prediction-object scoring uses training outcomes | Inherited from pre-LT snapshot; propagated to our AUC | Fixed locally by upstream integration | `cb60a6e`; upstream `30d95e2` + LT adaptation |
 | 8 | P2 | Brier subsetting misaligns curves and outcomes | Inherited Brier bug; LT indexing repeats it | Fixed locally by upstream integration | `cb60a6e`; LT fix `539df42` |
 | 9 | P2 | Accepted entry/event ties cause infinite weights | LT metrics | Fixed locally by fixes 5 and 6 | `539df42` + `42d7a66` |
-| 10 | P2 | NA omission does not subset entry times | LT integration | Fixed locally | This commit |
-| 11 | P2 | Tuning holdouts do not subset entry times | LT integration | Open after upstream merge | — |
+| 10 | P2 | NA omission does not subset entry times | LT integration | Fixed locally | `a62897b` |
+| 11 | P2 | Tuning holdouts do not subset entry times | LT integration | Fixed locally | This commit |
 | 12 | P2 | Ordinary forests lose fast concordance scoring | LT integration | Open after upstream merge | — |
 | 13 | P2 | Unsupported splitting rules silently accept entry times | LT integration | Open after upstream merge | — |
 | 14 | P2 | Package fixes do not invalidate simulation caches | Our simulations | Open after upstream merge | — |
@@ -255,7 +255,7 @@ four saved pre-integration forests preserve restored/new-data predictions.
 
 ### 10 — Align grow-time entry values with retained observations
 
-- Approved for a local commit, `Align entry times with retained training rows`.
+- Commit: `a62897b`, `Align entry times with retained training rows`.
 - Origin: LT integration. Ordinary row omission already worked, but the
   external entry vector was not updated when the data lost rows.
 - Before: a valid original-row entry vector is rejected after NA processing
@@ -290,3 +290,41 @@ four saved pre-integration forests preserve restored/new-data predictions.
   examples/manual/vignettes skipped; all nine package regression files pass.
 - Bug 11's tuning-holdout subsetting remains a separate open task.
   No GitHub push authorized.
+
+### 11 — Match tuning entries to training and holdout subjects
+
+- Approved for a local commit, `Preserve entry times and LT scoring during tuning`.
+- Origin: LT integration in both `tune()` and `tune.nodesize()`. Before the
+  fix, reserving a holdout passed the full entry vector to the smaller
+  training frame. Joint tuning fails length validation; nodesize tuning
+  can return no valid errors. Preprocessing could also shorten the frame
+  before entries were aligned.
+- Change: pass entries through the preprocessing stump so fix 10 aligns
+  them with the cleaned frame. Candidate fits receive training entries;
+  the optional final full-data fit receives all cleaned entries. Both grid
+  and golden searches use the same aligned split.
+- Correct LT holdout loss as well as the length error: use the held-out
+  subjects' own entry times to restrict comparable concordance pairs.
+  Reuse the existing prediction-derived Uno weights, which come from the
+  training censoring fit. `use.uno = FALSE` retains unweighted concordance.
+  No new concordance weighting estimator or native prediction-entry API is
+  introduced. NULL/zero-entry holdout scoring retains native errors;
+  OOB scoring continues to use the grow-time entry-aware error.
+- Regression: `tests/entry-time-tuning.R`, fails before and passes on the
+  rebuilt package. It inspects real grow calls for entry/subject alignment
+  and independently enumerates held-out pairs using the supplied weights.
+  Fixtures require a difference from entry-blind error, so merely avoiding
+  the length failure is insufficient to pass.
+- Covers both tuners, grid/golden searches, weighted/unweighted holdouts,
+  OOB fallback, missing-data preprocessing, original-row input validation,
+  final full-data entry storage, explicit-zero/NULL equivalence, and caller
+  RNG-state preservation. The independent reference checks use continuous
+  follow-up times; existing concordance code handles event-time ties.
+- Compatibility audit: 24 ordinary profiles match the pre-fix functions
+  across both tuners/searches, holdout/OOB, and survival/regression/
+  classification. Previously working complete-data LT OOB behavior is
+  checked separately. Custom bootstrap/weight alignment and the tuners'
+  existing preprocessing policy are outside this fix.
+- Verification: isolated build and `R CMD check`, status OK, with
+  examples/manual/vignettes skipped; all ten regression files pass.
+- No GitHub push authorized.
