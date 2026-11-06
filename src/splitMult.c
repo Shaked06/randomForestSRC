@@ -11,7 +11,6 @@
 #include "splitMult.h"
 #include "splitUtil.h"
 #include "nrutil.h"
-// #include "error.h"
 char unsupervisedSplitMiss (uint       treeID,
                             Node      *parent,
                             SplitInfoMax *splitInfoMax,
@@ -35,9 +34,6 @@ char unsupervisedSplitMiss (uint       treeID,
   double delta;
   uint   deltaNorm;
   uint i, j, k, p, r;
-  //  if (getTraceFlag(treeID) & SPLT_LOW_TRACE) {
-  //    RF_nativePrint("\nunsupervisedSplitMiss(%10d) ENTRY ...\n", treeID);
-  //  }
   localSplitIndicator    = NULL;  
   splitVector            = NULL;  
   splitVectorSize        = 0;     
@@ -117,12 +113,6 @@ char unsupervisedSplitMiss (uint       treeID,
           localSize --;
         }
         free_uivector(pseudoResponseIndex, 1, RF_xSize);
-        //  if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-        //    RF_nativePrint("\nPseudo-response Selection:  \n");
-        //    for (r = 1; r <= RF_ytry; r++) {
-        //      RF_nativePrint("%10d %10d ", r, pseudoResponse[r]);
-        //    }
-        //  }
         if ((RF_mRecordSize == 0) || (multImpFlag) || (!(RF_optHigh & OPT_MISS_SKIP))) {
           tempNonMissMembrFlag = cvector(1, nonMissMembrSize);
           tempNonMissMembrIndx = uivector(1, nonMissMembrSize);
@@ -183,15 +173,6 @@ char unsupervisedSplitMiss (uint       treeID,
           }  
           free_uivector(tempNonMissMembrIndx, 1, nonMissMembrSize);
         }  
-        //          if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-        //            if (getTraceFlag(treeID) & !TURN_OFF_TRACE) {
-        //              RF_nativePrint("\nNon-Miss Impurity Summary: %10d", nonMissImpuritySummary);
-        //              RF_nativePrint("\n      index   Impurity SecondNMMS");
-        //              for (r=1; r <= RF_ytry; r++) {
-        //                RF_nativePrint("\n %10d %10d %10d", r, impurity[r], secondNonMissMembrSize[r]);
-        //              }
-        //            }
-        //          }
         if (nonMissImpuritySummary) {
           for (r = 1; r <= RF_ytry; r++) {
             pseudoResponseClassSize[r] = 0;
@@ -273,14 +254,6 @@ char unsupervisedSplitMiss (uint       treeID,
                                priorMembrIter,
                                & currentMembrIter);
             rghtSize = nonMissMembrSize - leftSize;
-            //  if (getTraceFlag(treeID) & SPLT_MED_TRACE) {
-            //    RF_nativePrint("\nNon-miss Node Size:  %10d, Non-miss Left Size:  %10d, Non-miss Right Size:  %10d", nonMissMembrSize, leftSize, rghtSize);
-            //  }
-            //          if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-            //            if (getTraceFlag(treeID) & !TURN_OFF_TRACE) {
-            //              RF_nativePrint("\n PriorIter:     %10d  CurrentIter:   %10d", priorMembrIter, currentMembrIter);
-            //            }
-            //          }
             if ((leftSize != 0) && (rghtSize != 0)) {
               delta     = 0.0;
               deltaNorm = 0;
@@ -357,16 +330,6 @@ char unsupervisedSplitMiss (uint       treeID,
                     }
                     delta += sumLeftSqr + sumRghtSqr;
                   }
-                  //        if (factorFlag == TRUE) {
-                  //          if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-                  //            if (getTraceFlag(treeID) & !TURN_OFF_TRACE) {
-                  //              RF_nativePrint("\nClass proportions:       parent       left");
-                  //              for (p = 1; p <= pseudoResponseClassSize[r]; p++) {
-                  //                RF_nativePrint("\n          %10d %10d %10d", p, parentClassProp[r][p], leftClassProp[r][p]);
-                  //              }
-                  //            }
-                  //          }
-                  //        }
                 }  
               }  
               if (deltaNorm > 0) {
@@ -375,19 +338,6 @@ char unsupervisedSplitMiss (uint       treeID,
               else {
                 delta = RF_nativeNaN;
               }
-              //          if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-              //            if (getTraceFlag(treeID) & !TURN_OFF_TRACE) {
-              //              RF_nativePrint("\nVirtual (non-miss) Membership:  ");
-              //              for (k = 1; k <= nonMissMembrSize; k++) {
-              //                if (localSplitIndicator[ nonMissMembrIndx[indxx[k]] ] == LEFT) {
-              //                  RF_nativePrint("\n %10d %10d %12.4f --> LEFT ", k, nonMissMembrIndx[indxx[k]], repMembrIndx[nonMissMembrIndx[indxx[k]]], observation[ repMembrIndx[nonMissMembrIndx[indxx[k]]] ]);
-              //                }
-              //                else {
-              //                  RF_nativePrint("\n %10d %10d %12.4f --> RGHT ", k, nonMissMembrIndx[indxx[k]], repMembrIndx[nonMissMembrIndx[indxx[k]]], observation[ repMembrIndx[nonMissMembrIndx[indxx[k]]] ]);
-              //                }
-              //              }
-              //            }
-              //          }
             }
             else {
               delta = RF_nativeNaN;
@@ -477,10 +427,6 @@ char unsupervisedSplitMiss (uint       treeID,
                   multImpFlag,
                   TRUE);  
   result = summarizeSplitResult(splitInfoMax);
-  //  if (getTraceFlag(treeID) & SPLT_LOW_TRACE) {
-  //    RF_nativePrint("\nunsupervisedSplitMiss(%10d) result:  %10d", treeID, result);
-  //    RF_nativePrint("\nunsupervisedSplitMiss(%10d) EXIT ...\n", treeID);
-  //  }
   return result;
 }
 char unsupervisedSplitNew (uint       treeID,
@@ -506,9 +452,6 @@ char unsupervisedSplitNew (uint       treeID,
   double delta;
   uint   deltaNorm;
   uint i, j, k, p, r;
-  //  if (getTraceFlag(treeID) & SPLT_LOW_TRACE) {
-  //    RF_nativePrint("\nunsupervisedSplitNew(%10d) ENTRY ...\n", treeID);
-  //  }
   localSplitIndicator    = NULL;  
   splitVector            = NULL;  
   splitVectorSize        = 0;     
@@ -581,12 +524,6 @@ char unsupervisedSplitNew (uint       treeID,
           localSize --;
         }
         free_uivector(pseudoResponseIndex, 1, RF_xSize);
-        //  if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-        //    RF_nativePrint("\nPseudo-response Selection:  \n");
-        //    for (r = 1; r <= RF_ytry; r++) {
-        //      RF_nativePrint("%10d %10d ", r, pseudoResponse[r]);
-        //    }
-        //  }
         impuritySummary = FALSE;
         for (r = 1; r <= RF_ytry; r++)  {
           impurity[r] = getVariance(repMembrSize,
@@ -598,18 +535,6 @@ char unsupervisedSplitNew (uint       treeID,
                                     &variance[r]);
           impuritySummary = impuritySummary | impurity[r];
         }
-        //          if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-        //            if (getTraceFlag(treeID) & !TURN_OFF_TRACE) {
-        //              RF_nativePrint("\nImpurity:  ");
-        //              for (r=1; r <= RF_ytry; r++) {
-        //                RF_nativePrint(" %10d", pseudoResponse[r]);
-        //              }
-        //              RF_nativePrint("\n          ");
-        //              for (r=1; r <= RF_ytry; r++) {
-        //                RF_nativePrint( "%10d,", impurity[r]);
-        //              }
-        //            }
-        //          }
         if (impuritySummary) {
           for (r = 1; r <= RF_ytry; r++) {
             pseudoResponseClassSize[r] = 0;
@@ -699,14 +624,6 @@ char unsupervisedSplitNew (uint       treeID,
                                priorMembrIter,
                                & currentMembrIter);
             rghtSize = repMembrSize - leftSize;
-            //  if (getTraceFlag(treeID) & SPLT_MED_TRACE) {
-            //    RF_nativePrint("\nNon-miss Node Size:  %10d, Non-miss Left Size:  %10d, Non-miss Right Size:  %10d", repMembrSize, leftSize, rghtSize);
-            //  }
-            //          if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-            //            if (getTraceFlag(treeID) & !TURN_OFF_TRACE) {
-            //              RF_nativePrint("\n PriorIter:     %10d  CurrentIter:   %10d", priorMembrIter, currentMembrIter);
-            //            }
-            //          }
             if ((leftSize != 0) && (rghtSize != 0)) {
               delta     = 0.0;
               deltaNorm = 0;
@@ -816,20 +733,6 @@ char unsupervisedSplitNew (uint       treeID,
                         delta += ((partialLeft / leftSize) + (partialRght / rghtSize)) / repMembrSize;
                         break;
                       }
-                      //          if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-                      //            if (getTraceFlag(treeID) & !TURN_OFF_TRACE) {
-                      //              RF_nativePrint("\nPartial Delta (Clas): leftSize   rghtSize       mean   variance  rFactSize partialLFT partialRGT        sum");
-                      //              RF_nativePrint("\n                    %10d %10d %10.4f %10.4f %10d %10.4f %10.4f %10.4f",
-                      //                       leftSize,
-                      //                       rghtSize,
-                      //                       mean[r],
-                      //                       variance[r],
-                      //                       pseudoResponseClassSize[r],
-                      //                       partialLeft,
-                      //                       partialRght,
-                      //                       partialLeft+partialRght);
-                      //            }
-                      //          }
                     }
                     else {
                       switch(RF_splitRule) {
@@ -853,34 +756,8 @@ char unsupervisedSplitNew (uint       treeID,
                         delta += partialLeft + partialRght;
                         break;
                       }
-                      //          if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-                      //            if (getTraceFlag(treeID) & !TURN_OFF_TRACE) {
-                      //              RF_nativePrint("\nPartial Delta (Regr): leftSize   rghtSize       mean   variance  rFactSize     sumLFT     sumRGT partialLFT partialRGT        sum");                        
-                      //              RF_nativePrint("\n                    %10d %10d %10.4f %10.4f %10d %10.4f %10.4f %10.4f %10.4f %10.4f",
-                      //                       leftSize,
-                      //                       rghtSize,
-                      //                       mean[r],
-                      //                       variance[r],
-                      //                       0,
-                      //                       sumLeft[r],
-                      //                       sumRght[r],
-                      //                       partialLeft,
-                      //                       partialRght,
-                      //                       partialLeft+partialRght);
-                      //            }
-                      //          }
                     }
                   }
-                  //        if (factorFlag == TRUE) {
-                  //          if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-                  //            if (getTraceFlag(treeID) & !TURN_OFF_TRACE) {
-                  //              RF_nativePrint("\nClass proportions:       parent       left");
-                  //              for (p = 1; p <= pseudoResponseClassSize[r]; p++) {
-                  //                RF_nativePrint("\n          %10d %10d %10d", p, parentClassProp[r][p], leftClassProp[r][p]);
-                  //              }
-                  //            }
-                  //          }
-                  //        }
                 }  
               }  
               if (deltaNorm > 0) {
@@ -905,19 +782,6 @@ char unsupervisedSplitNew (uint       treeID,
                 }
               }
             }
-            //          if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-            //            if (getTraceFlag(treeID) & !TURN_OFF_TRACE) {
-            //              RF_nativePrint("\nVirtual (non-miss) Membership for r[1] only:  ");
-            //              for (k = 1; k <= repMembrSize; k++) {
-            //                if (localSplitIndicator[ indxx[k] ] == LEFT) {
-            //                  RF_nativePrint("\n %10d %10d %12.4f %12.4f --> LEFT ", k, indxx[k], repMembrIndx[ indxx[k] ], observation[ repMembrIndx[ indxx[k] ] ], RF_observation[treeID][pseudoResponse[1]][ repMembrIndx[ indxx[k] ] ]);
-            //                }
-            //                else {
-            //                  RF_nativePrint("\n %10d %10d %12.4f %12.4f --> RGHT ", k, indxx[k], repMembrIndx[ indxx[k] ], observation[ repMembrIndx[ indxx[k] ] ], RF_observation[treeID][pseudoResponse[1]][ repMembrIndx[ indxx[k] ]  ]);
-            //                }
-            //              }
-            //            }
-            //          }
             if (factorFlag == FALSE) {
               priorMembrIter = currentMembrIter - 1;
             }
@@ -980,10 +844,6 @@ char unsupervisedSplitNew (uint       treeID,
                   multImpFlag,
                   TRUE);  
   result = summarizeSplitResult(splitInfoMax);
-  //  if (getTraceFlag(treeID) & SPLT_LOW_TRACE) {
-  //    RF_nativePrint("\nunsupervisedSplitNew(%10d) result:  %10d", treeID, result);
-  //    RF_nativePrint("\nunsupervisedSplitNew(%10d) EXIT ...\n", treeID);
-  //  }
   return result;
 }
 char multivariateSplitOld (uint       treeID,
@@ -1009,9 +869,6 @@ char multivariateSplitOld (uint       treeID,
   double delta;
   uint   deltaNorm;
   uint j, k, p, r;
-  //  if (getTraceFlag(treeID) & SPLT_LOW_TRACE) {
-  //    RF_nativePrint("\nmultivariateSplitOld(%10d) ENTRY ...\n", treeID);
-  //  }
   localSplitIndicator    = NULL;  
   splitVector            = NULL;  
   splitVectorSize        = 0;     
@@ -1148,18 +1005,6 @@ char multivariateSplitOld (uint       treeID,
               nonMissImpuritySummary = nonMissImpuritySummary | impurity[r];
               secondNonMissMembrLeftSize[r] = secondNonMissMembrRghtSize[r] = 0;
             }  
-            //          if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-            //            if (getTraceFlag(treeID) & !TURN_OFF_TRACE) {
-            //              RF_nativePrint("\nImpurity:");
-            //              for (r=1; r <= RF_ySize; r++) {
-            //                RF_nativePrint(" %10d", r);
-            //              }
-            //              RF_nativePrint("\n          ");
-            //              for (r=1; r <= RF_ySize; r++) {
-            //                RF_nativePrint( "%10d,", impurity[r]);
-            //              }
-            //            }
-            //          }
             free_uivector(tempNonMissMembrIndx, 1, nonMissMembrSize);
           }  
           if (nonMissImpuritySummary) {
@@ -1236,14 +1081,6 @@ char multivariateSplitOld (uint       treeID,
                                  priorMembrIter,
                                  & currentMembrIter);
               rghtSize = nonMissMembrSize - leftSize;
-              //   if (getTraceFlag(treeID) & SPLT_MED_TRACE) {
-              //     RF_nativePrint("\nNon-miss Node Size:  %10d, Non-miss Left Size:  %10d, Non-miss Right Size:  %10d", nonMissMembrSize, leftSize, rghtSize);
-              //   }
-              //          if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-              //            if (getTraceFlag(treeID) & TURN_OFF_TRACE) {
-              //              RF_nativePrint("\n PriorIter:     %10d  CurrentIter:   %10d", priorMembrIter, currentMembrIter);
-              //            }
-              //          }
               if ((leftSize != 0) && (rghtSize != 0)) {
                 delta     = 0.0;
                 deltaNorm = 0;
@@ -1316,53 +1153,13 @@ char multivariateSplitOld (uint       treeID,
                         }
                         partialLeft = partialLeft / secondNonMissMembrLeftSize[r];
                         partialRght = partialRght / secondNonMissMembrRghtSize[r];
-                        //          if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-                        //            if (getTraceFlag(treeID) & !TURN_OFF_TRACE) {
-                        //              RF_nativePrint("\nPartial Delta (Clas):  2ndLeft    2ndRght       mean   variance  rFactSize partialLFT partialRGT        sum");
-                        //              RF_nativePrint("\n                    %10d %10d %10.4f %10.4f %10d %10.4f %10.4f %10.4f",
-                        //                       secondNonMissMembrLeftSize[r],
-                        //                       secondNonMissMembrRghtSize[r],
-                        //                       mean[r],
-                        //                       variance[r],
-                        //                       RF_rFactorSize[RF_rFactorMap[r]],
-                        //                       partialLeft,
-                        //                       partialRght,
-                        //                       partialLeft+partialRght);
-                        //            }
-                        //          }
                       }
                       else {
                         partialLeft = pow (sumLeft[r], 2.0) / (secondNonMissMembrLeftSize[r] * variance[r]);
                         partialRght = pow (sumRght[r], 2.0) / (secondNonMissMembrRghtSize[r] * variance[r]);
-                        //          if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-                        //            if (getTraceFlag(treeID) & !TURN_OFF_TRACE) {
-                        //              RF_nativePrint("\nPartial Delta (Regr):  2ndLeft    2ndRght       mean   variance  rFactSize     sumLFT     sumRGT partialLFT partialRGT        sum");
-                        //              RF_nativePrint("\n                    %10d %10d %10.4f %10.4f %10d %10.4f %10.4f %10.4f %10.4f %10.4f",
-                        //                       secondNonMissMembrLeftSize[r],
-                        //                       secondNonMissMembrRghtSize[r],
-                        //                       mean[r],
-                        //                       variance[r],
-                        //                       0,
-                        //                       sumLeft[r],
-                        //                       sumRght[r],
-                        //                       partialLeft,
-                        //                       partialRght,
-                        //                       partialLeft+partialRght);
-                        //            }
-                        //          }
                       }
                       delta += partialLeft + partialRght;
                     }
-                    //        if (RF_rFactorCount > 0) {
-                    //          if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-                    //            if (getTraceFlag(treeID) & TURN_OFF_TRACE) {
-                    //              RF_nativePrint("\nClass proportions:       parent       left");
-                    //              for (p=1; p <= RF_classLevelSize[RF_rFactorMap[r]]; p++) {
-                    //                RF_nativePrint("\n          %10d %10d %10d", p, parentClassProp[r][p], leftClassProp[r][p]);
-                    //              }
-                    //            }
-                    //          }
-                    //        }
                   }  
                 }  
                 if (deltaNorm > 0) {
@@ -1387,19 +1184,6 @@ char multivariateSplitOld (uint       treeID,
                   }
                 }
               }
-              //          if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-              //            if (getTraceFlag(treeID) & !TURN_OFF_TRACE) {
-              //              RF_nativePrint("\nVirtual (non-miss) Membership:  ");
-              //              for (k = 1; k <= nonMissMembrSize; k++) {
-              //                if (localSplitIndicator[ nonMissMembrIndx[indxx[k]] ] == LEFT) {
-              //                  RF_nativePrint("\n %10d %10d %12.4f %12.4f --> LEFT ", k, nonMissMembrIndx[indxx[k]], repMembrIndx[nonMissMembrIndx[indxx[k]]], observation[ repMembrIndx[nonMissMembrIndx[indxx[k]]] ], RF_response[treeID][1][  repMembrIndx[nonMissMembrIndx[indxx[k]]]  ]);
-              //                }
-              //                else {
-              //                  RF_nativePrint("\n %10d %10d %12.4f %12.4f --> RGHT ", k, nonMissMembrIndx[indxx[k]], repMembrIndx[nonMissMembrIndx[indxx[k]]], observation[ repMembrIndx[nonMissMembrIndx[indxx[k]]] ], RF_response[treeID][1][  repMembrIndx[nonMissMembrIndx[indxx[k]]]  ]);
-              //                }
-              //              }
-              //            }
-              //          }
               if (factorFlag == FALSE) {
                 priorMembrIter = currentMembrIter - 1;
               }
@@ -1471,10 +1255,6 @@ char multivariateSplitOld (uint       treeID,
                   multImpFlag,
                   TRUE);  
   result = summarizeSplitResult(splitInfoMax);
-  //  if (getTraceFlag(treeID) & SPLT_LOW_TRACE) {
-  //    RF_nativePrint("\nmultivariateSplitOld(%10d) result:  %10d", treeID, result);
-  //    RF_nativePrint("\nmultivariateSplitOld(%10d) EXIT ...\n", treeID);
-  //  }
   return result;
 }
 char multivariateSplitNew (uint       treeID,
@@ -1500,9 +1280,6 @@ char multivariateSplitNew (uint       treeID,
   double delta;
   uint   deltaNorm;
   uint j, k, p, r;
-  //  if (getTraceFlag(treeID) & SPLT_LOW_TRACE) {
-  //    RF_nativePrint("\nmultivariateSplitNew(%10d) ENTRY ...\n", treeID);
-  //  }
   localSplitIndicator    = NULL;  
   splitVector            = NULL;  
   splitVectorSize        = 0;     
@@ -1547,18 +1324,6 @@ char multivariateSplitNew (uint       treeID,
                                   &variance[r]);
         impuritySummary = impuritySummary | impurity[r];
       }
-      //          if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-      //            if (getTraceFlag(treeID) & !TURN_OFF_TRACE) {
-      //              RF_nativePrint("\nImpurity:");
-      //              for (r=1; r <= ySize; r++) {
-      //                RF_nativePrint(" %10d", response[r]);
-      //              }
-      //              RF_nativePrint("\n          ");
-      //              for (r=1; r <= ySize; r++) {
-      //                RF_nativePrint( "%10d,", impurity[r]);
-      //              }
-      //            }
-      //          }
     }
     else {
       impuritySummary = TRUE;
@@ -1667,18 +1432,6 @@ char multivariateSplitNew (uint       treeID,
               nonMissImpuritySummary = nonMissImpuritySummary | impurity[r];
               secondNonMissMembrLeftSize[r] = secondNonMissMembrRghtSize[r] = 0;
             }  
-            //          if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-            //            if (getTraceFlag(treeID) & !TURN_OFF_TRACE) {
-            //              RF_nativePrint("\nImpurity:");
-            //              for (r=1; r <= ySize; r++) {
-            //                RF_nativePrint(" %10d", response[r]);
-            //              }
-            //              RF_nativePrint("\n          ");
-            //              for (r=1; r <= ySize; r++) {
-            //                RF_nativePrint( "%10d,", impurity[r]);
-            //              }
-            //            }
-            //          }
             free_uivector(tempNonMissMembrIndx, 1, nonMissMembrSize);
           }  
           if (nonMissImpuritySummary) {
@@ -1755,14 +1508,6 @@ char multivariateSplitNew (uint       treeID,
                                  priorMembrIter,
                                  & currentMembrIter);
               rghtSize = nonMissMembrSize - leftSize;
-              //   if (getTraceFlag(treeID) & SPLT_MED_TRACE) {
-              //     RF_nativePrint("\nNon-miss Node Size:  %10d, Non-miss Left Size:  %10d, Non-miss Right Size:  %10d", nonMissMembrSize, leftSize, rghtSize);
-              //   }
-              //          if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-              //            if (getTraceFlag(treeID) & TURN_OFF_TRACE) {
-              //              RF_nativePrint("\n PriorIter:     %10d  CurrentIter:   %10d", priorMembrIter, currentMembrIter);
-              //            }
-              //          }
               if ((leftSize != 0) && (rghtSize != 0)) {
                 delta     = 0.0;
                 deltaNorm = 0;
@@ -1836,53 +1581,13 @@ char multivariateSplitNew (uint       treeID,
                         partialLeft = partialLeft / secondNonMissMembrLeftSize[r];
                         partialRght = partialRght / secondNonMissMembrRghtSize[r];
                         delta += (partialLeft + partialRght) / secondNonMissMembrSize[r];
-                        //          if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-                        //            if (getTraceFlag(treeID) & !TURN_OFF_TRACE) {
-                        //              RF_nativePrint("\nPartial Delta (Clas):  2ndLeft    2ndRght       mean   variance  rFactSize partialLFT partialRGT        sum");
-                        //              RF_nativePrint("\n                    %10d %10d %10.4f %10.4f %10d %10.4f %10.4f %10.4f",
-                        //                       secondNonMissMembrLeftSize[r],
-                        //                       secondNonMissMembrRghtSize[r],
-                        //                       mean[r],
-                        //                       variance[r],
-                        //                       RF_rFactorSize[RF_rFactorMap[response[r]]],
-                        //                       partialLeft,
-                        //                       partialRght,
-                        //                       partialLeft+partialRght);
-                        //            }
-                        //          }
                       }
                       else {
                         partialLeft = pow (sumLeft[r], 2.0) / (secondNonMissMembrLeftSize[r] * variance[r]);
                         partialRght = pow (sumRght[r], 2.0) / (secondNonMissMembrRghtSize[r] * variance[r]);
                         delta += partialLeft + partialRght;
-                        //          if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-                        //            if (getTraceFlag(treeID) & !TURN_OFF_TRACE) {
-                        //              RF_nativePrint("\nPartial Delta (Regr):  2ndLeft    2ndRght       mean   variance  rFactSize     sumLFT     sumRGT partialLFT partialRGT        sum");
-                        //              RF_nativePrint("\n                    %10d %10d %10.4f %10.4f %10d %10.4f %10.4f %10.4f %10.4f %10.4f",
-                        //                       secondNonMissMembrLeftSize[r],
-                        //                       secondNonMissMembrRghtSize[r],
-                        //                       mean[r],
-                        //                       variance[r],
-                        //                       0,
-                        //                       sumLeft[r],
-                        //                       sumRght[r],
-                        //                       partialLeft,
-                        //                       partialRght,
-                        //                       partialLeft+partialRght);
-                        //            }
-                        //          }
                       }
                     }
-                    //        if (RF_rFactorCount > 0) {
-                    //          if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-                    //            if (getTraceFlag(treeID) & TURN_OFF_TRACE) {
-                    //              RF_nativePrint("\nClass proportions:       parent       left");
-                    //              for (p = 1; p <= RF_classLevelSize[RF_rFactorMap[response[r]]]; p++) {
-                    //                RF_nativePrint("\n          %10d %10d %10d", p, parentClassProp[r][p], leftClassProp[r][p]);
-                    //              }
-                    //            }
-                    //          }
-                    //        }
                   }  
                 }  
                 if (deltaNorm > 0) {
@@ -1907,19 +1612,6 @@ char multivariateSplitNew (uint       treeID,
                   }
                 }
               }
-              //          if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-              //            if (getTraceFlag(treeID) & !TURN_OFF_TRACE) {
-              //              RF_nativePrint("\nVirtual (non-miss) Membership for r[1] only:  ");
-              //              for (k = 1; k <= nonMissMembrSize; k++) {
-              //                if (localSplitIndicator[ nonMissMembrIndx[indxx[k]] ] == LEFT) {
-              //                  RF_nativePrint("\n %10d %10d %12.4f %12.4f --> LEFT ", k, nonMissMembrIndx[indxx[k]], repMembrIndx[nonMissMembrIndx[indxx[k]]], observation[ repMembrIndx[nonMissMembrIndx[indxx[k]]] ], RF_response[treeID][response[1]][  repMembrIndx[nonMissMembrIndx[indxx[k]]]  ]);
-              //                }
-              //                else {
-              //                  RF_nativePrint("\n %10d %10d %12.4f %12.4f --> RGHT ", k, nonMissMembrIndx[indxx[k]], repMembrIndx[nonMissMembrIndx[indxx[k]]], observation[ repMembrIndx[nonMissMembrIndx[indxx[k]]] ], RF_response[treeID][response[1]][  repMembrIndx[nonMissMembrIndx[indxx[k]]]  ]);
-              //                }
-              //              }
-              //            }
-              //          }
               if (factorFlag == FALSE) {
                 priorMembrIter = currentMembrIter - 1;
               }
@@ -1992,10 +1684,6 @@ char multivariateSplitNew (uint       treeID,
                   multImpFlag,
                   TRUE);  
   result = summarizeSplitResult(splitInfoMax);
-  //  if (getTraceFlag(treeID) & SPLT_LOW_TRACE) {
-  //    RF_nativePrint("\nmultivariateSplitNew(%10d) result:  %10d", treeID, result);
-  //    RF_nativePrint("\nmultivariateSplitNew(%10d) EXIT ...\n", treeID);
-  //  }
   return result;
 }
 char multivariateSplitNew3 (uint       treeID,
@@ -2021,9 +1709,6 @@ char multivariateSplitNew3 (uint       treeID,
   double delta;
   uint   deltaNorm;
   uint j, k, p, r;
-  //  if (getTraceFlag(treeID) & SPLT_LOW_TRACE) {
-  //    RF_nativePrint("\nmultivariateSplitNew3(%10d) ENTRY ...\n", treeID);
-  //  }
   localSplitIndicator    = NULL;  
   splitVector            = NULL;  
   splitVectorSize        = 0;     
@@ -2065,18 +1750,6 @@ char multivariateSplitNew3 (uint       treeID,
                                 &variance[r]);
       impuritySummary = impuritySummary | impurity[r];
     }
-    //          if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-    //            if (getTraceFlag(treeID) & !TURN_OFF_TRACE) {
-    //              RF_nativePrint("\nImpurity:  ");
-    //              for (r=1; r <= ySize; r++) {
-    //                RF_nativePrint(" %10d", response[r]);
-    //              }
-    //              RF_nativePrint("\n          ");
-    //              for (r=1; r <= ySize; r++) {
-    //                RF_nativePrint( "%10d,", impurity[r]);
-    //              }
-    //            }
-    //          }
     if (impuritySummary) {
       stackSplitPreliminary(repMembrSize,
                             & localSplitIndicator,
@@ -2209,14 +1882,6 @@ char multivariateSplitNew3 (uint       treeID,
                                  priorMembrIter,
                                  & currentMembrIter);
               rghtSize = repMembrSize - leftSize;
-              //   if (getTraceFlag(treeID) & SPLT_MED_TRACE) {
-              //     RF_nativePrint("\nNon-miss Node Size:  %10d, Non-miss Left Size:  %10d, Non-miss Right Size:  %10d", repMembrSize, leftSize, rghtSize);
-              //   }
-              //          if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-              //            if (getTraceFlag(treeID) & TURN_OFF_TRACE) {
-              //              RF_nativePrint("\n PriorIter:     %10d  CurrentIter:   %10d", priorMembrIter, currentMembrIter);
-              //            }
-              //          }
               if ((leftSize != 0) && (rghtSize != 0)) {
                 delta     = 0.0;
                 deltaNorm = 0;
@@ -2329,20 +1994,6 @@ char multivariateSplitNew3 (uint       treeID,
                           delta += ((partialLeft / leftSize) + (partialRght / rghtSize)) / repMembrSize;
                           break;
                         }
-                        //          if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-                        //            if (getTraceFlag(treeID) & !TURN_OFF_TRACE) {
-                        //              RF_nativePrint("\nPartial Delta (Clas): leftSize   rghtSize       mean   variance  rFactSize partialLFT partialRGT        sum");
-                        //              RF_nativePrint("\n                    %10d %10d %10.4f %10.4f %10d %10.4f %10.4f %10.4f",
-                        //                       leftSize,
-                        //                       rghtSize,
-                        //                       mean[r],
-                        //                       variance[r],
-                        //                       RF_rFactorSize[RF_rFactorMap[response[r]]],
-                        //                       partialLeft,
-                        //                       partialRght,
-                        //                       partialLeft+partialRght);
-                        //            }
-                        //          }
                       }
                       else {
                         switch(RF_splitRule) {
@@ -2366,34 +2017,8 @@ char multivariateSplitNew3 (uint       treeID,
                           delta += partialLeft + partialRght;
                           break;
                         }
-                        //          if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-                        //            if (getTraceFlag(treeID) & !TURN_OFF_TRACE) {
-                        //              RF_nativePrint("\nPartial Delta (Regr): leftSize   rghtSize       mean   variance  rFactSize     sumLFT     sumRGT partialLFT partialRGT        sum");                        
-                        //              RF_nativePrint("\n                    %10d %10d %10.4f %10.4f %10d %10.4f %10.4f %10.4f %10.4f %10.4f",
-                        //                       leftSize,
-                        //                       rghtSize,
-                        //                       mean[r],
-                        //                       variance[r],
-                        //                       0,
-                        //                       sumLeft[r],
-                        //                       sumRght[r],
-                        //                       partialLeft,
-                        //                       partialRght,
-                        //                       partialLeft+partialRght);
-                        //            }
-                        //          }
                       }
                     }  
-                    //        if (RF_rFactorCount > 0) {
-                    //          if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-                    //            if (getTraceFlag(treeID) & TURN_OFF_TRACE) {
-                    //              RF_nativePrint("\nClass proportions:       parent       left");
-                    //              for (p = 1; p <= RF_classLevelSize[RF_rFactorMap[response[r]]]; p++) {
-                    //                RF_nativePrint("\n          %10d %10d %10d", p, parentClassProp[r][p], leftClassProp[r][p]);
-                    //              }
-                    //            }
-                    //          }
-                    //        }
                   }  
                 }  
                 if (deltaNorm > 0) {
@@ -2418,19 +2043,6 @@ char multivariateSplitNew3 (uint       treeID,
                   }
                 }
               }
-              //          if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-              //            if (getTraceFlag(treeID) & !TURN_OFF_TRACE) {
-              //              RF_nativePrint("\nVirtual (non-miss) Membership for r[1] only:  ");
-              //              for (k = 1; k <= repMembrSize; k++) {
-              //                if (localSplitIndicator[ indxx[k] ] == LEFT) {
-              //                  RF_nativePrint("\n %10d %10d %12.4f %12.4f --> LEFT ", k, indxx[k], repMembrIndx[ indxx[k] ], observation[ repMembrIndx[ indxx[k] ] ], RF_response[treeID][response[1]][ repMembrIndx[ indxx[k] ] ]);
-              //                }
-              //                else {
-              //                  RF_nativePrint("\n %10d %10d %12.4f %12.4f --> RGHT ", k, indxx[k], repMembrIndx[ indxx[k] ], observation[ repMembrIndx[ indxx[k] ] ], RF_response[treeID][response[1]][ repMembrIndx[ indxx[k] ]  ]);
-              //                }
-              //              }
-              //            }
-              //          }
               if (factorFlag == FALSE) {
                 priorMembrIter = currentMembrIter - 1;
               }
@@ -2494,21 +2106,11 @@ char multivariateSplitNew3 (uint       treeID,
                   multImpFlag,
                   TRUE);  
   result = summarizeSplitResult(splitInfoMax);
-  //  if (getTraceFlag(treeID) & SPLT_LOW_TRACE) {
-  //    RF_nativePrint("\nmultivariateSplitNew3(%10d) result:  %10d", treeID, result);
-  //    RF_nativePrint("\nmultivariateSplitNew3(%10d) EXIT ...\n", treeID);
-  //  }
   return result;
 }
 DistributionObj *stackRandomResponsesSimple(uint treeID, Node *parent) {
-  //  if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-  //    RF_nativePrint("\nstackRandomResponsesSimple(%10d) ENTRY ...\n", treeID);
-  //  }
   DistributionObj *obj = makeDistributionObjRaw();
   obj -> indexSize = RF_ySize;
-  //  if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-  //    RF_nativePrint("\nstackRandomResponsesSimple() has permissible index size %10d", RF_ySize);
-  //  }
   obj -> index = NULL;
   obj -> uIndexAllocSize = 0;
   if (RF_ytry > 1) {
@@ -2520,22 +2122,13 @@ DistributionObj *stackRandomResponsesSimple(uint treeID, Node *parent) {
       }
     }
   }
-  //  if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-  //    RF_nativePrint("\nstackRandomResponsesSimple(%10d) EXIT ...\n", treeID);
-  //  }
   return obj;
 }
 void unstackRandomResponsesSimple(uint treeID, DistributionObj *obj) {
-  //  if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-  //    RF_nativePrint("\nunstackRandomResponsesSimple(%10d) ENTRY ...\n", treeID);
-  //  }
   if (obj -> uIndexAllocSize > 0) {
     free_uivector(obj -> index, 1, obj -> uIndexAllocSize);
   }
   freeDistributionObjRaw(obj);
-  //  if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-  //    RF_nativePrint("\nunstackRandomResponsesSimple(%10d) EXIT ...\n", treeID);
-  //  }
 }
 char selectRandomResponsesSimpleVector(uint  treeID,
                                         Node *parent,
@@ -2544,47 +2137,26 @@ char selectRandomResponsesSimpleVector(uint  treeID,
                                        uint *responseCount) {
   uint r;
   char yVarSearch;
-  //  if (getTraceFlag(treeID) & SPLT_MED_TRACE) {
-  //    RF_nativePrint("\nselectRandomResponsesSimpleVector(%10d) ENTRY ...\n", treeID);
-  //  }
   yVarSearch = TRUE;
   *responseCount = 0;
   while (yVarSearch) {
     if (distributionObj -> indexSize > 0) {
       if (RF_ytry == 1) {
         (*responseCount) ++;
-        //      if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-        //        RF_nativePrint("\nResponse counter:  %10d \n", (*responseCount));
-        //      }
-        //      if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-        //        RF_nativePrint("\nResponse ytry = 1:  uniformSize = %10d \n", distributionObj -> indexSize);
-        //      }
         distributionObj -> slot = (uint) ceil(ran1B(treeID) * ((distributionObj -> indexSize) * 1.0));
         response[*responseCount] = distributionObj -> slot;
         yVarSearch = FALSE;
       }
       else {
         if (RF_ytry >= RF_ySize) {
-          //      if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-          //        RF_nativePrint("\nCandidate response deterministic:  (ytry, uniformSize) = (%10d, %10d) \n", RF_ytry, distributionObj -> indexSize);
-          //      }
           for (r = 1; r <= RF_ySize; r++) {
             (*responseCount) ++;
-            //      if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-            //        RF_nativePrint("\nResponse counter:  %10d \n", (*responseCount));
-            //      }
             response[*responseCount] = r;
           }
           yVarSearch = FALSE;
         }
         else {
           (*responseCount) ++;
-          //      if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-          //        RF_nativePrint("\nResponse counter:  %10d \n", (*responseCount));
-          //      }
-          //      if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-          //        RF_nativePrint("\nCandidate response Fisher-Yates:  uniformSize = %10d \n", distributionObj -> indexSize);
-          //      }
           distributionObj -> slot = (uint) ceil(ran1B(treeID) * ((distributionObj -> indexSize) * 1.0));
           response[*responseCount] = (distributionObj -> index)[distributionObj -> slot];
           (distributionObj -> index)[distributionObj -> slot] = (distributionObj -> index)[distributionObj -> indexSize];
@@ -2597,21 +2169,12 @@ char selectRandomResponsesSimpleVector(uint  treeID,
     }
     else {
       yVarSearch = FALSE;
-      //      if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-      //        RF_nativePrint("\nNo selectable elements left at response counter:  %10d \n", (*responseCount));
-      //      }
     }
   }  
-  //  if (getTraceFlag(treeID) & SPLT_MED_TRACE) {
-  //    RF_nativePrint("\nselectRandomResponsesSimpleVector(%10d) EXIT ...\n", treeID);
-  //  }
   return TRUE;
 }
 DistributionObj *stackRandomResponsesGeneric(uint treeID, Node *parent) {
   uint actualWeightType;
-  //  if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-  //    RF_nativePrint("\nstackRandomResponsesGeneric(%10d) ENTRY ...\n", treeID);
-  //  }
   DistributionObj *obj = makeDistributionObjRaw();
   actualWeightType = RF_yWeightType;
   obj -> permissibleIndex    = NULL;
@@ -2625,21 +2188,12 @@ DistributionObj *stackRandomResponsesGeneric(uint treeID, Node *parent) {
   obj -> weightSorted        = RF_yWeightSorted;
   obj -> densityAllocSize    = RF_yWeightDensitySize;
   initializeCDFNew(treeID, obj);
-  //  if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-  //    RF_nativePrint("\nstackRandomResponsesGeneric(%10d) EXIT ...\n", treeID);
-  //  }
   return obj;
 }
 void unstackRandomResponsesGeneric(uint treeID, DistributionObj *obj) {
-  //  if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-  //    RF_nativePrint("\nunstackRandomResponsesGeneric(%10d) ENTRY ...\n", treeID);
-  //  }
   free_cvector(obj -> permissible, 1, obj -> permissibleSize);
   discardCDFNew(treeID, obj);
   freeDistributionObjRaw(obj);
-  //  if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-  //    RF_nativePrint("\nunstackRandomResponsesGeneric(%10d) EXIT ...\n", treeID);
-  //  }
 }
 char selectRandomResponsesGenericVector(uint     treeID,
                                         Node     *parent,
@@ -2649,32 +2203,17 @@ char selectRandomResponsesGenericVector(uint     treeID,
   uint r;
   uint selectedValue;
   char yVarSearch;
-  //  if (getTraceFlag(treeID) & SPLT_MED_TRACE) {
-  //    RF_nativePrint("\nselectRandomResponsesGeneric(%10d) ENTRY ...\n", treeID);
-  //  }
   *responseCount = 0;
   if (RF_ytry == 1) {
     selectedValue = sampleFromCDFNew(ran1B, treeID, distributionObj);
     if (selectedValue != 0) {
       (*responseCount) ++;
-      //      if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-      //        RF_nativePrint("\nResponse counter:  %10d \n", (*responseCount));
-      //      }
-        //      if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-        //        RF_nativePrint("\nResponse:  %10d \n", selectedValue);
-        //      }
       response[*responseCount] = selectedValue;
     }    
   }
   else if (RF_ytry >= RF_ySize) {
     for (r = 1; r <= RF_ySize; r++) {
       (*responseCount) ++;
-      //      if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-      //        RF_nativePrint("\nResponse counter:  %10d \n", (*responseCount));
-      //      }
-      //      if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-      //        RF_nativePrint("\nResponse:  %10d \n", r);
-      //      }
       response[*responseCount] = r;
     }
   }
@@ -2686,26 +2225,14 @@ char selectRandomResponsesGenericVector(uint     treeID,
         (*responseCount) ++;
         response[*responseCount] = selectedValue;
         updateCDFNew(treeID, distributionObj);
-        //      if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-        //        RF_nativePrint("\nResponse counter:  %10d \n", (*responseCount));
-        //      }
-        //      if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-        //        RF_nativePrint("\nResponse:  %10d \n", selectedValue);
-        //      }
         if ((*responseCount) >= RF_ytry) {
           yVarSearch = FALSE;
         }
       }
       else {
         yVarSearch = FALSE;
-        //      if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-        //        RF_nativePrint("\nNo selectable elements left at response counter:  %10d \n", (*responseCount));
-        //      }
       }
     }  
   }
-  //  if (getTraceFlag(treeID) & SPLT_MED_TRACE) {
-  //    RF_nativePrint("\nselectRandomResponsesGeneric(%10d) EXIT ...\n", treeID);
-  //  }
   return TRUE;
 }

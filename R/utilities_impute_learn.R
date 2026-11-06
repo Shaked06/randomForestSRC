@@ -1,31 +1,299 @@
+## Helpers for the learned imputer and its OOD reconstruction scores.
+##
+## Raw schema: retained column names/types learned before imputation.
+## Target: a raw column with a saved conditional learner.
+## Auxiliary: supervised prediction columns, used as predictors only.
+## Harmonized data: deployment data before initialization/model updates.
+## Working data: initialized raw data, optionally augmented by auxiliaries.
+##------------------------------------------------------------------
+## Small utilities and persistence prerequisites
+##------------------------------------------------------------------
+## Use a default only for NULL; zero-length and missing-valued inputs are retained.
 `%||%` <- function(x, y) if (is.null(x)) y else x
+## Require the serialization dependency before any fast.save/fast.load operation.
 .check.fst <- function() {
   if (!requireNamespace("fst", quietly = TRUE)) {
     stop("Package 'fst' is required for save/load support.", call. = FALSE)
   }
   invisible(TRUE)
 }
+## Format local clock time for progress messages.
 .timestamp <- function() {
   format(Sys.time(), "%Y-%m-%d %H:%M:%S")
 }
+## Emit one timestamped progress line only when verbose is exactly TRUE.
 .msg <- function(..., verbose = TRUE) {
   if (isTRUE(verbose)) {
     cat(sprintf("[%s] ", .timestamp()), ..., "\n", sep = "")
     flush.console()
   }
 }
+## Create missing parent directories; return the supplied path invisibly.
 .safe.dir.create <- function(path) {
-  if (!dir.exists(path)) {
-    dir.create(path, recursive = TRUE, showWarnings = FALSE)
+  if (!dir.exists(path) &&
+      !dir.create(path, recursive = TRUE, showWarnings = FALSE)) {
+    stop("Could not create directory: ", path, call. = FALSE)
   }
   invisible(path)
 }
+## Remove an existing directory tree; the caller decides whether wiping is allowed.
 .safe.unlink.dir <- function(path) {
-  if (dir.exists(path)) {
-    unlink(path, recursive = TRUE, force = TRUE)
+  if (file.exists(path) || dir.exists(path)) {
+    status <- unlink(path, recursive = TRUE, force = TRUE, expand = FALSE)
+    if (status != 0L || file.exists(path) || dir.exists(path)) {
+      stop("Could not remove path: ", path, call. = FALSE)
+    }
   }
   invisible(path)
 }
+##------------------------------------------------------------------
+## Staged persistence
+##------------------------------------------------------------------
+## Resolve existing ancestors as well as relative/nonexistent destinations.
+## This makes path containment checks meaningful before directory creation.
+.impute.canonical.path <- function(path) {
+  if (!is.character(path) || length(path) != 1L || is.na(path) ||
+      !nzchar(trimws(path))) {
+    stop("A nonempty directory path is required.", call. = FALSE)
+  }
+  path <- path.expand(path)
+  if (file.exists(path) || dir.exists(path)) {
+    return(normalizePath(path, winslash = "/", mustWork = TRUE))
+  }
+  parent <- dirname(path)
+  if (identical(parent, path)) {
+    stop("Cannot resolve directory path: ", path, call. = FALSE)
+  }
+  parent <- .impute.canonical.path(parent)
+  leaf <- basename(path)
+  if (leaf == ".") return(parent)
+  if (leaf == "..") return(dirname(parent))
+  file.path(parent, leaf)
+}
+.impute.path.within <- function(path, parent) {
+  ## Conservative comparisons on platforms with commonly case-insensitive
+  ## filesystems; false overlap is safer than deleting an aliased imputer.
+  if (.Platform$OS.type == "windows" || identical(Sys.info()[["sysname"]], "Darwin")) {
+    path <- tolower(path)
+    parent <- tolower(parent)
+  }
+  identical(path, parent) || startsWith(path, paste0(sub("/+$", "", parent), "/"))
+}
+.impute.path.part <- function(x, arg, nested = FALSE) {
+  if (!is.character(x) || length(x) != 1L || is.na(x) ||
+      !nzchar(trimws(x)) || grepl("\\", x, fixed = TRUE) ||
+      grepl(":", x, fixed = TRUE) || startsWith(x, "~") ||
+      (!nested && grepl("/", x, fixed = TRUE))) {
+    stop("'", arg, "' must be a relative ",
+         if (nested) "directory path" else "file-name component", ".", call. = FALSE)
+  }
+  parts <- strsplit(paste0(x, "/."), "/", fixed = TRUE)[[1L]]
+  parts <- parts[-length(parts)]
+  if (any(!nzchar(parts) | parts %in% c(".", ".."))) {
+    stop("'", arg, "' cannot contain empty, '.' or '..' path components.",
+         call. = FALSE)
+  }
+  invisible(x)
+}
+.impute.check.learner.root <- function(learner.root) {
+  .impute.path.part(learner.root, "learner.root", nested = TRUE)
+  first <- strsplit(learner.root, "/", fixed = TRUE)[[1L]][1L]
+  if (tolower(first) == "manifest.rds") {
+    stop("'learner.root' cannot use the reserved 'manifest.rds' name.",
+         call. = FALSE)
+  }
+  invisible(learner.root)
+}
+.impute.check.layout <- function(manifest) {
+  .impute.shared.check.manifest(manifest)
+  .impute.check.learner.root(manifest$learner.root %||% "learners")
+  .impute.path.part(manifest$learner.prefix %||% "impute.learner.", "learner.prefix")
+  saved.names <- character(0)
+  for (target in manifest$targets) {
+    info <- manifest$learners[[target]]
+    if (!identical(info$status, "ok")) next
+    .impute.path.part(info$learner.name, "learner.name")
+    saved.names <- c(saved.names, info$learner.name)
+  }
+  if (.is.supervised.manifest(manifest)) {
+    .impute.path.part(manifest$supervised$model.name, "supervised model.name")
+    saved.names <- c(saved.names, manifest$supervised$model.name)
+  }
+  if (anyDuplicated(saved.names)) {
+    stop("Saved learner names must be unique.", call. = FALSE)
+  }
+  invisible(manifest)
+}
+## A manifest identifies an imputer directory; unrelated files or a file
+## merely named manifest.rds are not enough to authorize its replacement.
+.impute.check.destination.contents <- function(path) {
+  if (!dir.exists(path)) return(invisible(NULL))
+  if (file.access(path, 4L) != 0L) {
+    stop("Cannot inspect the save destination: ", path, call. = FALSE)
+  }
+  entries <- list.files(path, all.files = TRUE, no.. = TRUE)
+  if (!length(entries)) return(invisible(NULL))
+  previous <- tryCatch({
+    manifest <- suppressWarnings(readRDS(file.path(path, "manifest.rds")))
+    if (!is.list(manifest) ||
+        !is.character(manifest$columns) || !length(manifest$columns) ||
+        anyNA(manifest$columns) || any(!nzchar(manifest$columns)) ||
+        anyDuplicated(manifest$columns) ||
+        !is.list(manifest$schema) ||
+        !identical(names(manifest$schema), manifest$columns) ||
+        !is.character(manifest$targets) || !length(manifest$targets) ||
+        anyNA(manifest$targets) || anyDuplicated(manifest$targets) ||
+        any(!manifest$targets %in% manifest$columns) ||
+        !is.list(manifest$learners) ||
+        any(!manifest$targets %in% names(manifest$learners)) ||
+        !is.list(manifest$predictor.map) ||
+        any(!manifest$targets %in% names(manifest$predictor.map))) {
+      stop("Invalid imputer manifest.", call. = FALSE)
+    }
+    manifest <- .normalize.impute.learn.manifest(manifest)
+    .impute.check.layout(manifest)
+    manifest
+  }, error = function(e) NULL)
+  if (is.null(previous)) {
+    stop("The save destination is nonempty and is not a recognized saved imputer: ",
+         path, ". Choose a new or empty directory.", call. = FALSE)
+  }
+  invisible(previous)
+}
+.impute.save.destination <- function(path, existing.path = NULL) {
+  dest <- .impute.canonical.path(path)
+  protected <- unique(c(.impute.canonical.path(getwd()),
+                        .impute.canonical.path(path.expand("~"))))
+  if (identical(dirname(dest), dest) ||
+      any(vapply(protected, .impute.path.within, logical(1), parent = dest))) {
+    stop("Use a dedicated imputer directory, not a root, home, working directory ",
+         "or an ancestor of those directories: ", dest, call. = FALSE)
+  }
+  if (file.exists(dest) && !dir.exists(dest)) {
+    stop("Save destination is not a directory: ", dest, call. = FALSE)
+  }
+  if (!is.null(existing.path)) {
+    existing.path <- .impute.canonical.path(existing.path)
+    same <- .impute.path.within(dest, existing.path) &&
+      .impute.path.within(existing.path, dest)
+    if (!same && (.impute.path.within(dest, existing.path) ||
+                  .impute.path.within(existing.path, dest))) {
+      stop("The existing imputer directory and the save destination must not ",
+           "contain one another.",
+           call. = FALSE)
+    }
+  }
+  .impute.check.destination.contents(dest)
+  dest
+}
+.impute.begin.save <- function(path, wipe = TRUE, existing.path = NULL,
+                                targets = NULL) {
+  .impute.flag(wipe, "wipe")
+  dest <- .impute.save.destination(path, existing.path)
+  if (!is.null(existing.path)) {
+    existing.path <- .impute.canonical.path(existing.path)
+    same <- .impute.path.within(dest, existing.path) &&
+      .impute.path.within(existing.path, dest)
+    previous.manifest <- file.path(dest, "manifest.rds")
+    if (same && file.exists(previous.manifest)) {
+      previous <- readRDS(previous.manifest)
+      if (!setequal(previous$targets, targets)) {
+        stop("A target-subset object cannot replace the existing imputer in place. ",
+             "Save the subset to a different directory.", call. = FALSE)
+      }
+    }
+  }
+  ## Stage beside the destination so directory renames stay on one filesystem.
+  .safe.dir.create(dirname(dest))
+  stage <- tempfile(pattern = paste0(".", basename(dest), ".stage-"),
+                    tmpdir = dirname(dest))
+  .safe.dir.create(stage)
+  ready <- FALSE
+  on.exit(if (!ready) try(.safe.unlink.dir(stage), silent = TRUE), add = TRUE)
+  ## wipe = FALSE preserves unrelated existing files without modifying them
+  ## while new learners are written. Copies are private to the staging bundle.
+  if (!isTRUE(wipe) && dir.exists(dest)) {
+    entries <- list.files(dest, all.files = TRUE, no.. = TRUE, full.names = TRUE)
+    if (length(entries) && !all(file.copy(entries, stage, recursive = TRUE,
+                                          copy.mode = TRUE, copy.date = TRUE))) {
+      stop("Could not stage the existing destination directory.", call. = FALSE)
+    }
+  }
+  .safe.unlink.dir(file.path(stage, "manifest.rds"))
+  ready <- TRUE
+  list(path = dest, stage = stage)
+}
+.impute.write.model <- function(model, name, root, label, compress = 50,
+                                 xvar.ref = NULL, shared.context = NULL) {
+  .fast.save.check.compress(compress)
+  .impute.path.part(name, "learner.name")
+  forest <- .resolve.predict.forest(model)
+  if (is.null(forest) || !inherits(forest, "forest") || is.null(forest$nativeArray)) {
+    stop("Cannot save ", label, ": the model does not contain a usable forest.", call. = FALSE)
+  }
+  marker <- NULL
+  if (!is.null(xvar.ref)) {
+    .impute.shared.assert.xvar(shared.context, xvar.ref, forest$xvar, label)
+    marker <- .impute.shared.marker(shared.context, xvar.ref)
+  }
+  path <- file.path(root, name)
+  .safe.unlink.dir(path)
+  status <- .fast.save.forest(forest, path, testing = FALSE, compress = compress,
+                              xvar.reference = marker)
+  if (identical(status, FALSE)) stop("Failed to save ", label, ".", call. = FALSE)
+  restored <- .fast.load.named(name, root, label = label, strict = TRUE,
+                                xvar.ref = xvar.ref, shared.context = shared.context)
+  if (is.null(restored) || !is.list(restored)) {
+    stop("Saved ", label, " could not be read back as a model.", call. = FALSE)
+  }
+  if (!is.null(xvar.ref) &&
+      !identical(.impute.shared.table(forest$xvar), restored$xvar)) {
+    .impute.shared.stop("Saved shared predictors failed verification for ", label, ".")
+  }
+  invisible(NULL)
+}
+.impute.commit.save <- function(transaction, manifest) {
+  .impute.check.layout(manifest)
+  saveRDS(manifest, file.path(transaction$stage, "manifest.rds"))
+  if (!is.list(readRDS(file.path(transaction$stage, "manifest.rds")))) {
+    stop("Staged manifest could not be read back.", call. = FALSE)
+  }
+  dest <- transaction$path
+  .impute.check.destination.contents(dest)
+  backup <- NULL
+  installed <- FALSE
+  on.exit({
+    if (!installed && !is.null(backup) && dir.exists(backup)) {
+      restored <- !file.exists(dest) && tryCatch(file.rename(backup, dest),
+                                                  error = function(e) FALSE)
+      if (!isTRUE(restored)) {
+        warning("The previous imputer is preserved at: ", backup,
+                call. = FALSE)
+      }
+    }
+  }, add = TRUE)
+  if (dir.exists(dest)) {
+    backup <- tempfile(pattern = paste0(".", basename(dest), ".backup-"),
+                       tmpdir = dirname(dest))
+    if (!file.rename(dest, backup)) {
+      stop("Could not move the previous imputer to a backup; it is unchanged.",
+           call. = FALSE)
+    }
+  }
+  if (!file.rename(transaction$stage, dest)) {
+    stop("Could not install the staged imputer; restoring the previous destination.",
+         call. = FALSE)
+  }
+  installed <- TRUE
+  if (!is.null(backup)) {
+    tryCatch(.safe.unlink.dir(backup), error = function(e) {
+      warning("Imputer saved, but its backup could not be removed: ", backup,
+              call. = FALSE)
+    })
+  }
+  invisible(dest)
+}
+## Make a filename component from a target label; indices distinguish collisions.
 .safe.name <- function(x) {
   x <- gsub("[^[:alnum:].]+", ".", x)
   x <- gsub("\\.+", ".", x)
@@ -33,10 +301,15 @@
   if (!nzchar(x)) x <- "var"
   x
 }
+##------------------------------------------------------------------
+## Raw column normalization, schema and initialization
+##------------------------------------------------------------------
+## Identify integer/double columns, excluding the date/time classes handled as factors.
 .is.real.valued <- function(x) {
-  (is.double(x) || is.integer(x)) &&
+  is.null(dim(x)) && (is.double(x) || is.integer(x)) &&
     !inherits(x, c("Date", "POSIXt", "difftime"))
 }
+## Retain factors and real-valued inputs; otherwise attempt factor conversion.
 .coerce.supported.column <- function(x, nm) {
   if (is.factor(x) || .is.real.valued(x)) {
     return(x)
@@ -52,13 +325,15 @@
   }
   out
 }
+## Normalize the container and column types before constructing the missingness mask.
 .normalize.training.data <- function(data) {
-  data <- as.data.frame(data, stringsAsFactors = FALSE)
+  data <- .impute.data.frame(data)
   for (nm in names(data)) {
     data[[nm]] <- .coerce.supported.column(data[[nm]], nm)
   }
   data
 }
+## Return the retained raw table plus original-row and original-column keep masks.
 .drop.all.na.train <- function(data) {
   which.na <- is.na(data)
   keep.rows <- rowSums(which.na) < ncol(data)
@@ -69,42 +344,86 @@
     keep.cols = keep.cols
   )
 }
+## Record factor levels/order and pre-imputation numeric storage/support by column.
 .build.schema <- function(data) {
   out <- lapply(names(data), function(nm) {
     x <- data[[nm]]
+    integer.info <- .integer.support.info(x)
     list(
       class = class(x),
       is.factor = is.factor(x),
       ordered = is.ordered(x),
       levels = if (is.factor(x)) levels(x) else NULL,
       is.integer = is.integer(x),
-      is.numeric = .is.real.valued(x)
+      is.numeric = .is.real.valued(x),
+      integer.support = isTRUE(integer.info$restore),
+      integer.storage = isTRUE(integer.info$storage.integer),
+      integer.frac = integer.info$integer.frac
     )
   })
   names(out) <- names(data)
   out
 }
+## Supply integer metadata defaults for older stored schemas without refitting.
+.normalize.schema.integer.support <- function(schema) {
+  if (is.null(schema) || length(schema) == 0L) {
+    return(schema)
+  }
+  for (nm in names(schema)) {
+    sc <- schema[[nm]]
+    if (!is.list(sc)) next
+    if (is.null(sc$integer.storage)) {
+      sc$integer.storage <- isTRUE(sc$is.integer)
+    }
+    if (is.null(sc$integer.support)) {
+      sc$integer.support <- isTRUE(sc$is.integer)
+    }
+    if (is.null(sc$integer.frac)) {
+      sc$integer.frac <- if (isTRUE(sc$is.integer)) 1 else NA_real_
+    }
+    schema[[nm]] <- sc
+  }
+  schema
+}
+## Test whether the saved schema requests integer-grid restoration.
+.schema.restores.integer <- function(sc) {
+  is.list(sc) && (isTRUE(sc$integer.support) || isTRUE(sc$is.integer))
+}
+## Translate a schema entry to the shared integer-restoration helper format.
+.schema.integer.info <- function(sc) {
+  list(
+    restore = .schema.restores.integer(sc),
+    storage.integer = isTRUE(sc$is.integer) || isTRUE(sc$integer.storage),
+    integer.frac = sc$integer.frac %||% (if (isTRUE(sc$is.integer)) 1 else NA_real_)
+  )
+}
+## Convert factor labels, rather than their internal codes, to numeric values.
+## Unparseable labels become NA with conversion warnings suppressed.
 .as.numeric.safe <- function(x) {
   if (is.factor(x)) {
     x <- as.character(x)
   }
   suppressWarnings(as.numeric(x))
 }
+## Numeric conversion entry point; schema is currently accepted but not consulted.
 .as.numeric.from.schema <- function(x, schema = NULL) {
   .as.numeric.safe(x)
 }
+## Return a most frequent observed label, or NA when no observed values remain.
 .mode.value <- function(x) {
   x <- x[!is.na(x)]
   if (length(x) == 0L) return(NA)
   tb <- sort(table(x), decreasing = TRUE)
   names(tb)[1]
 }
+## Use the mean of finite observed values; return NA_real_ if none are available.
 .numeric.init <- function(x) {
   x <- .as.numeric.safe(x)
   x <- x[is.finite(x)]
   if (length(x) == 0L) return(NA_real_)
   mean(x)
 }
+## Compute one factor mode or numeric mean per supplied table column.
 .compute.init <- function(data, schema) {
   out <- lapply(names(data), function(nm) {
     x <- data[[nm]]
@@ -119,6 +438,7 @@
   names(out) <- names(data)
   out
 }
+## Compute numeric SDs for pass-change scaling; use one for factors or zero/invalid SDs.
 .compute.scale <- function(data, schema) {
   out <- lapply(names(data), function(nm) {
     sc <- schema[[nm]]
@@ -135,6 +455,10 @@
   names(out) <- names(data)
   out
 }
+##------------------------------------------------------------------
+## Target selection and raw predictor maps
+##------------------------------------------------------------------
+## Select targets from the original missingness mask or select every retained column.
 .resolve.targets <- function(which.na, target.mode = c("missing.only", "all")) {
   target.mode <- match.arg(target.mode)
   miss.count <- colSums(which.na)
@@ -145,6 +469,8 @@
     colnames(which.na)
   }
 }
+## Build named raw-predictor sets, always excluding each target itself.
+## NULL/list omissions use all non-target columns; character(0) selects none.
 .resolve.predictor.map <- function(targets, all.names, deployment.xvars = NULL) {
   if (is.null(deployment.xvars)) {
     out <- lapply(targets, function(y) setdiff(all.names, y))
@@ -152,12 +478,52 @@
     return(out)
   }
   if (is.character(deployment.xvars)) {
+    unknown <- setdiff(deployment.xvars, all.names)
+    if (length(unknown) > 0L) {
+      warning("Ignoring deployment.xvars predictors not found in training data: ",
+              paste(unknown, collapse = ", "),
+              call. = FALSE)
+    }
     xvars <- intersect(all.names, deployment.xvars)
     out <- lapply(targets, function(y) setdiff(xvars, y))
     names(out) <- targets
     return(out)
   }
   if (is.list(deployment.xvars)) {
+    nms <- names(deployment.xvars)
+    if (is.null(nms) || length(nms) != length(deployment.xvars) ||
+        any(is.na(nms) | !nzchar(nms))) {
+      stop("'deployment.xvars' supplied as a list must be named by target variable.",
+           call. = FALSE)
+    }
+    dup <- unique(nms[duplicated(nms)])
+    if (length(dup) > 0L) {
+      stop("'deployment.xvars' contains duplicated target names: ",
+           paste(dup, collapse = ", "),
+           call. = FALSE)
+    }
+    extra.targets <- setdiff(nms, targets)
+    if (length(extra.targets) > 0L) {
+      warning("Ignoring deployment.xvars entries for non-target variables: ",
+              paste(extra.targets, collapse = ", "),
+              call. = FALSE)
+    }
+    bad.entries <- names(deployment.xvars)[vapply(deployment.xvars, function(x) {
+      !(is.null(x) || is.character(x))
+    }, logical(1))]
+    if (length(bad.entries) > 0L) {
+      stop("Each 'deployment.xvars' list entry must be NULL or a character vector. ",
+           "Problem entries: ", paste(bad.entries, collapse = ", "),
+           call. = FALSE)
+    }
+    listed.predictors <- unique(unlist(deployment.xvars[intersect(nms, targets)],
+                                       use.names = FALSE))
+    unknown <- setdiff(listed.predictors, all.names)
+    if (length(unknown) > 0L) {
+      warning("Ignoring deployment.xvars predictors not found in training data: ",
+              paste(unknown, collapse = ", "),
+              call. = FALSE)
+    }
     out <- lapply(targets, function(y) {
       xvars <- deployment.xvars[[y]]
       if (is.null(xvars)) {
@@ -171,6 +537,494 @@
   stop("'deployment.xvars' must be NULL, a character vector, or a named list.",
        call. = FALSE)
 }
+##------------------------------------------------------------------
+## Manifest compatibility and supervised forest support
+##------------------------------------------------------------------
+## Supply legacy defaults for supervised, raw-predictor and integer-schema metadata.
+## Shared versions are checked here; full mapping checks occur at load/save boundaries.
+.normalize.impute.learn.manifest <- function(manifest) {
+  if (is.null(manifest$spec.version)) {
+    manifest$spec.version <- 1L
+  }
+  if (!is.numeric(manifest$spec.version) || length(manifest$spec.version) != 1L ||
+      !manifest$spec.version %in% 1:3) {
+    stop("Unsupported imputer specification version; a compatible package version is required.",
+         call. = FALSE)
+  }
+  if (identical(manifest$spec.version, 3L) && is.null(manifest$shared.xvar)) {
+    .impute.shared.stop("Shared imputer specification is missing its shared predictor descriptor.")
+  }
+  .impute.shared.check.manifest(manifest, check.refs = FALSE)
+  if (is.null(manifest$supervised) || !is.list(manifest$supervised)) {
+    manifest$supervised <- list(enabled = FALSE)
+  }
+  if (is.null(manifest$supervised$enabled)) {
+    manifest$supervised$enabled <- FALSE
+  }
+  manifest$schema <- .normalize.schema.integer.support(manifest$schema)
+  if (is.null(manifest$supervised$response.schema)) {
+    manifest$supervised$response.schema <- NULL
+  }
+  else {
+    manifest$supervised$response.schema <- .normalize.schema.integer.support(
+      manifest$supervised$response.schema
+    )
+  }
+  if (is.null(manifest$predictor.map.raw)) {
+    manifest$predictor.map.raw <- manifest$predictor.map
+  }
+  manifest
+}
+## Identify manifests containing an enabled supervised auxiliary forest.
+.is.supervised.manifest <- function(manifest) {
+  is.list(manifest$supervised) && isTRUE(manifest$supervised$enabled)
+}
+## Resolve a package helper from the current environment or randomForestSRC namespace.
+.get.rfsrc.internal <- function(name) {
+  fn <- get0(name, mode = "function")
+  if (!is.null(fn)) {
+    return(fn)
+  }
+  ns <- tryCatch(
+    asNamespace("randomForestSRC"),
+    error = function(e) NULL
+  )
+  if (is.null(ns) || !exists(name, envir = ns, inherits = FALSE)) {
+    return(NULL)
+  }
+  get(name, envir = ns, inherits = FALSE)
+}
+## Create a terms object while identifying the offending formula argument on errors.
+.parse.formula.terms <- function(formula, data, arg.name = "formula") {
+  tt <- tryCatch(
+    stats::terms(formula, data = data, keep.order = TRUE),
+    error = function(e) e
+  )
+  if (inherits(tt, "error")) {
+    stop("Failed to parse '", arg.name, "': ", conditionMessage(tt),
+         call. = FALSE)
+  }
+  tt
+}
+## Retain the user formula environment and make supported response constructors available.
+.make.supervised.formula.env <- function(parent = environment()) {
+  if (is.null(parent)) {
+    parent <- baseenv()
+  }
+  env <- new.env(parent = parent)
+  surv.fun <- get0("Surv", envir = parent, mode = "function", inherits = TRUE)
+  if (is.null(surv.fun)) {
+    surv.fun <- tryCatch(
+      get("Surv", envir = asNamespace("survival"), inherits = FALSE),
+      error = function(e) NULL
+    )
+  }
+  if (!is.null(surv.fun)) {
+    env$Surv <- surv.fun
+  }
+  multivar.fun <- .get.rfsrc.internal("Multivar")
+  if (!is.null(multivar.fun)) {
+    env$Multivar <- multivar.fun
+  }
+  env$cbind <- base::cbind
+  env
+}
+## Restrict the supervised RHS to raw columns retained after all-NA preprocessing.
+.raw.supervised.predictors <- function(tt, data, arg.name) {
+  labels <- attr(tt, "term.labels") %||% character(0)
+  if (length(labels) == 0L) {
+    stop("'", arg.name, "' must include at least one predictor.", call. = FALSE)
+  }
+  vars <- lapply(labels, function(label) {
+    expr <- tryCatch(parse(text = label, keep.source = FALSE),
+                     error = function(e) NULL)
+    if (length(expr) == 1L && is.symbol(expr[[1L]])) {
+      as.character(expr[[1L]])
+    } else NA_character_
+  })
+  vars <- unlist(vars, use.names = FALSE)
+  bad <- is.na(vars) | !(vars %in% names(data))
+  if (any(bad) || length(attr(tt, "offset")) > 0L) {
+    stop("'", arg.name, "' must reference raw predictor columns in 'data'. ",
+         "Derived terms, interactions, and transformations are not supported. ",
+         "Problem terms: ", paste(c(labels[bad],
+           if (length(attr(tt, "offset"))) "offset(...)"), collapse = ", "),
+         call. = FALSE)
+  }
+  vars
+}
+.project.supervised.formula <- function(supervised.formula, data, train.names,
+                                        arg.name = "supervised.formula") {
+  tt <- .parse.formula.terms(supervised.formula, data = data, arg.name = arg.name)
+  xvar.names <- .raw.supervised.predictors(tt, data, arg.name)
+  xvar.names <- intersect(xvar.names, train.names)
+  if (length(xvar.names) == 0L) {
+    stop("No retained predictor columns remain for '", arg.name,
+         "' after training preprocessing.", call. = FALSE)
+  }
+  env <- .make.supervised.formula.env(environment(supervised.formula))
+  out <- .impute.formula(supervised.formula[[2L]], xvar.names, env = env)
+  if (identical(attr(tt, "intercept"), 0L)) {
+    out[[3L]] <- call("-", out[[3L]], 1)
+  }
+  out
+}
+## Resolve supervised response and raw predictor columns before raw-table imputation.
+## The raw RHS is checked separately from the package-specific response parser.
+.parse.supervised.spec <- function(supervised.formula, data) {
+  if (is.null(supervised.formula)) {
+    return(list(enabled = FALSE))
+  }
+  if (!inherits(supervised.formula, "formula")) {
+    stop("'supervised.formula' must be a formula.", call. = FALSE)
+  }
+  data <- as.data.frame(data, stringsAsFactors = FALSE)
+  tt <- .parse.formula.terms(supervised.formula, data = data,
+                             arg.name = "supervised.formula")
+  response.pos <- attr(tt, "response") %||% 0L
+  if (response.pos != 1L) {
+    stop("'supervised.formula' must include a response on the left-hand side.",
+         call. = FALSE)
+  }
+  xvar.names <- .raw.supervised.predictors(tt, data, "supervised.formula")
+  parser <- .get.rfsrc.internal("parseFormula")
+  parsed <- NULL
+  if (!is.null(parser)) {
+    parsed <- tryCatch(
+      parser(supervised.formula, data = data),
+      error = function(e) e
+    )
+    if (inherits(parsed, "error")) {
+      parsed <- NULL
+    }
+  }
+  if (is.null(parsed)) {
+    yvar.names <- all.vars(supervised.formula[[2L]])
+    subj.names <- character(0)
+    family.guess <- NA_character_
+  }
+  else {
+    yvar.names <- parsed$yvar.names %||% character(0)
+    subj.names <- parsed$subj.names %||% character(0)
+    family.guess <- parsed$family %||% NA_character_
+  }
+  response.names <- unique(c(subj.names, yvar.names))
+  if (length(response.names) == 0L) {
+    stop("Unable to resolve supervised response variables from 'supervised.formula'.",
+         call. = FALSE)
+  }
+  if (!all(response.names %in% names(data))) {
+    bad <- setdiff(response.names, names(data))
+    stop("The supervised response variables were not found in 'data': ",
+         paste(bad, collapse = ", "), call. = FALSE)
+  }
+  response.predictor.overlap <- intersect(response.names, xvar.names)
+  if (length(response.predictor.overlap) > 0L) {
+    stop("'supervised.formula' must not include supervised response variables ",
+         "on the right-hand side. Problem variables: ",
+         paste(response.predictor.overlap, collapse = ", "),
+         call. = FALSE)
+  }
+  y.data <- data[, response.names, drop = FALSE]
+  for (nm in names(y.data)) {
+    y.data[[nm]] <- .coerce.supported.column(y.data[[nm]], nm)
+  }
+  list(
+    enabled = TRUE,
+    formula = supervised.formula,
+    family.guess = family.guess,
+    xvar.names = xvar.names,
+    yvar.names = yvar.names,
+    subj.names = subj.names,
+    response.names = response.names,
+    x.data = data[, xvar.names, drop = FALSE],
+    y.data = y.data
+  )
+}
+## Identify retained rows with complete supervised response information.
+.supervised.usable.rows <- function(ydata) {
+  out <- tryCatch(
+    stats::complete.cases(ydata),
+    error = function(e) e
+  )
+  if (inherits(out, "error")) {
+    ydf <- tryCatch(
+      as.data.frame(ydata, stringsAsFactors = FALSE),
+      error = function(e) e
+    )
+    if (inherits(ydf, "error")) {
+      stop("Failed to determine which supervised responses are observed: ",
+           conditionMessage(out), call. = FALSE)
+    }
+    out <- stats::complete.cases(ydf)
+  }
+  out
+}
+## Validate named overrides and remove arguments controlled by the supervised wrapper.
+.parse.supervised.args <- function(supervised.args = list()) {
+  supervised.args <- .impute.named.options(supervised.args, "supervised.args")
+  blocked <- intersect(names(supervised.args), c("formula", "data", "forest"))
+  if (length(blocked) > 0L) {
+    warning("Ignoring supervised.args entries controlled internally: ",
+            paste(blocked, collapse = ", "),
+            call. = FALSE)
+    supervised.args[blocked] <- NULL
+  }
+  supervised.args
+}
+## Recover family and variable names from the fit, forest or parsed formula metadata.
+.resolve.supervised.fit.meta <- function(supervised.fit, fallback = NULL) {
+  if (is.null(supervised.fit) || !is.list(supervised.fit)) {
+    stop("The supervised forest fit did not return a valid randomForestSRC object.",
+         call. = FALSE)
+  }
+  forest <- .resolve.predict.forest(supervised.fit)
+  family <- supervised.fit$family %||%
+    (if (!is.null(forest)) forest$family else NULL) %||%
+    (if (!is.null(fallback)) fallback$family.guess else NULL) %||%
+    NA_character_
+  xvar.names <- supervised.fit$xvar.names %||%
+    (if (!is.null(forest)) forest$xvar.names else NULL) %||%
+    (if (!is.null(fallback)) fallback$xvar.names else NULL)
+  yvar.names <- supervised.fit$yvar.names %||%
+    (if (!is.null(forest)) forest$yvar.names else NULL) %||%
+    (if (!is.null(fallback)) fallback$yvar.names else NULL)
+  if (is.null(xvar.names) || length(xvar.names) == 0L) {
+    stop("The supervised forest fit did not return 'xvar.names'.",
+         call. = FALSE)
+  }
+  if (is.null(yvar.names) || length(yvar.names) == 0L) {
+    stop("The supervised forest fit did not return 'yvar.names'.",
+         call. = FALSE)
+  }
+  list(
+    family = family,
+    xvar.names = xvar.names,
+    yvar.names = yvar.names
+  )
+}
+## Infer prediction row count for constructing response metadata when yvar is absent.
+.infer.supervised.pred.n <- function(x) {
+  n <- x$n %||% NULL
+  if (!is.null(n) && length(n) == 1L && is.finite(n)) {
+    return(as.integer(n))
+  }
+  if (!is.null(x$xvar)) {
+    xdf <- tryCatch(as.data.frame(x$xvar, check.names = FALSE,
+                                  stringsAsFactors = FALSE),
+                    error = function(e) NULL)
+    if (!is.null(xdf)) {
+      return(nrow(xdf))
+    }
+  }
+  pred <- x$predicted %||% x$predicted.oob %||% NULL
+  if (!is.null(pred)) {
+    return(NROW(pred))
+  }
+  for (slot in c("classOutput", "regrOutput")) {
+    obj <- x[[slot]]
+    if (!is.null(obj) && length(obj) > 0L) {
+      for (nm in names(obj)) {
+        comp <- obj[[nm]]
+        if (!is.null(comp$predicted)) {
+          return(NROW(comp$predicted))
+        }
+        if (!is.null(comp$predicted.oob)) {
+          return(NROW(comp$predicted.oob))
+        }
+      }
+    }
+  }
+  0L
+}
+## Supply multivariate response metadata needed by get.mv.predicted().
+## Missing response columns are placeholders, not deployment-time observed outcomes.
+.patch.supervised.prediction.object <- function(x, family,
+                                                response.schema = NULL,
+                                                yvar.names = NULL) {
+  if (!(family %in% c("regr+", "class+", "mix+"))) {
+    return(x)
+  }
+  n <- .infer.supervised.pred.n(x)
+  if (n <= 0L) {
+    return(x)
+  }
+  y <- x$yvar %||% NULL
+  if (is.null(y)) {
+    if (is.null(response.schema) || length(response.schema) == 0L) {
+      return(x)
+    }
+    y <- .na.data.from.schema(response.schema, n)
+  }
+  else {
+    y <- tryCatch(
+      as.data.frame(y, check.names = FALSE, stringsAsFactors = FALSE),
+      error = function(e) NULL
+    )
+    if (is.null(y)) {
+      if (is.null(response.schema) || length(response.schema) == 0L) {
+        return(x)
+      }
+      y <- .na.data.from.schema(response.schema, n)
+    }
+    else if (!is.null(response.schema) && length(response.schema) > 0L) {
+      wanted <- names(response.schema)
+      extra.cols <- setdiff(names(y), wanted)
+      miss.cols <- setdiff(wanted, names(y))
+      if (length(extra.cols) > 0L) {
+        y <- y[, setdiff(names(y), extra.cols), drop = FALSE]
+      }
+      if (length(miss.cols) > 0L) {
+        y.miss <- .na.data.from.schema(response.schema[miss.cols], nrow(y))
+        y <- data.frame(y, y.miss, check.names = FALSE, stringsAsFactors = FALSE)
+      }
+      y <- y[, wanted, drop = FALSE]
+      y <- .restore.schema(y, response.schema, restore.integer = TRUE)
+    }
+  }
+  if (!is.null(yvar.names) && length(yvar.names) > 0L) {
+    have <- intersect(yvar.names, names(y))
+    if (length(have) == length(yvar.names)) {
+      y <- y[, yvar.names, drop = FALSE]
+    }
+  }
+  x$yvar <- y
+  if (!is.null(yvar.names) && length(yvar.names) > 0L) {
+    x$yvar.names <- yvar.names
+  }
+  x
+}
+## Extract family-specific predictions into a numeric auxiliary block.
+## Training prefers OOB slots and falls back to ordinary predictions if a
+## slot is absent, as get.mv.predicted() does for multivariate responses.
+## This fallback is only for auxiliary predictors, never OOD references.
+.supervised.materialize.aux <- function(x, family, oob = FALSE,
+                                        response.schema = NULL,
+                                        yvar.names = NULL) {
+  x <- .patch.supervised.prediction.object(
+    x,
+    family = family,
+    response.schema = response.schema,
+    yvar.names = yvar.names
+  )
+  if (isTRUE(oob)) {
+    if (family %in% c("regr+", "class+", "mix+")) {
+      getter <- .get.rfsrc.internal("get.mv.predicted")
+      if (is.null(getter)) {
+        stop("get.mv.predicted() is required to materialize supervised multivariate predictions.",
+             call. = FALSE)
+      }
+      pred <- getter(x, oob = TRUE)
+    }
+    else {
+      pred <- x$predicted.oob %||% x$predicted
+    }
+  }
+  else {
+    if (family %in% c("regr+", "class+", "mix+")) {
+      getter <- .get.rfsrc.internal("get.mv.predicted")
+      if (is.null(getter)) {
+        stop("get.mv.predicted() is required to materialize supervised multivariate predictions.",
+             call. = FALSE)
+      }
+      pred <- getter(x)
+    }
+    else {
+      pred <- x$predicted
+    }
+  }
+  out <- tryCatch(
+    data.frame(predicted = pred, check.names = FALSE),
+    error = function(e) e
+  )
+  if (inherits(out, "error")) {
+    stop("Failed to materialize supervised predicted values: ",
+         conditionMessage(out), call. = FALSE)
+  }
+  out
+}
+## Convert auxiliary columns to numeric and impose stored names by column position.
+.align.supervised.aux <- function(aux, expected.names = NULL) {
+  aux <- as.data.frame(aux, check.names = FALSE, stringsAsFactors = FALSE)
+  if (ncol(aux) == 0L) {
+    stop("The supervised prediction block has no columns.", call. = FALSE)
+  }
+  for (nm in names(aux)) {
+    aux[[nm]] <- .as.numeric.safe(aux[[nm]])
+  }
+  if (is.null(expected.names)) {
+    return(aux)
+  }
+  if (length(expected.names) != ncol(aux)) {
+    stop("The supervised prediction block produced ", ncol(aux),
+         " column(s), but ", length(expected.names),
+         " were learned during training.", call. = FALSE)
+  }
+  names(aux) <- expected.names
+  aux[, expected.names, drop = FALSE]
+}
+## Replace nonfinite auxiliary values with the corresponding stored initialization value.
+.fill.supervised.aux <- function(aux, init) {
+  aux <- as.data.frame(aux, check.names = FALSE, stringsAsFactors = FALSE)
+  if (length(aux) == 0L) {
+    return(aux)
+  }
+  for (nm in names(aux)) {
+    x <- .as.numeric.safe(aux[[nm]])
+    bad <- !is.finite(x)
+    if (any(bad)) {
+      x[bad] <- as.numeric(init[[nm]] %||% NA_real_)
+    }
+    aux[[nm]] <- x
+  }
+  aux
+}
+## Append all auxiliary predictors to each target's selected raw predictors.
+.augment.predictor.map <- function(targets, predictor.map.raw, aux.names = NULL) {
+  predictor.map.raw <- predictor.map.raw[targets]
+  if (is.null(aux.names) || length(aux.names) == 0L) {
+    return(predictor.map.raw)
+  }
+  out <- lapply(targets, function(target) {
+    unique(c(predictor.map.raw[[target]], aux.names))
+  })
+  names(out) <- targets
+  out
+}
+##------------------------------------------------------------------
+## Serialized objects and learner-specific predictor conformity
+##------------------------------------------------------------------
+## Load a named serialized object; optionally return an error message instead of stopping.
+.fast.load.named <- function(name, root, label = "saved object", strict = TRUE,
+                               xvar.ref = NULL, shared.context = NULL) {
+  .check.fst()
+  restore <- if (is.null(xvar.ref)) NULL else function(forest, marker) {
+    .impute.shared.restore(forest, marker, xvar.ref, shared.context)
+  }
+  out <- tryCatch(
+    .fast.load.forest(name, root, xvar.restore = restore),
+    error = function(e) e
+  )
+  ## A broken shared predictor table invalidates the bank, not just one update.
+  if (inherits(out, "impute.shared.error")) stop(out)
+  if (inherits(out, "error") && !is.null(xvar.ref)) {
+    .impute.shared.stop("Failed to load shared ", label, ": ", conditionMessage(out))
+  }
+  if (inherits(out, "error")) {
+    msg <- paste0("Failed to load ", label, " from ",
+                  file.path(root, name), ": ",
+                  conditionMessage(out))
+    if (isTRUE(strict)) {
+      stop(msg, call. = FALSE)
+    }
+    return(list(model = NULL, error = msg))
+  }
+  if (isTRUE(strict)) {
+    return(out)
+  }
+  list(model = out, error = NULL)
+}
+## Accept either a grow object containing a forest or a forest object directly.
 .resolve.predict.forest <- function(model) {
   if (is.null(model)) return(NULL)
   if (is.list(model) && !is.null(model$forest) &&
@@ -182,6 +1036,8 @@
   }
   NULL
 }
+## Match prediction columns and factor encodings to the particular target forest.
+## The bank-wide schema alone is insufficient when a learner saw only some rows.
 .conform.x.to.forest <- function(x, model, ignore.levels = TRUE) {
   x <- data.frame(x, check.names = FALSE, stringsAsFactors = FALSE)
   forest <- .resolve.predict.forest(model)
@@ -196,7 +1052,7 @@
     x <- x[, setdiff(names(x), extra.cols), drop = FALSE]
   }
   if (length(miss.cols) > 0) {
-    for (nm in miss.cols) x[[nm]] <- NA
+    for (nm in miss.cols) x[[nm]] <- rep(NA, nrow(x))
   }
   x <- x[, wanted, drop = FALSE]
   ## restore unordered and ordered factors using forest metadata
@@ -212,11 +1068,18 @@
   }
   x
 }
+##------------------------------------------------------------------
+## Bank fitting options and internal names
+##------------------------------------------------------------------
+## Separate bank-level forest options from their structural defaults.
+## These settings are independent of the initial imputation forest settings.
 .parse.full.sweep.options <- function(full.sweep.options = NULL) {
-  fs <- full.sweep.options %||% list()
+  fs <- .impute.named.options(full.sweep.options, "full.sweep.options")
+  .impute.forest.options(fs)
   allowed <- c(
     "mtry", "splitrule", "bootstrap", "sampsize", "samptype",
-    "perf.type", "rfq", "save.memory", "importance", "proximity"
+    "perf.type", "rfq", "save.memory", "importance", "proximity",
+    "terminal.qualts", "terminal.quants"
   )
   structural <- c("ntree", "nodesize", "nsplit")
   unknown <- setdiff(names(fs), c(structural, allowed))
@@ -232,38 +1095,55 @@
     dots = fs[names(fs) %in% allowed]
   )
 }
+## Combine an index and sanitized target name into a stable saved-model name.
 .make.learner.name <- function(i, target, prefix = "impute.learner.") {
   sprintf("%s%03d.%s", prefix, i, .safe.name(target))
 }
+## Choose a temporary response name that does not collide with predictor columns.
 .make.response.name <- function(existing.names = character()) {
-  nm <- ".impute.learn.response."
-  while (nm %in% existing.names) {
-    nm <- paste0(nm, ".")
-  }
-  nm
+  .impute.response.name(existing.names)
 }
+## Rebuild factors in stored training order; unknown labels become NA.
 .coerce.factor.levels <- function(x, levels, ordered = FALSE) {
   x <- as.character(x)
   x[!(x %in% levels)] <- NA_character_
   factor(x, levels = levels, ordered = ordered)
 }
+##------------------------------------------------------------------
+## Deployment schema, initialization and restoration
+##------------------------------------------------------------------
+## Match raw deployment columns and types to the manifest before any imputation.
+## Keep unseen-label masks separately so OOD scoring can distinguish novelty
+## from ordinary NA values. Supplied supervised response columns are discarded.
 .harmonize.newdata <- function(newdata, manifest, verbose = TRUE) {
-  newdata <- as.data.frame(newdata, stringsAsFactors = FALSE)
+  newdata <- .impute.data.frame(newdata, "newdata", check.finite = FALSE)
   required.cols <- manifest$columns
   added.cols <- setdiff(required.cols, names(newdata))
   extra.cols <- setdiff(names(newdata), required.cols)
+  response.cols <- character(0)
+  if (.is.supervised.manifest(manifest) &&
+      !is.null(manifest$supervised$response.schema)) {
+    response.cols <- intersect(names(manifest$supervised$response.schema), extra.cols)
+  }
+  other.extra.cols <- setdiff(extra.cols, response.cols)
   if (length(added.cols) > 0L) {
     for (nm in added.cols) {
-      newdata[[nm]] <- NA
+      newdata[[nm]] <- rep(NA, nrow(newdata))
     }
     .msg("Added missing columns to newdata: ", paste(added.cols, collapse = ", "),
          verbose = verbose)
   }
-  if (length(extra.cols) > 0L) {
-    .msg("Dropping extra columns from newdata: ", paste(extra.cols, collapse = ", "),
+  if (length(response.cols) > 0L) {
+    .msg("Dropping supervised response columns from newdata: ",
+         paste(response.cols, collapse = ", "),
+         verbose = verbose)
+  }
+  if (length(other.extra.cols) > 0L) {
+    .msg("Dropping extra columns from newdata: ", paste(other.extra.cols, collapse = ", "),
          verbose = verbose)
   }
   newdata <- newdata[, required.cols, drop = FALSE]
+  conversion.issues <- list()
   unseen.levels <- vector("list", length(required.cols))
   names(unseen.levels) <- required.cols
   unseen.mask <- matrix(FALSE, nrow = nrow(newdata), ncol = length(required.cols),
@@ -285,18 +1165,33 @@
       newdata[[nm]] <- .coerce.factor.levels(xchr, sc$levels, ordered = sc$ordered)
     }
     else {
-      newdata[[nm]] <- .as.numeric.from.schema(x, sc)
+      converted <- .as.numeric.from.schema(x, sc)
+      if (any(!is.na(converted) & !is.finite(converted))) {
+        stop("Numeric values in newdata column `", nm,
+             "` must be finite or missing.", call. = FALSE)
+      }
+      bad <- !is.na(x) & is.na(converted)
+      if (any(bad)) conversion.issues[[nm]] <- which(bad)
+      newdata[[nm]] <- converted
     }
+  }
+  if (length(conversion.issues) > 0L) {
+    warning("Nonmissing values could not be converted to numeric and were treated ",
+            "as missing in columns: ", paste(names(conversion.issues), collapse = ", "),
+            ". Row indices are recorded in conversion.issues.", call. = FALSE)
   }
   list(
     data = newdata,
+    conversion.issues = conversion.issues,
     added.cols = added.cols,
     extra.cols = extra.cols,
+    response.cols = response.cols,
     unseen.levels = unseen.levels,
-    unseen.mask = as.data.frame(unseen.mask, stringsAsFactors = FALSE),
+    unseen.mask = as.data.frame(unseen.mask, optional = TRUE, stringsAsFactors = FALSE),
     unseen.rows = if (nrow(newdata) == 0L) logical(0) else rowSums(unseen.mask) > 0L
   )
 }
+## Fill currently missing cells from stored training means/modes, without model updates.
 .apply.init <- function(data, init, schema) {
   data <- as.data.frame(data, stringsAsFactors = FALSE)
   for (nm in names(data)) {
@@ -317,23 +1212,25 @@
   }
   data
 }
-.restore.schema <- function(data, schema, restore.integer = TRUE) {
+## Restore factor encodings and the integer support of generated numeric cells.
+## Observed numeric values are retained both as predictors and in returned data.
+.restore.schema <- function(data, schema, restore.integer = TRUE,
+                              generated = NULL) {
   data <- as.data.frame(data, stringsAsFactors = FALSE)
+  generated <- .impute.generated.mask(data, generated)
   for (nm in names(data)) {
     sc <- schema[[nm]]
     if (isTRUE(sc$is.factor)) {
       data[[nm]] <- .coerce.factor.levels(data[[nm]], sc$levels, ordered = sc$ordered)
     }
-    else if (isTRUE(sc$is.integer)) {
+    else if (.schema.restores.integer(sc)) {
       x <- .as.numeric.from.schema(data[[nm]], sc)
-      if (isTRUE(restore.integer)) {
-        xi <- as.integer(round(x))
-        xi[is.na(x)] <- NA_integer_
-        data[[nm]] <- xi
-      }
-      else {
-        data[[nm]] <- x
-      }
+      data[[nm]] <- .restore.integer.vector(
+        x,
+        .schema.integer.info(sc),
+        restore.integer = restore.integer,
+        generated = generated[, nm]
+      )
     }
     else {
       data[[nm]] <- .as.numeric.from.schema(data[[nm]], sc)
@@ -341,12 +1238,77 @@
   }
   data
 }
-.extract.prediction <- function(pred, family, target.schema) {
+## Allocate a typed missing-value table for response metadata or reconstructions.
+.na.data.from.schema <- function(schema, nrow) {
+  if (is.null(schema) || length(schema) == 0L) {
+    return(data.frame())
+  }
+  out <- setNames(vector("list", length(schema)), names(schema))
+  for (nm in names(schema)) {
+    sc <- schema[[nm]]
+    if (isTRUE(sc$is.factor)) {
+      out[[nm]] <- factor(rep(NA_character_, nrow),
+                          levels = sc$levels,
+                          ordered = sc$ordered)
+    }
+    else if (isTRUE(sc$is.integer) || isTRUE(sc$integer.storage)) {
+      out[[nm]] <- rep(NA_integer_, nrow)
+    }
+    else {
+      out[[nm]] <- rep(NA_real_, nrow)
+    }
+  }
+  data.frame(out, check.names = FALSE, stringsAsFactors = FALSE)
+}
+##------------------------------------------------------------------
+## Prediction extraction and target reconstruction discrepancies
+##------------------------------------------------------------------
+## Extract regression predictions or class labels for imputation/reconstruction.
+## Numeric integer-grid restoration is controlled by the caller.
+.target.prediction.vector <- function(x) {
+  if (is.data.frame(x)) {
+    if (ncol(x) != 1L) stop("Expected one prediction column.", call. = FALSE)
+    x <- x[[1L]]
+  }
+  if (!is.null(dim(x))) {
+    if (length(dim(x)) > 2L || (length(dim(x)) == 2L && ncol(x) != 1L)) {
+      stop("Expected one prediction per row.", call. = FALSE)
+    }
+    dim(x) <- NULL
+  }
+  if (!is.null(x) && !is.atomic(x)) {
+    stop("Predictions must be an atomic vector.", call. = FALSE)
+  }
+  x
+}
+.validate.target.values <- function(values, n, schema) {
+  values <- .target.prediction.vector(values)
+  if (is.null(values) || length(values) != n) {
+    stop("Prediction length (", length(values), ") does not match requested rows (",
+         n, ").", call. = FALSE)
+  }
+  if (isTRUE(schema$is.factor)) {
+    valid <- !is.na(values) & as.character(values) %in% schema$levels
+  } else {
+    if (!is.numeric(values)) stop("Numeric predictions are required.", call. = FALSE)
+    valid <- is.finite(values)
+  }
+  list(values = values, valid = valid)
+}
+.extract.prediction <- function(pred, family, target.schema,
+                                restore.integer = TRUE) {
   if (is.null(pred)) return(NULL)
   if (identical(family, "regr")) {
-    out <- pred$predicted
-    if (isTRUE(target.schema$is.integer)) {
-      out <- as.integer(round(out))
+    out <- .target.prediction.vector(pred$predicted)
+    if (!is.null(out) && !is.numeric(out)) {
+      stop("Numeric predictions are required.", call. = FALSE)
+    }
+    if (.schema.restores.integer(target.schema)) {
+      out <- .restore.integer.vector(
+        out,
+        .schema.integer.info(target.schema),
+        restore.integer = restore.integer
+      )
     }
     return(out)
   }
@@ -354,12 +1316,14 @@
   if (is.null(out) && !is.null(pred$predicted)) {
     out <- pred$predicted
   }
+  out <- .target.prediction.vector(out)
   if (isTRUE(target.schema$is.factor)) {
     out <- .coerce.factor.levels(out, target.schema$levels,
                                  ordered = target.schema$ordered)
   }
   out
 }
+## Extract the classification probability matrix; recover labels from schema if possible.
 .extract.class.prob <- function(pred, target.schema = NULL) {
   if (is.null(pred)) return(NULL)
   prob <- pred$predicted
@@ -375,32 +1339,93 @@
   }
   prob
 }
+## Compute absolute reconstruction errors, rounding integer-supported predictions.
+## Observed missing target values propagate to missing discrepancies.
 .ood.delta.regression <- function(observed, pred, target.schema = NULL) {
   if (is.null(pred) || is.null(pred$predicted)) {
     return(rep(NA_real_, length(observed)))
   }
-  out <- pred$predicted
-  if (isTRUE(target.schema$is.integer)) {
-    out <- as.integer(round(out))
-  }
+  values <- .extract.prediction(pred, "regr", target.schema)
+  checked <- .validate.target.values(values, length(observed), target.schema)
   obs <- .as.numeric.from.schema(observed, target.schema)
-  est <- .as.numeric.from.schema(out, target.schema)
-  abs(obs - est)
+  out <- rep(NA_real_, length(obs))
+  ok <- !is.na(obs) & checked$valid
+  out[ok] <- abs(obs[ok] - checked$values[ok])
+  out
 }
+## Choose one discrepancy rule from the training OOB output. The selected
+## rule is stored with its reference and reused for every deployment call.
+.select.ood.metric <- function(pred, target.schema) {
+  if (!isTRUE(target.schema$is.factor)) {
+    return(list(name = "absolute.error"))
+  }
+  if (!is.null(.extract.class.prob(pred, target.schema))) {
+    return(list(name = "negative.log.probability", prob.floor = 1e-12))
+  }
+  list(name = if (isTRUE(target.schema$ordered)) "rank.distance" else "misclassification")
+}
+## A legacy numeric reference has an unambiguous rule. A legacy factor
+## reference could have used probabilities or labels, so it must not be guessed.
+.ood.reference.metric <- function(ref, target.schema, target) {
+  metric <- ref$metric
+  if (is.null(metric)) {
+    if (isTRUE(target.schema$is.factor)) {
+      stop("The saved OOD reference for factor target `", target,
+           "` does not record its discrepancy rule. Refit the imputer with ",
+           "save.ood = TRUE before scoring this target.", call. = FALSE)
+    }
+    return(list(name = "absolute.error"))
+  }
+  choices <- if (isTRUE(target.schema$is.factor)) {
+    c("negative.log.probability", "misclassification", "rank.distance")
+  } else "absolute.error"
+  if (!is.list(metric) || !is.character(metric$name) ||
+      length(metric$name) != 1L || is.na(metric$name) ||
+      !(metric$name %in% choices) ||
+      (identical(metric$name, "rank.distance") && !isTRUE(target.schema$ordered))) {
+    stop("Invalid saved OOD discrepancy rule for target `", target, "`.", call. = FALSE)
+  }
+  if (identical(metric$name, "negative.log.probability") &&
+      (!is.numeric(metric$prob.floor) || length(metric$prob.floor) != 1L ||
+       !is.finite(metric$prob.floor) || metric$prob.floor <= 0 || metric$prob.floor >= 1)) {
+    stop("Invalid saved OOD probability floor for target `", target, "`.", call. = FALSE)
+  }
+  metric
+}
+## Apply the selected classification discrepancy without switching rules when
+## a prediction component is absent. Unavailable predictions remain missing.
 .ood.delta.classification <- function(observed, pred, target.schema,
-                                      prob.floor = 1e-12) {
+                                      prob.floor = 1e-12,
+                                      metric = NULL) {
+  if (is.null(metric)) metric <- .select.ood.metric(pred, target.schema)$name
+  metric <- match.arg(metric, c("negative.log.probability", "misclassification",
+                               "rank.distance"))
+  if (!is.numeric(prob.floor) || length(prob.floor) != 1L ||
+      !is.finite(prob.floor) || prob.floor <= 0 || prob.floor >= 1) {
+    stop("'prob.floor' must satisfy 0 < prob.floor < 1.", call. = FALSE)
+  }
   y <- as.character(observed)
   out <- rep(NA_real_, length(y))
   missing.y <- is.na(y)
-  prob <- .extract.class.prob(pred, target.schema)
-  if (!is.null(prob) && nrow(prob) == length(y)) {
+  if (identical(metric, "negative.log.probability")) {
+    prob <- .extract.class.prob(pred, target.schema)
+    if (is.null(prob)) return(out)
+    if (!is.numeric(prob) || nrow(prob) != length(y) ||
+        is.null(colnames(prob)) || anyNA(colnames(prob)) ||
+        anyDuplicated(colnames(prob))) {
+      stop("Class probabilities must have one row per observation and named classes.",
+           call. = FALSE)
+    }
     lev <- colnames(prob)
     pos <- match(y, lev)
     ok <- !missing.y & !is.na(pos)
     if (any(ok)) {
       p.true <- prob[cbind(which(ok), pos[ok])]
-      p.true[!is.finite(p.true)] <- 0
-      out[ok] <- -log(pmax(p.true, prob.floor))
+      ## Unavailable/invalid probabilities remain missing reference values.
+      ## A genuine finite zero probability is still scored using the floor.
+      valid <- is.finite(p.true) & p.true >= 0 & p.true <= 1
+      rows <- which(ok)[valid]
+      out[rows] <- -log(pmax(p.true[valid], prob.floor))
     }
     if (any(!missing.y & is.na(pos))) {
       out[!missing.y & is.na(pos)] <- Inf
@@ -408,15 +1433,19 @@
     return(out)
   }
   cls <- pred$class
-  if (is.null(cls) && !is.null(pred$predicted)) {
+  if (is.null(cls) && is.null(dim(pred$predicted))) {
     cls <- pred$predicted
   }
-  cls <- as.character(cls)
-  ok <- !missing.y & !is.na(cls)
+  if (is.null(cls)) return(out)
+  cls <- as.character(.target.prediction.vector(cls))
+  if (length(cls) != length(y)) {
+    stop("Class prediction length does not match observed rows.", call. = FALSE)
+  }
+  ok <- !missing.y & !is.na(cls) & cls %in% target.schema$levels
   if (!any(ok)) {
     return(out)
   }
-  if (isTRUE(target.schema$ordered)) {
+  if (identical(metric, "rank.distance")) {
     obs.code <- match(y[ok], target.schema$levels)
     cls.code <- match(cls[ok], target.schema$levels)
     denom <- max(1L, length(target.schema$levels) - 1L)
@@ -427,14 +1456,23 @@
   }
   out
 }
-.compute.ood.delta <- function(observed, pred, target.schema) {
+## Dispatch target discrepancy calculation using the raw target schema.
+.compute.ood.delta <- function(observed, pred, target.schema, metric = NULL) {
+  if (is.null(metric)) metric <- .select.ood.metric(pred, target.schema)
   if (isTRUE(target.schema$is.factor)) {
-    .ood.delta.classification(observed, pred, target.schema = target.schema)
+    .ood.delta.classification(observed, pred, target.schema = target.schema,
+                              prob.floor = metric$prob.floor %||% 1e-12,
+                              metric = metric$name)
   }
   else {
     .ood.delta.regression(observed, pred, target.schema = target.schema)
   }
 }
+##------------------------------------------------------------------
+## Compact OOD references and row aggregation
+##------------------------------------------------------------------
+## Compress finite training discrepancies into an ordered type-8 quantile grid.
+## n records the number of finite values before compression.
 .make.ood.reference <- function(x, probs = seq(0, 1, length.out = 257)) {
   x <- as.numeric(x)
   x <- x[is.finite(x)]
@@ -458,29 +1496,36 @@
     n = length(x)
   )
 }
+## Map discrepancies to stored quantile-grid probability positions.
+## Constant references use a separate two-level mapping.
 .eval.ood.reference <- function(x, ref) {
   out <- rep(NA_real_, length(x))
-  if (length(out) == 0L || is.null(ref) || is.null(ref$quantiles)) {
-    return(out)
-  }
-  ok <- is.finite(x)
-  if (!any(ok)) {
+  if (length(out) == 0L || is.null(ref) || is.null(ref$quantiles) ||
+      (!is.null(ref$n) && (!is.finite(ref$n) || ref$n <= 0))) {
     return(out)
   }
   q <- as.numeric(ref$quantiles)
   p <- as.numeric(ref$probs)
-  if (length(q) == 0L || length(p) == 0L) {
+  if (length(q) == 0L || length(q) != length(p) ||
+      any(!is.finite(q)) || any(!is.finite(p)) ||
+      is.unsorted(q) || is.unsorted(p) || any(p < 0 | p > 1)) {
     return(out)
   }
+  ok <- !is.na(x)
+  if (!any(ok)) return(out)
+  ## Preserve the established constant-reference convention, including equality.
   if (length(q) == 1L || all(q == q[1L])) {
     out[ok] <- ifelse(x[ok] <= q[1L], p[1L], p[length(p)])
     return(out)
   }
-  idx <- findInterval(x[ok], q, rightmost.closed = TRUE, all.inside = TRUE)
+  ## Preserve interior ties and equality at the largest quantile. Strict upper
+  ## tails (including +Inf) use the last probability; NA/NaN remain unscored.
+  idx <- findInterval(x[ok], q, rightmost.closed = TRUE, all.inside = FALSE)
   idx <- pmax(1L, pmin(length(p), idx))
   out[ok] <- p[idx]
   out
 }
+## Resolve a row-aggregation name and its applicable tuning arguments.
 .canonicalize.ood.aggregate <- function(aggregate = "weighted.mean",
                                         aggregate.args = NULL) {
   choices <- c(
@@ -494,12 +1539,7 @@
     aggregate <- "weighted.mean"
   }
   aggregate <- match.arg(aggregate, choices = choices)
-  if (is.null(aggregate.args)) {
-    aggregate.args <- list()
-  }
-  if (!is.list(aggregate.args)) {
-    stop("'aggregate.args' must be a list.", call. = FALSE)
-  }
+  aggregate.args <- .impute.named.options(aggregate.args, "aggregate.args")
   used <- character(0)
   args <- list()
   if (aggregate %in% c("weighted.lp", "weighted.lp.log")) {
@@ -514,8 +1554,8 @@
   if (aggregate == "weighted.lp.log") {
     agg.eps <- aggregate.args$eps %||% 1e-12
     if (!is.numeric(agg.eps) || length(agg.eps) != 1L ||
-        !is.finite(agg.eps) || agg.eps <= 0) {
-      stop("The row aggregate 'eps' must be a finite positive scalar.",
+        !is.finite(agg.eps) || agg.eps <= 0 || agg.eps >= 1) {
+      stop("The row aggregate 'eps' must satisfy 0 < eps < 1.",
            call. = FALSE)
     }
     args$eps <- as.numeric(agg.eps)
@@ -523,8 +1563,8 @@
   }
   if (aggregate == "top.k") {
     k <- aggregate.args$k %||% aggregate.args$top.k %||% 1L
-    if (!is.numeric(k) || length(k) != 1L || !is.finite(k) || k < 1) {
-      stop("The top-k row aggregate requires a finite scalar 'k' >= 1.",
+    if (!is.numeric(k) || length(k) != 1L || !is.finite(k) || k < 1 || k > .Machine$integer.max) {
+      stop("The top-k row aggregate requires 1 <= k <= .Machine$integer.max.",
            call. = FALSE)
     }
     args$k <- as.integer(max(1L, round(k)))
@@ -533,8 +1573,8 @@
   if (aggregate == "bounded.product") {
     agg.eps <- aggregate.args$eps %||% 1e-12
     if (!is.numeric(agg.eps) || length(agg.eps) != 1L ||
-        !is.finite(agg.eps) || agg.eps <= 0) {
-      stop("The bounded-product row aggregate requires a finite positive 'eps'.",
+        !is.finite(agg.eps) || agg.eps <= 0 || agg.eps >= 1) {
+      stop("The bounded-product row aggregate requires 0 < eps < 1.",
            call. = FALSE)
     }
     args$eps <- as.numeric(agg.eps)
@@ -548,6 +1588,7 @@
   }
   list(name = aggregate, args = args)
 }
+## Compare canonical aggregation specifications for legacy row-reference reuse.
 .same.ood.aggregate <- function(aggregate, aggregate.args = NULL,
                                 ref.aggregate, ref.aggregate.args = NULL,
                                 tolerance = sqrt(.Machine$double.eps)) {
@@ -577,49 +1618,56 @@
                      check.attributes = FALSE))
   }, logical(1))))
 }
+## Combine one row's finite target scores using positive weights only.
+## The denominator renormalizes weights over targets scoreable in this row.
 .ood.aggregate.vector <- function(x, weight, aggregate.spec) {
   ok <- is.finite(x) & is.finite(weight) & weight > 0
-  if (!any(ok)) {
-    return(NA_real_)
-  }
+  if (!any(ok)) return(NA_real_)
   x <- as.numeric(x[ok])
   weight <- as.numeric(weight[ok])
-  denom <- sum(weight)
-  if (!is.finite(denom) || denom <= 0) {
-    return(NA_real_)
+  ## Top-k selection precedes normalization: weights outside the selected set
+  ## must not cause very small selected weights to underflow to zero.
+  if (aggregate.spec$name == "top.k") {
+    k <- min(length(x), aggregate.spec$args$k)
+    sel <- order(x, decreasing = TRUE, na.last = NA)[seq_len(k)]
+    x <- x[sel]
+    weight <- weight[sel]
+  }
+  log.weight <- log(weight)
+  log.weight <- log.weight - max(log.weight)
+  log.weight <- log.weight - log(sum(exp(log.weight)))
+  weight <- weight / max(weight)
+  weight <- weight / sum(weight)
+  ## Use log weights and max scaling for the norm. This also retains the
+  ## influence of very small weights when a large power magnifies a tail score.
+  lp <- function(z, p) {
+    scale <- max(abs(z))
+    if (scale == 0) return(0)
+    positive <- abs(z) > 0
+    terms <- log.weight[positive] + p * (log(abs(z[positive])) - log(scale))
+    shift <- max(terms)
+    log.norm <- shift + log(sum(exp(terms - shift)))
+    min(scale, exp(log(scale) + min(0, log.norm) / p))
   }
   switch(
     aggregate.spec$name,
-    weighted.mean = {
-      sum(weight * x) / denom
-    },
-    weighted.lp = {
-      p <- aggregate.spec$args$p
-      (sum(weight * (x ^ p)) / denom) ^ (1 / p)
-    },
+    weighted.mean = sum(weight * x),
+    weighted.lp = lp(x, aggregate.spec$args$p),
     weighted.lp.log = {
-      p <- aggregate.spec$args$p
-      agg.eps <- aggregate.spec$args$eps
       u <- pmin(1, pmax(0, x))
-      z <- -log(pmax(1 - u, agg.eps))
-      (sum(weight * (z ^ p)) / denom) ^ (1 / p)
+      z <- pmin(-log1p(-u), -log(aggregate.spec$args$eps))
+      lp(z, aggregate.spec$args$p)
     },
-    top.k = {
-      k <- min(length(x), aggregate.spec$args$k)
-      ord <- order(x, decreasing = TRUE, na.last = NA)
-      sel <- ord[seq_len(k)]
-      sum(weight[sel] * x[sel]) / sum(weight[sel])
-    },
+    top.k = sum(weight * x),
     bounded.product = {
-      agg.eps <- aggregate.spec$args$eps
       u <- pmin(1, pmax(0, x))
-      wnorm <- weight / denom
-      surv <- pmax(1 - u, agg.eps)
-      pmin(1, pmax(0, 1 - exp(sum(wnorm * log(surv)))))
+      log.surv <- pmax(log1p(-u), log(aggregate.spec$args$eps))
+      pmin(1, pmax(0, -expm1(sum(weight * log.surv))))
     },
     stop("Unknown OOD row aggregate: ", aggregate.spec$name, call. = FALSE)
   )
 }
+## Return the sentinel maximum used by the row-wide unseen-factor override.
 .max.ood.aggregate.value <- function(aggregate = "weighted.mean",
                                     aggregate.args = NULL) {
   aggregate.spec <- .canonicalize.ood.aggregate(aggregate, aggregate.args)
@@ -629,6 +1677,7 @@
     1
   )
 }
+## Apply the chosen aggregate row by row; return NA for rows with no usable targets.
 .aggregate.ood.row <- function(mat, weight = NULL,
                                aggregate = "weighted.mean",
                                aggregate.args = NULL) {
@@ -650,6 +1699,7 @@
   }
   out
 }
+## Recover a numeric training-score matrix and its target-column labels.
 .as.ood.train.score.matrix <- function(x, targets = NULL) {
   if (is.null(x)) {
     return(NULL)
@@ -664,6 +1714,8 @@
   }
   mat
 }
+## Reaggregate saved training scores using the active targets, weights and rule.
+## Return a reason when rebuilding is unavailable so callers can assess legacy fallback.
 .rebuild.ood.row.reference <- function(train.target.score, targets, weight,
                                        saved.targets = NULL,
                                        aggregate = "weighted.mean",
@@ -738,6 +1790,8 @@
     reason = NULL
   )
 }
+## Align optional named weights to targets; unmatched/omitted named targets receive zero.
+## Require finite nonnegative weights and at least one positive active target.
 .resolve.ood.weight <- function(targets, weight = NULL, default = NULL,
                                 warn.extra = TRUE) {
   targets <- as.character(targets %||% character(0))
@@ -821,6 +1875,7 @@
   }
   weight
 }
+## Compare target-aligned weights when deciding whether an old row reference is reusable.
 .same.ood.weight <- function(targets, x, y,
                              tolerance = sqrt(.Machine$double.eps)) {
   if (is.null(x) || is.null(y)) {
@@ -840,6 +1895,11 @@
   isTRUE(all.equal(unname(wx), unname(wy), tolerance = tolerance,
                    check.attributes = FALSE))
 }
+##------------------------------------------------------------------
+## Prediction-pass diagnostics and shared deployment preparation
+##------------------------------------------------------------------
+## Average target-wise changes over originally missing cells.
+## Factors use disagreement rates; numerics use RMS changes scaled by training SD.
 .compute.pass.diff <- function(old.data, new.data, missing.mask, schema, scale, targets) {
   diffs <- sapply(targets, function(y) {
     idx <- missing.mask[[y]]
@@ -859,6 +1919,9 @@
   })
   mean(diffs, na.rm = TRUE)
 }
+## Shared prediction/OOD preparation. Preserve a pre-fill harmonized table and
+## maintain separate raw and augmented working tables through ordered updates.
+## Only originally missing cells in the requested targets receive forest updates.
 .prepare.impute.learn.newdata <- function(object, newdata,
                                           targets = NULL,
                                           max.predict.iter = 3L,
@@ -869,6 +1932,17 @@
   if (!inherits(object, "impute.learn.rfsrc")) {
     stop("'object' must inherit from class 'impute.learn.rfsrc'.", call. = FALSE)
   }
+  if (missing(newdata)) stop("'newdata' is missing.", call. = FALSE)
+  .impute.scalar(max.predict.iter, "max.predict.iter", lower = 0, whole = TRUE,
+                 upper = .Machine$integer.max)
+  .impute.scalar(eps, "eps", lower = 0)
+  .impute.flag(restore.integer, "restore.integer")
+  .impute.flag(verbose, "verbose")
+  if (!is.null(targets) && (!is.character(targets) || anyNA(targets))) {
+    stop("'targets' must be NULL or a character vector without missing names.",
+         call. = FALSE)
+  }
+  object$manifest <- .normalize.impute.learn.manifest(object$manifest)
   if (!is.null(targets)) {
     bad.targets <- setdiff(targets, object$manifest$targets)
     if (length(bad.targets) > 0L) {
@@ -886,16 +1960,90 @@
   cache.learners <- match.arg(cache.learners)
   harmonized <- .harmonize.newdata(newdata, object$manifest, verbose = verbose)
   data <- harmonized$data
-  original.missing <- as.data.frame(is.na(data[, use.targets, drop = FALSE]))
-  names(original.missing) <- use.targets
+  ## Capture missingness in every raw column before initialization, including
+  ## columns outside the requested update targets. Their initialization values
+  ## are generated too. harmonized$data remains the pre-fill OOD comparison table.
+  original.missing <- as.data.frame(is.na(data))
+  names(original.missing) <- names(data)
   data <- .apply.init(data, object$manifest$init, object$manifest$schema)
-  ## makes working copy of `data` look more like the training x-schema before iterative sweep
-  data <- .restore.schema(data, object$manifest$schema, restore.integer = TRUE)
+  ## Restore generated initialization values before they become predictors.
+  ## Observed fractions are not rounded to the saved training integer grid.
+  data <- .restore.schema(data, object$manifest$schema,
+                          restore.integer = restore.integer,
+                          generated = original.missing)
+  working.data <- data
+  supervised.info <- list(enabled = FALSE)
+  ## Compute supervised auxiliaries once from initialized raw data. They are
+  ## held fixed during all subsequent prediction-time target sweeps.
+  if (.is.supervised.manifest(object$manifest)) {
+    if (nrow(data) == 0L) {
+      aux <- as.data.frame(matrix(numeric(0), nrow = 0L,
+                                  ncol = length(object$manifest$supervised$aux.names)))
+      names(aux) <- object$manifest$supervised$aux.names
+      sup.info <- list(loaded.from.disk = FALSE)
+    } else {
+      sup.info <- .predict.get.supervised.model(object)
+      if (is.null(sup.info$model)) {
+        stop(sup.info$error %||% "The supervised forest could not be loaded.",
+             call. = FALSE)
+      }
+      aux <- tryCatch(
+        {
+          pred.newdata <- .conform.x.to.forest(
+            data,
+            sup.info$model,
+            ignore.levels = TRUE
+          )
+          pred <- predict(sup.info$model, pred.newdata)
+          aux <- .supervised.materialize.aux(
+            pred,
+            family = object$manifest$supervised$family,
+            oob = FALSE,
+            response.schema = object$manifest$supervised$response.schema,
+            yvar.names = object$manifest$supervised$yvar.names
+          )
+          aux <- .align.supervised.aux(
+            aux,
+            expected.names = object$manifest$supervised$aux.names
+          )
+          aux <- .fill.supervised.aux(aux, object$manifest$supervised$aux.init)
+          if (nrow(aux) != nrow(data) || any(!is.finite(as.matrix(aux)))) {
+            stop("Supervised auxiliaries must be finite and have one row per observation.",
+                 call. = FALSE)
+          }
+          aux
+        },
+        error = function(e) e
+      )
+      if (inherits(aux, "error")) {
+        stop("Failed to compute supervised auxiliary predictors for newdata: ",
+             conditionMessage(aux), call. = FALSE)
+      }
+    }
+    working.data <- data.frame(data, aux, check.names = FALSE)
+    supervised.info <- list(
+      enabled = TRUE,
+      family = object$manifest$supervised$family,
+      aux.names = names(aux),
+      n.aux = ncol(aux),
+      response.names = names(object$manifest$supervised$response.schema %||% list()),
+      dropped.response.columns = harmonized$response.cols,
+      loaded.from.disk = isTRUE(sup.info$loaded.from.disk)
+    )
+  }
   pass.history <- numeric(0)
+  pass.updated.cells <- integer(0)
+  pass.failed.cells <- integer(0)
+  converged <- FALSE
+  stopping.reason <- if (nrow(data) == 0L) "empty.newdata" else "no.missing"
   sweep.order <- object$manifest$sweep.order
   sweep.order <- sweep.order[sweep.order %in% use.targets]
+  ## Cache lifetime is this preparation/scoring call, not the R session.
+  ## OOD scoring receives this environment and can reuse models already loaded.
   cache.env <- if (identical(cache.learners, "none")) NULL else new.env(parent = emptyenv())
+  shared.context <- .impute.shared.object.context(object)
   disk.load.targets <- character(0)
+  n.disk.loads <- 0L
   target.issues <- setNames(vector("list", length(use.targets)), use.targets)
   record.issue <- function(target, message) {
     current <- target.issues[[target]]
@@ -905,79 +2053,118 @@
     }
     invisible(NULL)
   }
-  if (identical(cache.learners, "all")) {
+  if (nrow(data) > 0L && identical(cache.learners, "all")) {
     .msg("Preloading learner bank...", verbose = verbose)
     for (target in use.targets) {
       info <- object$manifest$learners[[target]]
       if (!identical(info$status, "ok")) next
-      mdl.info <- .predict.get.model(object, target, cache.env = cache.env)
+      mdl.info <- .predict.get.model(object, target, cache.env = cache.env,
+                                      shared.context = shared.context)
       if (isTRUE(mdl.info$loaded.from.disk)) {
         disk.load.targets <- c(disk.load.targets, target)
+        n.disk.loads <- n.disk.loads + 1L
       }
       if (is.null(mdl.info$model) && !is.null(mdl.info$error)) {
-        record_issue <- mdl.info$error
-        record.issue(target, record_issue)
+        record.issue(target, mdl.info$error)
       }
     }
   }
   any.target.missing <- length(sweep.order) > 0L &&
     any(as.matrix(original.missing[, sweep.order, drop = FALSE]))
   if (isTRUE(any.target.missing)) {
+    stopping.reason <- if (max.predict.iter == 0L) "initialization.only" else "max.iter"
     .msg("Starting prediction-time sweep...", verbose = verbose)
     for (iter in seq_len(max.predict.iter)) {
       old.data <- data
+      n.updated <- 0L
+      n.failed <- 0L
       .msg("  prediction pass ", iter, "/", max.predict.iter, verbose = verbose)
+      ## Ordered updates: later targets use earlier targets' current imputations
+      ## from working.data. Auxiliary predictor columns are not recomputed.
       for (target in sweep.order) {
         miss.idx <- which(original.missing[[target]])
         if (length(miss.idx) == 0L) next
         info <- object$manifest$learners[[target]]
         if (!identical(info$status, "ok")) {
+          n.failed <- n.failed + length(miss.idx)
           msg <- paste0("No trained learner is available (status = ",
                         info$status %||% "unknown", ").")
           record.issue(target, msg)
           .msg("    skipping `", target, "` (", msg, ")", verbose = verbose)
           next
         }
-        mdl.info <- .predict.get.model(object, target, cache.env = cache.env)
+        mdl.info <- .predict.get.model(object, target, cache.env = cache.env,
+                                      shared.context = shared.context)
         mdl <- mdl.info$model
         if (isTRUE(mdl.info$loaded.from.disk)) {
           disk.load.targets <- c(disk.load.targets, target)
+          n.disk.loads <- n.disk.loads + 1L
         }
         if (is.null(mdl)) {
+          n.failed <- n.failed + length(miss.idx)
           msg <- mdl.info$error %||% "learner could not be loaded"
           record.issue(target, msg)
           .msg("    skipping `", target, "` (", msg, ")", verbose = verbose)
           next
         }
-        xvars <- object$manifest$predictor.map[[target]]
-        pred.df <- data[miss.idx, xvars, drop = FALSE]
-        pred.df <- .conform.x.to.forest(pred.df, mdl)
-        pred <- tryCatch(
-          predict(mdl, pred.df),
-          error = function(e) e
-        )
-        if (inherits(pred, "error")) {
-          msg <- paste0("Prediction failed: ", conditionMessage(pred))
+        ## Conformity, prediction, extraction and shape checks are one
+        ## target operation. Invalid entries retain their previous fill.
+        result <- tryCatch({
+          xvars <- object$manifest$predictor.map[[target]]
+          pred.df <- working.data[miss.idx, xvars, drop = FALSE]
+          pred.df <- .conform.x.to.forest(pred.df, mdl)
+          pred <- predict(mdl, pred.df)
+          values <- .extract.prediction(
+            pred, info$family, object$manifest$schema[[target]],
+            restore.integer = restore.integer
+          )
+          .validate.target.values(values, length(miss.idx),
+                                   object$manifest$schema[[target]])
+        }, error = function(e) e)
+        if (inherits(result, "error")) {
+          msg <- paste0("Prediction failed: ", conditionMessage(result))
           record.issue(target, msg)
-          .msg("    prediction failed for `", target, "`: ", conditionMessage(pred),
-               verbose = verbose)
-          next
+          .msg("    ", target, ": ", msg, verbose = verbose)
+          n.failed <- n.failed + length(miss.idx)
+        } else {
+          invalid <- sum(!result$valid)
+          if (invalid > 0L) {
+            record.issue(target, paste0(invalid,
+              " unavailable prediction(s); previous fills retained."))
+          }
+          rows <- miss.idx[result$valid]
+          if (length(rows) > 0L) {
+            data[rows, target] <- result$values[result$valid]
+            working.data[rows, target] <- result$values[result$valid]
+          }
+          n.updated <- n.updated + length(rows)
+          n.failed <- n.failed + invalid
         }
-        values <- .extract.prediction(pred, info$family, object$manifest$schema[[target]])
-        data[miss.idx, target] <- values
         if (identical(cache.learners, "none") && is.null(object$models[[target]])) {
           rm(mdl)
           gc()
         }
       }
-      diff.err <- .compute.pass.diff(old.data, data, original.missing,
-                                     object$manifest$schema,
-                                     object$manifest$scale,
-                                     sweep.order)
+      ## A pass with no valid model updates is not evidence of convergence.
+      diff.err <- if (n.updated == 0L) NA_real_ else {
+        .compute.pass.diff(old.data, data, original.missing,
+                            object$manifest$schema, object$manifest$scale, sweep.order)
+      }
       pass.history <- c(pass.history, diff.err)
+      pass.updated.cells <- c(pass.updated.cells, n.updated)
+      pass.failed.cells <- c(pass.failed.cells, n.failed)
       .msg("    pass diff = ", format(diff.err, digits = 4), verbose = verbose)
+      if (n.updated == 0L) {
+        stopping.reason <- "no.valid.updates"
+        .msg("    no valid model updates; retaining previous fills.", verbose = verbose)
+        break
+      }
       if (is.finite(diff.err) && diff.err < eps) {
-        .msg("    convergence criterion met; stopping early.", verbose = verbose)
+        converged <- n.failed == 0L
+        stopping.reason <- if (converged) "converged" else "stable.with.failures"
+        .msg(if (converged) "    convergence criterion met; stopping early." else
+               "    available updates are stable; some cells retain fallback fills.",
+             verbose = verbose)
         break
       }
     }
@@ -987,53 +2174,58 @@
          "skipping iterative sweep.", verbose = verbose)
   }
   data <- .restore.schema(data, object$manifest$schema,
-                          restore.integer = restore.integer)
+                          restore.integer = restore.integer,
+                          generated = original.missing)
+  working.data[names(data)] <- data
   target.issues <- target.issues[lengths(target.issues) > 0L]
   list(
     data = data,
+    working.data = working.data,
     use.targets = use.targets,
     harmonized = harmonized,
     cache.learners = cache.learners,
     cache.env = cache.env,
+    shared.context = shared.context,
     info = list(
       n.passes = length(pass.history),
       pass.diff = pass.history,
+      pass.updated.cells = pass.updated.cells,
+      pass.failed.cells = pass.failed.cells,
+      converged = converged,
+      stopping.reason = stopping.reason,
+      conversion.issues = harmonized$conversion.issues,
       targets = use.targets,
       added.columns = harmonized$added.cols,
       dropped.extra.columns = harmonized$extra.cols,
+      dropped.response.columns = harmonized$response.cols,
       unseen.levels = harmonized$unseen.levels,
       unseen.rows = harmonized$unseen.rows,
       cache.learners = cache.learners,
-      n.disk.loads = length(disk.load.targets),
+      n.disk.loads = n.disk.loads,
       disk.load.targets = unique(disk.load.targets),
+      supervised = supervised.info,
       target.issues = target.issues
     )
   )
 }
-.fast.load.learner <- function(target, info, learner.root, strict = TRUE) {
-  .check.fst()
-  out <- tryCatch(
-    fast.load(info$learner.name, learner.root),
-    error = function(e) e
-  )
-  if (inherits(out, "error")) {
-    msg <- paste0("Failed to load learner for `", target, "` from ",
-                  file.path(learner.root, info$learner.name), ": ",
-                  conditionMessage(out))
-    if (isTRUE(strict)) {
-      stop(msg, call. = FALSE)
-    }
-    return(list(model = NULL, error = msg))
-  }
-  if (isTRUE(strict)) {
-    return(out)
-  }
-  list(model = out, error = NULL)
+##------------------------------------------------------------------
+## Lazy learner retrieval
+##------------------------------------------------------------------
+## Load one target learner using its manifest entry, with optional nonfatal errors.
+.fast.load.learner <- function(target, info, learner.root, strict = TRUE,
+                                 shared.context = NULL) {
+  .fast.load.named(info$learner.name, learner.root,
+                    label = paste0("learner for `", target, "`"), strict = strict,
+                    xvar.ref = info$xvar.ref, shared.context = shared.context)
 }
-.predict.get.model <- function(object, target, cache.env = NULL) {
+## Resolve a target learner from this call's cache, the object, or its saved path.
+## A successful disk read is cached only when a cache environment is supplied.
+.predict.get.model <- function(object, target, cache.env = NULL,
+                                 shared.context = NULL) {
   if (!inherits(object, "impute.learn.rfsrc")) {
     stop("'object' must inherit from class 'impute.learn.rfsrc'.", call. = FALSE)
   }
+  object$manifest <- .normalize.impute.learn.manifest(object$manifest)
   if (!is.null(cache.env) && exists(target, envir = cache.env, inherits = FALSE)) {
     return(list(
       model = get(target, envir = cache.env, inherits = FALSE),
@@ -1063,7 +2255,11 @@
     ))
   }
   learner.root <- file.path(object$path, object$manifest$learner.root)
-  loaded <- .fast.load.learner(target, info, learner.root, strict = FALSE)
+  if (is.null(shared.context) && !is.null(info$xvar.ref)) {
+    shared.context <- .impute.shared.object.context(object)
+  }
+  loaded <- .fast.load.learner(target, info, learner.root, strict = FALSE,
+                               shared.context = shared.context)
   mdl <- loaded$model
   if (!is.null(cache.env) && !is.null(mdl)) {
     assign(target, mdl, envir = cache.env)
@@ -1072,4 +2268,379 @@
        loaded.from.disk = !is.null(mdl),
        cached = !is.null(cache.env) && !is.null(mdl),
        error = loaded$error)
+}
+## Resolve the optional supervised forest from memory or its saved learner directory.
+.predict.get.supervised.model <- function(object) {
+  if (!inherits(object, "impute.learn.rfsrc")) {
+    stop("'object' must inherit from class 'impute.learn.rfsrc'.", call. = FALSE)
+  }
+  object$manifest <- .normalize.impute.learn.manifest(object$manifest)
+  if (!.is.supervised.manifest(object$manifest)) {
+    return(list(
+      model = NULL,
+      loaded.from.disk = FALSE,
+      enabled = FALSE,
+      error = NULL
+    ))
+  }
+  if (!is.null(object$supervised.model)) {
+    return(list(
+      model = object$supervised.model,
+      loaded.from.disk = FALSE,
+      enabled = TRUE,
+      error = NULL
+    ))
+  }
+  if (is.null(object$path)) {
+    return(list(
+      model = NULL,
+      loaded.from.disk = FALSE,
+      enabled = TRUE,
+      error = "The supervised forest is not available in memory and no saved imputer path is attached to 'object'."
+    ))
+  }
+  learner.root <- file.path(object$path, object$manifest$learner.root)
+  loaded <- .fast.load.named(
+    name = object$manifest$supervised$model.name,
+    root = learner.root,
+    label = "supervised forest",
+    strict = FALSE
+  )
+  list(
+    model = loaded$model,
+    loaded.from.disk = !is.null(loaded$model),
+    enabled = TRUE,
+    error = loaded$error
+  )
+}
+##------------------------------------------------------------------
+## Shared training predictors: imputer-only persistence format v1
+##------------------------------------------------------------------
+## Every target still receives a normal, fully reconstructed forest.
+## Only xvar is shared. Tree structures, yvar, terminal data and OOD
+## references keep their existing representations.
+.impute.shared.stop <- function(...) {
+  stop(structure(list(message = paste0(...), call = NULL),
+                 class = c("impute.shared.error", "error", "condition")))
+}
+.impute.shared.table <- function(x) {
+  x <- data.frame(x, check.names = FALSE, stringsAsFactors = FALSE)
+  ## The existing FST learner format does not store data-frame row names.
+  rownames(x) <- NULL
+  x
+}
+.impute.shared.check.root <- function(learner.root) {
+  .impute.path.part(learner.root, "learner.root", nested = TRUE)
+  if (tolower(strsplit(learner.root, "/", fixed = TRUE)[[1L]][1L]) == "_shared_xvar") {
+    .impute.shared.stop("'learner.root' cannot use the reserved '_shared_xvar' directory.")
+  }
+  invisible(NULL)
+}
+.impute.shared.check.spec <- function(spec, saved = FALSE) {
+  if (!is.list(spec) || !identical(spec$version, 1L) ||
+      !identical(spec$file, "_shared_xvar/xvar.fst")) {
+    .impute.shared.stop("Unsupported shared-predictor storage specification.")
+  }
+  if (!is.numeric(spec$nrow) || length(spec$nrow) != 1L ||
+      !is.finite(spec$nrow) || spec$nrow < 1 || spec$nrow != floor(spec$nrow) ||
+      !is.character(spec$columns) || !length(spec$columns) ||
+      anyNA(spec$columns) || any(!nzchar(spec$columns)) || anyDuplicated(spec$columns)) {
+    .impute.shared.stop("Invalid shared-predictor dimensions or column names.")
+  }
+  if (!is.null(spec$md5) || isTRUE(saved)) {
+    if (!is.character(spec$md5) || length(spec$md5) != 1L || is.na(spec$md5) ||
+        !grepl("^[[:xdigit:]]{32}$", spec$md5)) {
+      .impute.shared.stop("Missing or invalid shared-predictor checksum.")
+    }
+  }
+  invisible(NULL)
+}
+.impute.shared.check.ref <- function(ref, spec) {
+  .impute.shared.check.spec(spec)
+  if (!is.list(ref) || !identical(ref$version, 1L) ||
+      !is.character(ref$columns) || !length(ref$columns) || anyNA(ref$columns) ||
+      anyDuplicated(ref$columns) || any(!ref$columns %in% spec$columns) ||
+      !is.list(ref$schema) || !identical(names(ref$schema), ref$columns)) {
+    .impute.shared.stop("Invalid learner shared-predictor mapping.")
+  }
+  rows <- ref$rows
+  if (!is.null(rows) &&
+      (!is.integer(rows) || !length(rows) || anyNA(rows) ||
+       any(rows < 1L | rows > spec$nrow) || anyDuplicated(rows))) {
+    .impute.shared.stop("Invalid learner row indices in shared-predictor mapping.")
+  }
+  for (item in ref$schema) {
+    if (!is.list(item) || !is.character(item$type) || length(item$type) != 1L ||
+        !item$type %in% c("integer", "double") ||
+        !is.logical(item$factor) || length(item$factor) != 1L || is.na(item$factor) ||
+        (!is.null(item$attributes) && !is.list(item$attributes))) {
+      .impute.shared.stop("Invalid column schema in shared-predictor mapping.")
+    }
+    if (isTRUE(item$factor) &&
+        (!identical(item$type, "integer") ||
+         !is.character(item$attributes$levels) ||
+         !("factor" %in% item$attributes$class))) {
+      .impute.shared.stop("Invalid factor encoding in shared-predictor mapping.")
+    }
+  }
+  invisible(NULL)
+}
+.impute.shared.check.manifest <- function(manifest, check.refs = TRUE) {
+  spec <- manifest$shared.xvar
+  if (is.null(spec)) return(invisible(NULL))
+  if (!identical(manifest$spec.version, 3L)) {
+    .impute.shared.stop("Shared predictors require imputer specification version 3.")
+  }
+  .impute.shared.check.spec(spec)
+  .impute.shared.check.root(manifest$learner.root %||% "learners")
+  if (isTRUE(manifest$anonymous)) {
+    .impute.shared.stop("Anonymous imputation learners cannot use shared training predictors.")
+  }
+  if (!isTRUE(check.refs)) return(invisible(NULL))
+  for (target in manifest$targets) {
+    info <- manifest$learners[[target]]
+    if (identical(info$status, "ok")) {
+      .impute.shared.check.ref(info$xvar.ref, spec)
+    }
+  }
+  invisible(NULL)
+}
+.impute.shared.context <- function(spec, data = NULL, path = NULL) {
+  if (is.null(spec)) return(NULL)
+  .impute.shared.check.spec(spec)
+  ctx <- new.env(parent = emptyenv())
+  ctx$spec <- spec
+  ctx$data <- if (is.null(data)) NULL else .impute.shared.table(data)
+  ctx$path <- path
+  ctx$disk.loads <- 0L
+  if (!is.null(ctx$data)) .impute.shared.check.table(ctx$data, spec)
+  ctx
+}
+.impute.shared.object.context <- function(object) {
+  .impute.shared.context(object$manifest$shared.xvar,
+                         data = object$shared.xvar.data, path = object$path)
+}
+.impute.shared.new <- function(data, learner.root) {
+  .impute.shared.check.root(learner.root)
+  data <- .impute.shared.table(data)
+  spec <- list(version = 1L, file = "_shared_xvar/xvar.fst",
+               nrow = nrow(data), columns = names(data), md5 = NULL)
+  .impute.shared.context(spec, data = data)
+}
+.impute.shared.check.table <- function(data, spec) {
+  if (!is.data.frame(data) || nrow(data) != spec$nrow ||
+      !identical(names(data), spec$columns)) {
+    .impute.shared.stop("Shared predictor table does not match its saved specification.")
+  }
+  if (any(!vapply(data, function(v) {
+    is.null(dim(v)) && typeof(v) %in% c("integer", "double")
+  }, logical(1)))) {
+    .impute.shared.stop("Shared predictors must be numeric, integer or factor columns.")
+  }
+  invisible(NULL)
+}
+## Relative to the bank, never to the process working directory.
+.impute.shared.file <- function(spec, path, must.exist = TRUE) {
+  .impute.shared.check.spec(spec, saved = must.exist)
+  if (is.null(path)) .impute.shared.stop("The shared predictor table has no saved path.")
+  bank <- .impute.canonical.path(path)
+  file <- .impute.canonical.path(file.path(bank, spec$file))
+  if (!.impute.path.within(file, bank)) {
+    .impute.shared.stop("Shared predictor path escapes its imputer directory.")
+  }
+  if (isTRUE(must.exist) && (!file.exists(file) || dir.exists(file))) {
+    .impute.shared.stop("Shared predictor file is missing: ", file,
+                        ". Keep the complete imputer directory together.")
+  }
+  file
+}
+## Laziness applies to both model payloads and the shared predictor table.
+## Even with cache.learners='none', one operation reads that table only once.
+.impute.shared.data <- function(ctx) {
+  if (is.null(ctx)) .impute.shared.stop("Shared predictor context is unavailable.")
+  if (!is.null(ctx$data)) return(ctx$data)
+  file <- .impute.shared.file(ctx$spec, ctx$path)
+  actual <- unname(tools::md5sum(file))
+  if (is.na(actual) || !identical(actual, ctx$spec$md5)) {
+    .impute.shared.stop("Shared predictor checksum mismatch: ", file)
+  }
+  data <- tryCatch(fst::read_fst(file), error = function(e) {
+    .impute.shared.stop("Cannot load shared predictors: ", conditionMessage(e))
+  })
+  data <- .impute.shared.table(data)
+  .impute.shared.check.table(data, ctx$spec)
+  ctx$data <- data
+  ctx$disk.loads <- ctx$disk.loads + 1L
+  data
+}
+## Remove only the previous bank's owned shared file from a private stage.
+## Unrelated destination files continue to follow the existing wipe policy.
+.impute.shared.prepare.stage <- function(transaction, learner.root, enabled) {
+  if (isTRUE(enabled)) .impute.shared.check.root(learner.root)
+  old.manifest <- file.path(transaction$path, "manifest.rds")
+  if (file.exists(old.manifest)) {
+    old <- readRDS(old.manifest)
+    if (!is.null(old$shared.xvar)) {
+      .impute.shared.check.spec(old$shared.xvar, saved = TRUE)
+      owned <- file.path(transaction$stage, old$shared.xvar$file)
+      if (file.exists(owned)) .safe.unlink.dir(owned)
+      parent <- dirname(owned)
+      if (dir.exists(parent) && !length(list.files(parent, all.files = TRUE, no.. = TRUE))) {
+        .safe.unlink.dir(parent)
+      }
+    }
+  }
+  file <- file.path(transaction$stage, "_shared_xvar", "xvar.fst")
+  if (isTRUE(enabled) && (file.exists(file) || dir.exists(file))) {
+    .impute.shared.stop("The reserved shared predictor file already exists and is not owned by this bank.")
+  }
+  invisible(NULL)
+}
+.impute.shared.write <- function(ctx, stage, compress) {
+  .fast.save.check.compress(compress)
+  data <- .impute.shared.data(ctx)
+  file <- .impute.shared.file(ctx$spec, stage, must.exist = FALSE)
+  .safe.dir.create(dirname(file))
+  fst::write_fst(data, file, compress = compress)
+  restored <- .impute.shared.table(fst::read_fst(file))
+  if (!identical(data, restored)) {
+    .impute.shared.stop("The shared predictor table failed its FST round-trip check.")
+  }
+  checksum <- unname(tools::md5sum(file))
+  ctx$spec$md5 <- checksum
+  .impute.shared.check.spec(ctx$spec, saved = TRUE)
+  ctx$path <- stage
+  ctx$data <- restored
+  invisible(ctx)
+}
+.impute.shared.reconstruct <- function(data, ref, spec) {
+  .impute.shared.check.ref(ref, spec)
+  rows <- if (is.null(ref$rows)) seq_len(spec$nrow) else ref$rows
+  out <- lapply(seq_along(ref$columns), function(j) {
+    v <- data[[ref$columns[j]]][rows]
+    meta <- ref$schema[[j]]
+    if (isTRUE(meta$factor)) {
+      ## Match labels to THIS forest's levels; do not reuse bank-wide codes.
+      v <- match(as.character(v), meta$attributes$levels)
+    } else if (identical(meta$type, "integer")) {
+      v <- as.integer(v)
+    } else {
+      v <- as.double(v)
+    }
+    attributes(v) <- meta$attributes
+    v
+  })
+  names(out) <- ref$columns
+  out <- as.data.frame(out, optional = TRUE, stringsAsFactors = FALSE)
+  rownames(out) <- NULL
+  out
+}
+## Capture row identities at fitting, and verify against the actual forest,
+## including numeric promotion and learner-specific factor encodings.
+.impute.shared.reference <- function(ctx, forest, rows, label) {
+  if (is.null(forest) || inherits(forest, "anonymous") || is.null(forest$xvar)) {
+    .impute.shared.stop("Cannot share predictors for ", label,
+                        ": a non-anonymous forest with training predictors is required.")
+  }
+  data <- .impute.shared.data(ctx)
+  expected <- .impute.shared.table(forest$xvar)
+  if (nrow(expected) != length(rows) || !identical(names(expected), forest$xvar.names)) {
+    .impute.shared.stop("Cannot share predictors for ", label,
+                        ": forest row or column structure changed during fitting.")
+  }
+  ref <- list(
+    version = 1L,
+    rows = if (identical(as.integer(rows), seq_len(nrow(data)))) NULL else as.integer(rows),
+    columns = names(expected),
+    schema = lapply(expected, function(v) {
+      list(type = typeof(v), factor = is.factor(v), attributes = attributes(v))
+    })
+  )
+  .impute.shared.assert.xvar(ctx, ref, expected, label)
+  ref
+}
+.impute.shared.assert.xvar <- function(ctx, ref, xvar, label) {
+  rebuilt <- .impute.shared.reconstruct(.impute.shared.data(ctx), ref, ctx$spec)
+  if (!identical(.impute.shared.table(xvar), rebuilt)) {
+    .impute.shared.stop("Exact shared-predictor reconstruction failed for ", label,
+                        ". No destination has been replaced. Use share.xvar = FALSE for this fit.")
+  }
+  invisible(rebuilt)
+}
+## A small checksum of row/column/encoding metadata detects a changed mapping
+## or a learner directory accidentally copied from a different bank.
+.impute.shared.ref.hash <- function(ref) {
+  file <- tempfile("impute-xvar-ref-")
+  con <- base::file(file, open = "wb")
+  on.exit({try(close(con), silent = TRUE); unlink(file, force = TRUE)}, add = TRUE)
+  ## Hash values in a fixed byte encoding. R's serialize() header records
+  ## the writer's R version, so hashing that stream is not portable.
+  write.int <- function(x) writeBin(as.integer(x), con, size = 4L, endian = "big")
+  write.string <- function(x) {
+    if (is.na(x)) {
+      write.int(-1L)
+    } else {
+      bytes <- charToRaw(enc2utf8(x))
+      write.int(length(bytes))
+      writeBin(bytes, con)
+    }
+  }
+  encode <- function(x) {
+    type <- typeof(x)
+    write.string(type)
+    write.int(length(x))
+    nm <- names(x)
+    write.int(!is.null(nm))
+    if (!is.null(nm)) for (name in nm) write.string(name)
+    if (type == "NULL") return(invisible(NULL))
+    if (type == "list") {
+      for (item in x) encode(item)
+    } else if (type == "character") {
+      for (item in x) write.string(item)
+    } else if (type %in% c("logical", "integer")) {
+      write.int(x)
+    } else if (type == "double") {
+      for (item in x) {
+        tag <- if (is.nan(item)) 2L else if (is.na(item)) 1L else if (is.infinite(item)) {
+          if (item > 0) 3L else 4L
+        } else 0L
+        write.int(tag)
+        if (tag == 0L) writeBin(item, con, size = 8L, endian = "big")
+      }
+    } else if (type == "raw") {
+      writeBin(x, con)
+    } else {
+      .impute.shared.stop("Unsupported metadata type in shared-predictor mapping: ", type)
+    }
+    invisible(NULL)
+  }
+  encode(ref)
+  close(con)
+  out <- unname(tools::md5sum(file))
+  if (is.na(out)) .impute.shared.stop("Could not checksum shared-predictor mapping.")
+  out
+}
+.impute.shared.marker <- function(ctx, ref) {
+  .impute.shared.check.spec(ctx$spec, saved = TRUE)
+  .impute.shared.check.ref(ref, ctx$spec)
+  list(version = 1L, source.md5 = ctx$spec$md5,
+       reference.md5 = .impute.shared.ref.hash(ref))
+}
+.impute.shared.restore <- function(forest, marker, ref, ctx) {
+  if (is.null(ctx) || is.null(ref) || !is.list(marker) ||
+      !identical(marker$version, 1L)) {
+    .impute.shared.stop("Shared learner is missing its predictor reconstruction specification.")
+  }
+  .impute.shared.check.spec(ctx$spec, saved = TRUE)
+  .impute.shared.check.ref(ref, ctx$spec)
+  if (!identical(marker$source.md5, ctx$spec$md5) ||
+      !identical(marker$reference.md5, .impute.shared.ref.hash(ref))) {
+    .impute.shared.stop("Shared learner does not match its shared predictors or reconstruction mapping.")
+  }
+  data <- .impute.shared.data(ctx)
+  x <- .impute.shared.reconstruct(data, ref, ctx$spec)
+  if (nrow(x) != forest$n || !identical(names(x), forest$xvar.names)) {
+    .impute.shared.stop("Reconstructed predictors do not match the saved forest dimensions.")
+  }
+  x
 }

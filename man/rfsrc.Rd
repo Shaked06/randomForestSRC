@@ -30,7 +30,7 @@ Ishwaran, 2017).
   
   \item For survival and competing risk analysis, concordance-based
   performance is now computed using Uno inverse-probability-of-censoring
-  weighting (Uno et al. 2001). This affects all survival performance
+  weighting (Uno et al. 2011). This affects all survival performance
   values derived from the concordance index, including out-of-bag and
   test error rates and variable importance (VIMP). To revert to
   unweighted Harrell concordance, set \code{use.uno = FALSE} when
@@ -94,7 +94,9 @@ rfsrc.cart(formula, data, ntree = 1, mtry = ncol(data),
 
 \arguments{
 
-  \item{formula}{A formula describing the model to fit. Interaction terms are not supported. If missing, unsupervised splitting is used.}
+  \item{formula}{A formula describing the model to fit. Interaction terms
+  are not supported. If omitted or \code{NULL}, unsupervised splitting is
+  used; add \code{splitrule = "auto"} to grow an autoencoder forest.}
 
   \item{data}{Data frame containing the response and predictor variables.}
 
@@ -102,13 +104,20 @@ rfsrc.cart(formula, data, ntree = 1, mtry = ncol(data),
 
   \item{mtry}{Number of candidate variables randomly selected at each split. Defaults: regression uses \code{p/3}, others use \code{sqrt(p)}; rounded up.}
 
-  \item{ytry}{Number of pseudo-response variables randomly selected for unsupervised splitting. Default is 1.}
+  \item{ytry}{Number of responses sampled at each node in multivariate
+  forests; the default is all responses. For autoencoder forests, the
+  default is \code{p}, the number of retained variables; an integer from
+  \code{1} to \code{p} can be specified. For ordinary unsupervised
+  splitting, this is the number of pseudo-responses sampled for each
+  candidate predictor, with default \code{1}.}
 
   \item{nodesize}{Minimum terminal node size. Defaults: survival/competing risks (15), regression (5), classification (1), mixed/unsupervised (3).}
 
   \item{nodedepth}{Maximum tree depth. Ignored by default.}
 
-  \item{splitrule}{Splitting rule. See Details.}
+  \item{splitrule}{Splitting rule. With \code{formula} omitted or
+  \code{NULL}, \code{"auto"} regresses the variables in \code{data}
+  against themselves using an autoencoder forest. See Details.}
 
   \item{nsplit}{Number of random split points per variable. \code{0} uses all values (deterministic). Default is 10.}
 
@@ -126,7 +135,7 @@ rfsrc.cart(formula, data, ntree = 1, mtry = ncol(data),
 
   \item{sampsize}{Bootstrap sample size (used when \code{bootstrap="by.root"}). Defaults: 0.632 x n for \code{swor}; n for \code{swr}. Can also be numeric.}
 
-  \item{na.action}{Missing data handling. \code{"na.omit"} (default) removes rows with any \code{NA}; \code{"na.impute"} performs fast internal imputation. Missing follow-up times cannot be imputed for subjects with positive \code{entry.time}. Missing predictors can still be imputed. See also \code{impute}.}
+  \item{na.action}{Missing data handling. \code{"na.omit"} (default) removes rows with any \code{NA}; \code{"na.impute"} performs fast internal imputation. Missing follow-up times cannot be imputed for subjects with positive \code{entry.time}. Missing predictors can still be imputed. See also \code{\link{impute.rfsrc}}.}
 
   \item{entry.time}{Optional vector of non-negative entry times for survival data, one per observation. The default \code{NULL} uses zero entry times. Each entry must not exceed its observed follow-up time. A subject with positive entry must have a known follow-up time, including when \code{na.action = "na.impute"}.}
 
@@ -142,7 +151,7 @@ rfsrc.cart(formula, data, ntree = 1, mtry = ncol(data),
 
   \item{distance}{Compute pairwise distances between cases? Similar options as \code{proximity}. See Details.}
 
-  \item{forest.wt}{Return forest weight matrix? Same options as \code{proximity}. Default is \code{TRUE} (inbag).}
+  \item{forest.wt}{Return forest weight matrix? Same options as \code{proximity}. Default is \code{FALSE}.}
 
   \item{xvar.wt}{Optional weights on x-variables for sampling at splits. Does not need to sum to 1. Defaults to uniform.}
 
@@ -166,7 +175,10 @@ rfsrc.cart(formula, data, ntree = 1, mtry = ncol(data),
 
   \item{split.depth}{Return minimal depth of splits for each variable? Options: \code{FALSE}, \code{"all.trees"}, \code{"by.tree"}. See Details.}
 
-  \item{seed}{Integer seed for reproducibility (negative values only).}
+  \item{seed}{Integer seed for reproducibility (negative values only).
+    For reproducing or testing legacy behavior, see
+    \code{\link{rfsrc.RNGversion}}. Most users should use the default
+    wide generator without setting an RNG version.}
 
   \item{do.trace}{Print progress updates every \code{do.trace} seconds.}
 
@@ -184,7 +196,7 @@ rfsrc.cart(formula, data, ntree = 1, mtry = ncol(data),
     \item Regression forests for continuous outcomes.
     \item Classification forests for factor outcomes.
     \item Multivariate forests for continuous, categorical, or mixed outcomes.
-    \item Unsupervised forests when no outcome is specified.
+    \item Unsupervised forests, including autoencoder forests, when no outcome is specified.
     \item Survival forests for right-censored time-to-event data.
     \item Competing risk forests for multi-event survival settings.
   }
@@ -204,7 +216,7 @@ rfsrc.cart(formula, data, ntree = 1, mtry = ncol(data),
     \item \strong{Regression}
     \enumerate{
       \item \code{"mse"} (default): weighted mean squared error (Breiman et al., 1984).
-      \item \code{"quantile.regr"}: quantile regression via check-loss; see \code{quantreg.rfsrc}.
+      \item \code{"quantile.regr"}: quantile regression via check-loss; see \code{\link{quantreg.rfsrc}} for quantile estimation methods and extraction helpers.
       \item \code{"la.quantile.regr"}: local adaptive quantile regression.
     }
 
@@ -235,7 +247,10 @@ rfsrc.cart(formula, data, ntree = 1, mtry = ncol(data),
     }
 
     \item \strong{Unsupervised}
-    Splitting uses pseudo-outcomes and the composite rule. See \code{sidClustering} for advanced unsupervised analysis.
+    Ordinary unsupervised splitting uses pseudo-outcomes and the composite
+    rule. The \code{"auto"} option uses the usual multivariate splitting
+    rule on copies of the predictors as responses. See
+    \code{\link{sidClustering}} for advanced unsupervised analysis.
 
     \item \strong{Custom splitting}
     Custom rules can be defined using \code{splitCustom.c}. Up to 16 rules per family are allowed. Use \code{"custom"}, \code{"custom1"}, etc. Compilation required.
@@ -261,11 +276,19 @@ rfsrc.cart(formula, data, ntree = 1, mtry = ncol(data),
   Error is computed using OOB data:
   \itemize{
     \item Regression: mean squared error.
-    \item Classification: misclassification rate, Brier score, AUC.
-    \item Survival: C-error = 1 - Harrell's concordance index.
+    \item Classification: misclassification rate, Brier score, or G-mean-based error, as selected by \code{perf.type}.
+    \item Survival: C-error = 1 - concordance, using Uno weighting when \code{use.uno = TRUE} and unweighted Harrell concordance otherwise.
   }
 
   If \code{bootstrap = "none"}, OOB error is unavailable. Use \code{predict.rfsrc} for cross-validation error instead.
+
+  See Classification Performance Metrics (\code{\link{classification.performance}})
+  for additional classification scores and
+  \code{\link{get.imbalanced.performance}} for binary-class performance
+  summaries and threshold choices. For right-censored survival,
+  \code{\link{plotBrierAUC}} displays Brier and AUC curves, including a
+  Kaplan--Meier reference for Brier score; \code{\link{get.cindex}}
+  calculates concordance-based error.
 
   \item \emph{Variable Importance (VIMP)}
 
@@ -276,7 +299,7 @@ rfsrc.cart(formula, data, ntree = 1, mtry = ncol(data),
     \item \code{"anti"} (default): anti-split assignment.
   }
 
-  The \code{block.size} option controls granularity. For confidence intervals, see \code{subsampling}. Also see \code{holdout.vimp} for a more conservative variant.
+  The \code{block.size} option controls granularity. For confidence intervals and the \code{\link{extract.subsample}} and \code{\link{extract.bootsample}} helpers, see \code{\link{subsample.rfsrc}}; use \code{\link{plot.subsample.rfsrc}} to display the results. Also see \code{\link{holdout.vimp}} for a more conservative variant.
 
   \item \emph{Multivariate Forests}
 
@@ -285,7 +308,10 @@ rfsrc.cart(formula, data, ntree = 1, mtry = ncol(data),
   or
   \preformatted{rfsrc(cbind(y1, ..., yd) ~ ., data)}
 
-  Use \code{get.mv.formula}, \code{get.mv.predicted}, \code{get.mv.error} for multivariate extraction.
+  Use \code{\link{get.mv.formula}} to construct a multivariate formula.
+  For \code{\link{get.mv.predicted}}, \code{\link{get.mv.error}}, \code{\link{get.mv.vimp}},
+  block errors, and case-specific extraction helpers, see
+  Extracting Multivariate Values (\code{\link{multivariate.values}}).
 
   \item \emph{Unsupervised Forests}
 
@@ -294,7 +320,35 @@ rfsrc.cart(formula, data, ntree = 1, mtry = ncol(data),
   or
   \preformatted{rfsrc(Unsupervised(ytry) ~ ., data = X)}
 
-  Random subsets of \code{ytry} pseudo-responses are used for each \code{mtry} variable. No performance metrics are computed.
+  Random subsets of \code{ytry} pseudo-responses are used for each
+  candidate predictor. The default is \code{ytry = 1}. These forests do
+  not return response predictions, error rates, or VIMP.
+
+  To regress the variables against themselves, use an autoencoder forest:
+  \preformatted{rfsrc(data = X, splitrule = "auto")}
+
+  Leave \code{formula} omitted or \code{NULL}. Each variable is copied as
+  a response, while the original variables remain predictors. Continuous
+  variables, factors, and mixtures of both are supported. Entirely missing
+  variables are removed before making the copies; other missing values
+  follow \code{na.action}. By default, all retained variables are used as
+  responses for splitting (\code{ytry = p}); set a smaller \code{ytry} to
+  sample responses at each node.
+
+  Predictions reconstruct the input variables. OOB predictions, error
+  rates, and VIMP are available under the usual multivariate forest
+  options. Use \code{\link{get.mv.predicted}},
+  \code{\link{get.mv.error}}, and \code{\link{get.mv.vimp}} to extract
+  them. Each variable is also available as a predictor of its own response
+  copy, so VIMP measures a predictor's contribution to reconstruction.
+
+  Response copies are named \code{y.} followed by the original variable
+  name, with suffixes added when needed to keep names unique. The returned
+  \code{autoencoder} mapping identifies the original variables. The
+  object's \code{family} and \code{splitrule} record the underlying
+  regression, classification, or mixed forest and its resolved splitting
+  rule. For new observations, supply the original variables to
+  \code{\link{predict.rfsrc}}; response copies are created automatically.
 
   \item \emph{Survival, Competing Risks}
 
@@ -307,6 +361,9 @@ rfsrc.cart(formula, data, ntree = 1, mtry = ncol(data),
   \item \emph{Missing data imputation}
 
   Use \code{na.action = "na.impute"}. Iteration with \code{nimpute > 1} replaces missing values using OOB predictions. Observations or variables with all missing values are removed.
+  See \code{\link{impute.rfsrc}} for standalone imputation and
+  \code{\link{impute.learn.rfsrc}} for learning an imputer to apply to
+  new data.
 
   \item \emph{Allowable data types and factors}
 
@@ -316,10 +373,15 @@ rfsrc.cart(formula, data, ntree = 1, mtry = ncol(data),
 }}
 
 \value{
-An object of class \code{(rfsrc, grow)} with the following components:
+An object with classes \code{"rfsrc"}, \code{"grow"}, and the fitted
+family. Autoencoder fits and their saved forests also have \code{"auto"}
+as the final class. The returned object has the following components:
 
 \describe{
   \item{call}{The original call to \code{rfsrc}.}
+  \item{formula}{(Autoencoder) The generated multivariate formula.}
+  \item{autoencoder}{(Autoencoder) Named character vector mapping response
+  copy names to original predictor names. Also stored in \code{forest}.}
   \item{family}{The family used in the analysis.}
   \item{n}{Sample size after applying \code{na.action}.}
   \item{ntree}{Number of trees grown.}
@@ -339,8 +401,8 @@ An object of class \code{(rfsrc, grow)} with the following components:
   \item{proximity}{Proximity matrix indicating how often case pairs fall in the same terminal node.}
   \item{forest}{Forest object, returned if \code{forest=TRUE}. Required for prediction and most wrappers.}
   \item{forest.wt}{Forest weight matrix.}
-  \item{membership}{Terminal node membership matrix (rows: trees; columns: cases).}
-  \item{inbag}{Inbag count matrix (rows: trees; columns: cases).}
+  \item{membership}{Terminal node membership matrix (rows: cases; columns: trees).}
+  \item{inbag}{Inbag count matrix (rows: cases; columns: trees).}
   \item{var.used}{Number of times each variable is used to split a node.}
   \item{imputed.indv}{Indices of individuals with missing values.}
   \item{imputed.data}{Imputed dataset with responses followed by predictors.}
@@ -354,8 +416,8 @@ An object of class \code{(rfsrc, grow)} with the following components:
   \item{class}{(Classification) In-bag predicted class labels.}
   \item{class.oob}{(Classification) OOB predicted class labels.}
 
-  \item{regrOutput}{(Multivariate) List of performance results for continuous outcomes.}
-  \item{clasOutput}{(Multivariate) List of performance results for categorical outcomes.}
+  \item{regrOutput}{(Multivariate) Response-named list of predictions and performance results for continuous outcomes.}
+  \item{classOutput}{(Multivariate) Response-named list of predictions and performance results for categorical outcomes.}
 
   \item{survival}{(Survival) In-bag survival functions.}
   \item{survival.oob}{(Survival) OOB survival functions.}
@@ -381,7 +443,7 @@ Values returned by the forest depend on the family:
   
   \item \strong{Competing risks}: \code{predicted} contains expected life years lost by cause (Ishwaran et al., 2013). Also returned are three-dimensional arrays for CIF and CSCHF indexed by case, time, and event type.
   
-  \item \strong{Multivariate}: Predictions, VIMP, and error rates are returned in \code{regrOutput} and \code{clasOutput}. Use \code{get.mv.predicted}, \code{get.mv.vimp}, and \code{get.mv.error} to extract results.
+  \item \strong{Multivariate}: Predictions, VIMP, and error rates are returned in \code{regrOutput} and \code{classOutput}. Use \code{\link{get.mv.predicted}}, \code{\link{get.mv.vimp}}, and \code{\link{get.mv.error}} to extract results. Their OOB selection, standardization, and return formats are described in Extracting Multivariate Values (\code{\link{multivariate.values}}).
 }
 }
 
@@ -505,38 +567,46 @@ Values returned by the forest depend on the family:
 }
 \seealso{
 
-  \command{\link{get.tree.rfsrc}},
+  Classification Performance Metrics (\code{\link{classification.performance}}),
+  Extracting Multivariate Values (\code{\link{multivariate.values}}),
+  Fast Saving and Loading Objects (\code{\link{fast.saveload}}),
 
-  \command{\link{holdout.vimp.rfsrc}},
+  \code{\link{get.tree.rfsrc}},
 
-  \command{\link{imbalanced.rfsrc}},
-  \command{\link{impute.rfsrc}},
+  \code{\link{holdout.vimp}},
 
-  \command{\link{max.subtree.rfsrc}},
+  \code{\link{imbalanced.rfsrc}},
+  \code{\link{impute.rfsrc}},
+  \code{\link{impute.learn.rfsrc}},
 
-  \command{\link{partial.rfsrc}},
-  \command{\link{plot.competing.risk.rfsrc}},
-  \command{\link{plot.rfsrc}},
-  \command{\link{plot.survival.rfsrc}},
-  \command{\link{plot.variable.rfsrc}},
-  \command{\link{predict.rfsrc}},
-  \command{\link{print.rfsrc}},
+  \code{\link{max.subtree.rfsrc}},
 
-  \command{\link{quantreg.rfsrc}},
+  \code{\link{partial.rfsrc}},
+  \code{\link{plot.competing.risk.rfsrc}},
+  \code{\link{plot.rfsrc}},
+  \code{\link{plot.quantreg.rfsrc}},
+  \code{\link{plot.subsample.rfsrc}},
+  \code{\link{plot.survival.rfsrc}},
+  \code{\link{plotBrierAUC}},
+  \code{\link{plot.variable.rfsrc}},
+  \code{\link{predict.rfsrc}},
+  \code{\link{print.rfsrc}},
 
-  \command{\link{rfsrc}},
-  \command{\link{rfsrc.anonymous}},
-  \command{\link{rfsrc.cart}},
-  \command{\link{rfsrc.fast}},
+  \code{\link{quantreg.rfsrc}},
+
+  \code{\link{rfsrc}},
+  \code{\link{rfsrc.anonymous}},
+  \code{\link{rfsrc.cart}},
+  \code{\link{rfsrc.fast}},
 
   
-  \command{\link{sidClustering.rfsrc}},
+  \code{\link{sidClustering.rfsrc}},
 
-  \command{\link{subsample.rfsrc}},
+  \code{\link{subsample.rfsrc}},
   
-  \command{\link{tune.rfsrc}},
+  \code{\link{tune.rfsrc}},
 
-  \command{\link{vimp.rfsrc}}
+  \code{\link{vimp.rfsrc}}
 }
 \examples{
 \donttest{
@@ -549,7 +619,7 @@ Values returned by the forest depend on the family:
 data(veteran, package = "randomForestSRC")
 v.obj <- rfsrc(Surv(time, status) ~ ., data = veteran, block.size = 1)
 
-## plot tree number 3
+## plot tree number 3 (see get.tree for details and more examples)
 plot(get.tree(v.obj, 3))
 
 ## print results of trained forest
@@ -566,28 +636,28 @@ matplot(v.obj$time.interest, 100 * t(v.obj$survival.oob[1:10, ]),
 ## using function "plot.survival" 
 plot.survival(v.obj, subset = 1:10)
 
-## obtain Brier score using KM and RSF censoring distribution estimators
-bs.km <- get.brier.survival(v.obj, cens.model = "km")$brier.score
-bs.rsf <- get.brier.survival(v.obj, cens.model = "rfsrc")$brier.score
+## Brier and AUCT helpers with pointwise intervals
+## see plot.survival for more details
+brier.obj <- get.brier.survival(v.obj, conf.int = TRUE)
+head(brier.obj$brier.score)
+auct.obj <- get.auct.survival(v.obj, conf.int = TRUE)
+head(auct.obj$auct.score)
 
-## plot the brier score
-plot(bs.km, type = "s", col = 2)
-lines(bs.rsf, type ="s", col = 4)
-legend("topright", legend = c("cens.model = km", "cens.model = rfsrc"), fill = c(2,4))
+## Brier and AUCT curves with confidence bands
+## see plot.survival for more details
+plotBrierAUC(v.obj, xlim = c(0, 600))
+plotBrierAUC(v.obj, plots = "brier", xlim = c(0, 600))
+plotBrierAUC(v.obj, plots = "auct", xlim = c(0, 600))
 
 ## plot CRPS (continuous rank probability score) as function of time
 ## here's how to calculate the CRPS for every time point
 trapz <- randomForestSRC:::trapz
 time <- v.obj$time.interest
-crps.km <- sapply(1:length(time), function(j) {
-  trapz(time[1:j], bs.km[1:j, 2] / diff(range(time[1:j])))
+bscore <- brier.obj$brier.score
+crps <- sapply(1:length(time), function(j) {
+  trapz(time[1:j], bscore[1:j, 2] / diff(range(time[1:j])))
 })
-crps.rsf <- sapply(1:length(time), function(j) {
-  trapz(time[1:j], bs.rsf[1:j, 2] / diff(range(time[1:j])))
-})
-plot(time, crps.km, ylab = "CRPS", type = "s", col = 2)
-lines(time, crps.rsf, type ="s", col = 4)
-legend("bottomright", legend=c("cens.model = km", "cens.model = rfsrc"), fill=c(2,4))
+plot(time, crps, ylab = "CRPS", type = "s", lwd = 2)
 
 
 ## fast nodesize optimization for veteran data
@@ -609,26 +679,6 @@ print(rfsrc(Surv(days, status) ~ ., pbc, splitrule = "random",
             ntree = 25000, nodesize = 1, save.memory = TRUE))
 
 
-
-##------------------------------------------------------------
-## trees can be plotted for any family 
-## see get.tree for details and more examples
-##------------------------------------------------------------
-
-## survival where factors have many levels
-data(veteran, package = "randomForestSRC")
-vd <- veteran
-vd$celltype=factor(vd$celltype)
-vd$diagtime=factor(vd$diagtime)
-vd.obj <- rfsrc(Surv(time,status)~., vd, ntree = 100, nodesize = 5)
-plot(get.tree(vd.obj, 3))
-
-## classification
-iris.obj <- rfsrc(Species ~., data = iris)
-plot(get.tree(iris.obj, 25, class.type = "bayes"))
-plot(get.tree(iris.obj, 25, target = "setosa"))
-plot(get.tree(iris.obj, 25, target = "versicolor"))
-plot(get.tree(iris.obj, 25, target = "virginica"))
 
 ## ------------------------------------------------------------
 ## simple example of VIMP using iris classification
@@ -894,12 +944,18 @@ print(oqauc)
 print(get.imbalanced.performance(oqauc))
 
 ## ------------------------------------------------------------
-## unsupervised analysis
+## unsupervised analysis - including autoencoder example
 ## ------------------------------------------------------------
 
 ## two equivalent ways to implement unsupervised forests
 mtcars.unspv <- rfsrc(Unsupervised() ~., data = mtcars)
 mtcars2.unspv <- rfsrc(data = mtcars)
+
+## autoencoder: reconstruct each variable using the original variables
+mtcars.auto <- rfsrc(data = mtcars, splitrule = "auto", importance = TRUE)
+auto.pred <- get.mv.predicted(mtcars.auto)
+auto.vimp <- get.mv.vimp(mtcars.auto)
+print(mtcars.auto$autoencoder)
 
 
 ## illustration of sidClustering for the mtcars data

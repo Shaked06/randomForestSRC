@@ -60,17 +60,17 @@ c_index_left_truncated <- function(start, stop, status, risk_score) {
   n <- length(stop)
   concordant <- 0
   comparable <- 0
-  
+
   for (i in 1:n) {
     if (status[i] == 1) { # Subject i had the event
       t_event <- stop[i]
-      
+
       for (j in 1:n) {
         if (i != j) {
           # Subject j must enter before i's event AND survive past i's event
           if (start[j] <= t_event && stop[j] > t_event) {
             comparable <- comparable + 1
-            
+
             if (risk_score[i] > risk_score[j]) {
               concordant <- concordant + 1
             } else if (risk_score[i] == risk_score[j]) {
@@ -81,7 +81,7 @@ c_index_left_truncated <- function(start, stop, status, risk_score) {
       }
     }
   }
-  
+
   return(concordant / comparable)
 }
 ```

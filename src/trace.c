@@ -41,27 +41,6 @@ unsigned int updateTimeStamp(unsigned int before) {
   return stamp;
 }
 void memoryCheck(void) {
-  //  if (getTraceFlag(0) & SUMM_DEF_TRACE) {
-  //    RF_nativePrint("\n");
-  //    RF_nativePrint("\nMaximum stack usage:  usage = %20lld ", getMaxMemoryAllocation());
-  //    RF_nativePrint("\nExiting stack usage:  usage = %20lld ", getMinMemoryAllocation());
-  //    RF_nativePrint("\n");
-  //    RF_nativePrint("\n");
-  //  }
-  //  if (getMinMemoryAllocation() != 0) {
-  //    RF_nativePrint("\n");
-  //    RF_nativePrint("\nProbe (informal) stack usage:  usage = %20lld ", getProbeMemoryAllocation());
-  //    RF_nativePrint("\n");
-  //    RF_nativePrint("\n");
-  //  }
-  //  if (getMinMemoryAllocation() != 0) {
-  //    RF_nativeError("\nRF-SRC:  *** ERROR *** ");
-  //    RF_nativeError("\nRF-SRC:  Stack imbalance, exiting usage is not zero (0):  %20d  ", getMinMemoryAllocation());
-  //    RF_nativeError("\nRF-SRC:  Please Contact Technical Support.");
-  //    RF_nativePrint("\n");
-  //    RF_nativePrint("\n");
-  //    RF_nativeExit();
-  //  }
 }
 void setMaxMemoryAllocation(size_t value) {
   RF_memor_maxMemoryAllocation = value;

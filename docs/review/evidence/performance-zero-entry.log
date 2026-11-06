@@ -1,0 +1,3 @@
+Concordance with NULL entry: 0.001 s; with all-zero entry: 0.288 s; values equal: 0.4976774
+Grow calls pass a non-NULL entry vector even when entry.time is omitted;
+src/survivalE.c disables the Fenwick path whenever entry != NULL.

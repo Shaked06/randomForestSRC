@@ -1,0 +1,5 @@
+10 still open: Invalid entry.time vector specified: must be non-negative, non-missing, and of length nrow(data).
+11 still open: Invalid entry.time vector specified: must be non-negative, non-missing, and of length nrow(data).
+13 still open: accepts positive entries with logrankscore without warning
+13 still open: accepts positive entries with bs.gradient without warning
+12: zero/NULL concordance values agree; source still excludes non-NULL entry from Fenwick path

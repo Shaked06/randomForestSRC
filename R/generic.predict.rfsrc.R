@@ -58,9 +58,9 @@ generic.predict.rfsrc <-
   }
   ## verify other key options
   outcome <- match.arg(outcome, c("train", "test"))
-  proximity <- match.arg(as.character(proximity), c(FALSE, TRUE, "inbag", "oob", "all"))
+  proximity <- match.arg(as.character(proximity), c(FALSE, TRUE, "inbag", "oob", "all", "hybrid"))
   forest.wt <- match.arg(as.character(forest.wt), c(FALSE, TRUE, "inbag", "oob", "all"))  
-  distance <- match.arg(as.character(distance), c(FALSE, TRUE, "inbag", "oob", "all"))
+  distance <- match.arg(as.character(distance), c(FALSE, TRUE, "inbag", "oob", "all", "hybrid"))
   ## set restore.mode and the ensemble option
   ## newdata missing --> restore.mode = TRUE
   ## outcome = "test" --> restore.mode = FALSE for R-processing but switched later for C-code function call
@@ -120,8 +120,12 @@ generic.predict.rfsrc <-
   if (var.used == "FALSE") var.used <- FALSE
   split.depth <- match.arg(as.character(split.depth),  c("FALSE", "all.trees", "by.tree"))
   if (split.depth == "FALSE") split.depth <- FALSE
-  ## Currently we do not support split.depth for test data. TBD2
-  split.depth = FALSE
+  ## Split depths describe training cases and require full tree restoration.
+  if (!missing(newdata)) {
+    split.depth <- FALSE
+  } else if (split.depth != FALSE) {
+    jitt <- FALSE
+  }
   ## initialize the seed
   seed <- get.seed(seed)
   ## REDUCES THE OBJECT TO THE FOREST -- REDUCTION STARTS HERE
@@ -143,6 +147,8 @@ generic.predict.rfsrc <-
     }
   }
   entry.time <- get.forest.entry.time(object, entry.time)
+  ## Resolve the saved RNG protocol before entering native code.
+  rng.protocol <- get.rng.version.code(object[["rng.version"]])
   ## confirm version coherence
   if (is.null(object$version)) {
     cat("\n  This function only works with objects created with the following minimum version of the package:")
@@ -155,7 +161,7 @@ generic.predict.rfsrc <-
   }
     else {
       object.version <- as.integer(unlist(strsplit(object$version, "[.]")))
-      installed.version <- as.integer(unlist(strsplit("3.6.2", "[.]")))
+      installed.version <- as.integer(unlist(strsplit("3.9.7", "[.]")))
       minimum.version <- as.integer(unlist(strsplit("2.3.0", "[.]")))
       object.version.adj <- object.version[1] + (object.version[2]/10) + (object.version[3]/100)
       installed.version.adj <- installed.version[1] + (installed.version[2]/10) + (installed.version[3]/100)
@@ -214,6 +220,10 @@ generic.predict.rfsrc <-
   prob.assign <- global.prob.assign(if (is.null(prob)) object$prob else prob,
                                     if (is.null(prob.epsilon)) object$prob.epsilon else prob.epsilon,
                                     gk.quantile, object$quantile.regr, splitrule, object$n)
+  ## The native request and later quantile-array parsing must use the
+  ## same resolved probabilities, including inherited/default values.
+  prob <- prob.assign$prob
+  prob.epsilon <- prob.assign$prob.epsilon
   ## Determine the immutable yvar factor map which is needed for
   ## classification sexp dimensioning.  But, first convert object$yvar
   ## to a data frame which is required for factor processing
@@ -283,6 +293,22 @@ generic.predict.rfsrc <-
   ##
   ##--------------------------------------------------------
   if (!restore.mode) {
+    ## Normalize data-frame subclasses before base extraction semantics are used.
+    if (!identical(class(newdata), "data.frame")) {
+      newdata <- as.data.frame(newdata, optional = TRUE)
+    }
+    ## Reconstruct autoencoder responses from the original predictors.
+    ## Retain any response columns supplied explicitly in newdata.
+    if (!is.null(object$autoencoder)) {
+      response.names <- setdiff(names(object$autoencoder), names(newdata))
+      predictor.names <- unname(object$autoencoder[response.names])
+      if (!all(predictor.names %in% names(newdata))) {
+        stop("x-variables in test data do not match original training data")
+      }
+      if (length(response.names) > 0L) {
+        newdata[response.names] <- newdata[, predictor.names, drop = FALSE]
+      }
+    }
     ## Filter the test data based on the formula
     newdata <- newdata[, is.element(names(newdata), c(yvar.names, xvar.names)), drop = FALSE]
     ## impute.mean for anonymous forests
@@ -700,6 +726,7 @@ generic.predict.rfsrc <-
                                        if (is.null(prob.assign$prob.epsilon)) as.double(0) else as.double(prob.assign$prob.epsilon)),
                                   as.integer(get.tree),
                                   if (is.null(uno.weights.test)) NULL else as.double(uno.weights.test),
+                                  as.integer(rng.protocol),
                                   as.integer(get.rf.cores()),
                                   as.double(entry.time))}, error = function(e) {
                                     print(e)
@@ -765,41 +792,59 @@ generic.predict.rfsrc <-
     if (restore.mode) {
       prox.n <- n
     }
-      else {
+    else {
         prox.n <- n.newdata
-      }
-    proximity.out <- matrix(0, prox.n, prox.n)
-    count <- 0
-    for (k in 1:prox.n) {
-      proximity.out[k,1:k] <- nativeOutput$proximity[(count+1):(count+k)]
-      proximity.out[1:k,k] <- proximity.out[k,1:k]
-      count <- count + k
+    }
+    ## Are we conducting hybrid proximity?
+    if (proximity == "hybrid") {
+        proximity.out <- matrix(nativeOutput$proximity,
+                                nrow = n.newdata,
+                                ncol = n,
+                                byrow = TRUE)
+    }
+    else {
+        proximity.out <- matrix(0, prox.n, prox.n)
+        count <- 0
+        for (k in 1:prox.n) {
+            proximity.out[k,1:k] <- nativeOutput$proximity[(count+1):(count+k)]
+            proximity.out[1:k,k] <- proximity.out[k,1:k]
+            count <- count + k
+        }
     }
     nativeOutput$proximity <- NULL
   }
-    else {
+  else {
       proximity.out <- NULL
-    }
+  }
   ## distance
   if (distance != FALSE) {
     if (restore.mode) {
       dist.n <- n
     }
-      else {
-        dist.n <- n.newdata
+    else {
+      dist.n <- n.newdata
+    }
+    ## Are we conducting hybrid distance?
+    if (distance == "hybrid") {
+      distance.out <- matrix(nativeOutput$distance,
+                             nrow = n.newdata,
+                             ncol = n,
+                             byrow = TRUE)
+    }
+    else {
+      distance.out <- matrix(0, dist.n, dist.n)
+      count <- 0
+      for (k in 1:dist.n) {
+        distance.out[k,1:k] <- nativeOutput$distance[(count+1):(count+k)]
+        distance.out[1:k,k] <- distance.out[k,1:k]
+        count <- count + k
       }
-    distance.out <- matrix(0, dist.n, dist.n)
-    count <- 0
-    for (k in 1:dist.n) {
-      distance.out[k,1:k] <- nativeOutput$distance[(count+1):(count+k)]
-      distance.out[1:k,k] <- distance.out[k,1:k]
-      count <- count + k
     }
     nativeOutput$distance <- NULL
   }
-    else {
-      distance.out <- NULL
-    }
+  else {
+    distance.out <- NULL
+  }
   ## forest weight matrix
   if (forest.wt != FALSE) {
     if (restore.mode) {
@@ -913,6 +958,9 @@ generic.predict.rfsrc <-
     ctime.internal = nativeOutput$cTimeInternal,
     ctime.external = ctime.external.stop - ctime.external.start
   )
+  if (!is.null(object$autoencoder)) {
+    rfsrcOutput$autoencoder <- object$autoencoder
+  }
   ## memory management
   nativeOutput$leafCount <- NULL
   remove(object)
@@ -1510,5 +1558,8 @@ generic.predict.rfsrc <-
       }
     }
   class(rfsrcOutput) <- c("rfsrc", "predict",   family)
+  if (!is.null(rfsrcOutput$autoencoder)) {
+    class(rfsrcOutput) <- c(class(rfsrcOutput), "auto")
+  }
   return(rfsrcOutput)
 }

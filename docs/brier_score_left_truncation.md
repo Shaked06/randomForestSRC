@@ -68,12 +68,15 @@ actual censoring time `u` using
 ```text
 Y_C(u) = sum I(L_i <= u <= U_i)
 d_C(u) = sum I(U_i = u, delta_i = 0)
-G_hat(u) = exp(-sum over v <= u of d_C(v)/Y_C(v)).
+G_hat(u) = product over v <= u of [1-d_C(v)/(Y_C(v)-d_T(v))].
 ```
 
-Despite the historical option name `km`, the package uses exponential
-Nelson–Aalen cumulative hazard rather than a product-limit estimator.
-We retain that estimator and change its risk sets to account for entry.
+The merged package follows upstream's product-limit Kaplan–Meier estimator.
+At tied follow-up times, failures are removed before censoring, so `d_T(v)`
+is the failure count at `v`. This replaces the exponential Nelson–Aalen
+censoring survival used before integration. Censored scores can therefore
+change even with identical predictions. The delayed-entry risk set still
+uses inclusive entry `L <= v`.
 The pooled option assumes a common censoring hazard; conditional independence
 only given `X,L`, as permitted by the outline, does not establish that
 stronger assumption. Interpret scores accordingly when censoring varies
@@ -94,16 +97,21 @@ inclusive entry convention. Ties between entry and exit are allowed.
 
 ## API and boundaries
 
-Supply `entry.time` in the full training-row order, including when a subset
-is scored. The LT path aligns selected outcomes, entries, and predictions.
+Supply `entry.time` in the full evaluation-row order, before applying a
+subset. For grow/forest scoring this is training-row order. For a prediction
+object it is validation-row order; the saved forest supplies training entries
+for fitting the censoring distribution. Training and validation outcomes
+remain separate, including when their sample sizes differ.
 Entry must be finite, nonnegative, and no later than follow-up; this scorer
 requires known follow-up and binary event status.
 
-`entry.time = NULL` retains the existing ordinary Brier implementation.
-Explicit zero entry reduces the new estimator to ordinary IPCW conceptually.
-Exact numeric agreement with the historical implementation is not guaranteed
-for every coarse grid or tie configuration because the LT path evaluates
-weights at their actual times and uses explicit left limits.
+`entry.time = NULL` uses the updated upstream ordinary Brier implementation.
+For supported evaluation horizons, explicit zero entry uses the same IPCW
+formula, Kaplan–Meier estimator, actual-time lookups, and failure/censoring
+tie convention as the updated ordinary scorer. Values can differ from the
+pre-integration package because that version used a different censoring
+estimator. At unsupported horizons the LT helper raises an error, while
+upstream's ordinary helper can report undefined scores.
 
 If no subject has entered, the score is undefined (`NA`), rather than zero.
 CRPS is also `NA` if any score on its integration grid is undefined; it does
@@ -118,18 +126,20 @@ before entry. `n.eligible` records the scoring denominator, and
 reference overlay `surv.aalen` are `NULL` for LT scoring; no comparable
 reference overlay is supplied by this implementation.
 
-The inherited prediction-object outcome issue (bug 7) remains open: shared
-setup still uses training outcomes. Do not treat this change as validation
-of scoring new-data prediction objects. Ordinary Brier subsetting (bug 8)
-remains open. AUC's entry weights and ties are addressed separately in
-fix 6, documented in `docs/auc_left_truncation.md`.
+Upstream's separation of training and evaluation outcomes resolves bug 7
+for ordinary scoring and is also used by the LT path. Ordinary Brier subset
+alignment (bug 8) is covered by the integration regression tests. Evaluation
+outcomes are required; unlabeled predictions cannot be assigned a score.
+The new upstream `times` argument is supported. Conditioning at entry uses
+the original prediction grid even if the evaluation grid omits that entry.
+LT confidence intervals are not implemented and are rejected explicitly.
 
 ## Regression checks
 
 `tests/entry-time-brier.R` checks hand-computed uncensored and censored
 examples, delayed-entry risk sets, off-grid censoring weights, zero entry,
 inclusive entry ties, unsupported early horizons, and subset alignment.
-It independently checks censoring cumulative hazard against
+It independently checks product-limit censoring survival against
 `survival::survfit` on untied counting-process data.
 
 A discrete oracle example has true post-entry survival `2/3`; its expected

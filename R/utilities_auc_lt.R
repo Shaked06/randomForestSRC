@@ -1,11 +1,11 @@
 ## Entered-cohort extension of the observation-conditioning interpretation
 ## used for Brier. The professor's outline does not specify an AUC estimator.
-get.auc.survival.lt <- function(o, subset, cens.model, papply, entry.time) {
-  setup <- survival.score.setup.lt(o, subset, cens.model, papply, entry.time)
+get.auc.survival.lt <- function(o, subset, cens.model, papply, entry.time, times = NULL) {
+  setup <- survival.score.setup.lt(o, subset, cens.model, papply, entry.time, times)
   info <- setup$event.info
   grid <- info$time.interest
-  tau <- info$time[setup$subset]
-  event <- info$cens[setup$subset]
+  tau <- setup$time.selected
+  event <- setup$status.selected
   S <- setup$conditional.survival
   censoring <- setup$censoring
   auc <- unlist(papply(seq_along(grid), function(k) {
@@ -54,6 +54,8 @@ get.auc.survival.lt <- function(o, subset, cens.model, papply, entry.time) {
   }
   list(auc = data.frame(time = grid, auc = auc), iauc = iauc,
        cens.dist = censoring$on.grid, time = grid, event.info = info,
+       grow.event.info = setup$grow.event.info,
+       eval.event.info = setup$eval.event.info,
        subset = setup$subset, mort = setup$mort,
        surv.ensb = S, GL = NULL,
        score.type = "entry-restricted IPCW cumulative/dynamic AUC",

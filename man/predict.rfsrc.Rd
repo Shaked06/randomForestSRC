@@ -29,7 +29,9 @@
 \arguments{
   \item{object}{An object of class \code{(rfsrc, grow)} or \code{(rfsrc, forest)}.}
   
-  \item{newdata}{Test data. If omitted, the original training data is used.}
+  \item{newdata}{Test data. If omitted, the original training data is used.
+  For an autoencoder forest, supply the original predictor variables;
+  absent response copies are created automatically.}
   
   \item{importance}{Method for computing variable importance (VIMP). See \code{\link{vimp}} for additional options including joint importance. See \code{\link{holdout.vimp}} for an alternative importance measure.}
   
@@ -39,21 +41,34 @@
   
   \item{na.action}{Action to take when missing values are present. Options are \code{"na.omit"} (default), \code{"na.random"} for fast random imputation, or \code{"na.impute"} to use the imputation method in \code{rfsrc}.}
   
-  \item{outcome}{Specifies whether predicted values should be based on the outcomes from the training data (\code{"train"}, default) or test data. Ignored if \code{newdata} is missing or if test outcomes are unavailable.}
+  \item{outcome}{Specifies whether predicted values should be based on the outcomes from the training data (\code{"train"}, default) or test data. Ignored if \code{newdata} is missing. The \code{"test"} setting requires test outcomes.}
   
   \item{perf.type}{Optional metric for prediction, VIMP, and error. Currently used for classification and multivariate classification. Choices: \code{"misclass"} (default), \code{"brier"}, and \code{"gmean"}.}
   
-  \item{proximity}{Whether to compute the proximity matrix for test observations. Options include \code{"inbag"}, \code{"oob"}, \code{"all"}, \code{TRUE}, or \code{FALSE}. Not all options are valid in all contexts; \code{TRUE} is the safest choice.}
+  \item{proximity}{Whether to compute a proximity matrix. Options include
+    \code{"inbag"}, \code{"oob"}, \code{"all"}, \code{"hybrid"},
+    \code{TRUE}, or \code{FALSE}. With \code{newdata}, \code{"hybrid"}
+    compares test observations (rows) with original training observations
+    (columns). Hybrid mode is valid only when \code{newdata} is supplied
+    with the default \code{outcome = "train"}.}
   
-  \item{distance}{Whether to compute the distance matrix. Options are the same as for \code{proximity}.}
+  \item{distance}{Whether to compute the distance matrix. Options are the
+    same as for \code{proximity}. Hybrid mode uses the same rectangular
+    test-by-training layout.}
   
-  \item{forest.wt}{Whether to compute the forest weight matrix. Options are the same as for \code{proximity}.}
+  \item{forest.wt}{Whether to compute the forest weight matrix. Options are \code{FALSE} (default), \code{TRUE}, \code{"inbag"}, \code{"oob"}, or \code{"all"}.}
   
   \item{ptn.count}{If nonzero, each tree is pruned to have this many terminal nodes. Only the terminal node membership is returned; no prediction is made. Default is \code{ptn.count = 0}.}
   
-  \item{var.used}{If \code{TRUE}, records how many times each variable was used for splitting.}
+  \item{var.used}{Record how many times each variable was used for splitting. Options are \code{FALSE} (default), \code{"all.trees"}, or \code{"by.tree"}.}
   
-  \item{split.depth}{If \code{TRUE}, returns minimal depth of each variable per case.}
+  \item{split.depth}{Record each predictor's minimum split depth along
+    each training observation's path. Options are \code{FALSE} (default),
+    \code{"all.trees"} to average depths across trees, or \code{"by.tree"}
+    to retain individual-tree depths. Available only when \code{newdata}
+    is omitted. Requesting split depths forces full, non-JIT tree
+    restoration, overriding \code{jitt = TRUE} supplied via \code{...}.
+    When \code{newdata} is supplied, this option is set to \code{FALSE}.}
   
   \item{case.depth}{If \code{TRUE}, returns a matrix of the depth at which each case first splits in each tree.}
   
@@ -75,16 +90,46 @@ Predicted values are obtained by "dropping" the test data down the trained fores
 
 If no test data is supplied, the function uses the original training data and enters "restore" mode. This allows users to extract outputs from the trained forest that were not requested during the original grow call.
 
+For an autoencoder forest grown with \code{rfsrc(data = X,
+splitrule = "auto")}, predictions reconstruct the input variables.
+Supply the original predictors in \code{newdata}. The saved
+\code{autoencoder} mapping is used to create any absent response copies;
+explicitly supplied response columns are retained. The resulting observed
+responses allow reconstruction error and, when requested, VIMP to be
+computed using the usual multivariate forest options. Missing values
+follow \code{na.action}. Use \code{\link{get.mv.predicted}},
+\code{\link{get.mv.error}}, and \code{\link{get.mv.vimp}} to extract
+results.
+
+When \code{newdata} is supplied, non-hybrid proximity and distance matrices
+compare test observations with one another. Setting either option to
+\code{"hybrid"} instead compares each retained test observation with each
+retained original training observation, producing an \code{ntest} by
+\code{ntrain} matrix without constructing a square matrix over the combined
+data. Hybrid mode should not be combined with \code{marginal.xvar}.
+
 If \code{outcome = "test"}, predictions are computed using y-outcomes from the test data (which must include outcome values). Terminal node statistics are recalculated using these outcomes, while the tree topology remains fixed from training. Error rates and VIMP are then computed by bootstrapping the test set and applying out-of-bagging to maintain unbiased estimates.
 
 Set \code{csv = TRUE} to return case-specific VIMP, and \code{cse = TRUE} to return case-specific error rates. These apply to all families except survival. Both options can also be used at training time.
+Use \code{\link{get.mv.csvimp}} and \code{\link{get.mv.cserror}}
+to extract these stored values; see
+Extracting Multivariate Values (\code{\link{multivariate.values}}).
+
+For prediction from a quantile forest, use \code{\link{quantreg.rfsrc}}
+with \code{object} and \code{newdata}. Its helpers include
+\code{\link{get.quantile}} for quantile extraction and
+\code{\link{get.pinball.error}} for mean pinball losses.
 }
 
 \value{
-An object of class \code{(rfsrc, predict)}, which is a list with the following components:
+An object with classes \code{"rfsrc"}, \code{"predict"}, and the fitted
+family. Autoencoder predictions also have \code{"auto"} as the final
+class. The returned object is a list with the following components:
 
 \describe{
-  \item{call}{The original grow call to \code{rfsrc}.}
+  \item{call}{The prediction call.}
+  \item{autoencoder}{(Autoencoder) Named character vector mapping response
+    copy names to original predictor names.}
   \item{family}{The family used in the analysis.}
   \item{n}{Sample size of the test data (after handling missing values).}
   \item{ntree}{Number of trees in the trained forest.}
@@ -93,7 +138,11 @@ An object of class \code{(rfsrc, predict)}, which is a list with the following c
   \item{xvar}{Data frame of test set predictor variables.}
   \item{xvar.names}{Character vector of predictor variable names.}
   \item{leaf.count}{Vector of length \code{ntree} giving the number of terminal nodes per tree.}
-  \item{proximity}{Proximity matrix computed on the test data.}
+  \item{proximity}{Proximity matrix computed on the test data. In hybrid
+    mode, rows correspond to retained test observations and columns correspond
+    to retained original training observations.}
+  \item{distance}{Distance matrix. Hybrid mode uses the same test-by-training
+    layout as hybrid proximity.}
   \item{forest}{The trained forest object.}
   \item{forest.wt}{Forest weight matrix for test cases.}
   \item{ptn.membership}{Matrix of pruned terminal node membership. Only returned if \code{ptn.count > 0}.}
@@ -102,8 +151,11 @@ An object of class \code{(rfsrc, predict)}, which is a list with the following c
   \item{var.used}{Number of times each variable was used in splitting.}
   \item{imputed.indv}{Indices of test observations with missing values.}
   \item{imputed.data}{Imputed version of the test data. Columns are ordered with responses first, followed by predictors.}
-  \item{split.depth}{Matrix or array recording minimal depth of each variable for each case, optionally by tree.}
-  \item{err.rate}{Cumulative out-of-bag (OOB) error rate, if y-outcomes are present.}
+  \item{split.depth}{When restoring the training data, a matrix of
+    observations by predictors for \code{"all.trees"}, or an array of
+    observations by predictors by trees for \code{"by.tree"}.
+    \code{NULL} when not requested or when \code{newdata} is supplied.}
+  \item{err.rate}{Prediction error, if y-outcomes are present. For ordinary prediction with \code{newdata}, this is test error; restoring the training data uses OOB error.}
   \item{importance}{Variable importance (VIMP) for the test data. May be \code{NULL}.}
   \item{predicted}{Predicted values for the test data.}
   \item{predicted.oob}{OOB predicted values. May be \code{NULL} depending on context.}
@@ -113,10 +165,10 @@ An object of class \code{(rfsrc, predict)}, which is a list with the following c
   \item{class}{(Classification only) Predicted class labels.}
   \item{class.oob}{(Classification only) OOB predicted class labels.}
 
-  \item{regrOutput}{(Multivariate only) List of performance measures for multivariate regression outcomes.}
-  \item{clasOutput}{(Multivariate only) List of performance measures for multivariate categorical outcomes.}
+  \item{regrOutput}{(Multivariate only) Response-named list of predictions and performance measures for continuous outcomes.}
+  \item{classOutput}{(Multivariate only) Response-named list of predictions and performance measures for categorical outcomes.}
 
-  \item{chf}{(Survival or competing risks) Cumulative hazard function (CHF).}
+  \item{chf}{(Survival or competing risks) Cumulative hazard function (CHF); cause-specific CHF for competing risks.}
   \item{chf.oob}{(Survival or competing risks) OOB CHF. May be \code{NULL}.}
   \item{survival}{(Survival only) Survival function estimates.}
   \item{survival.oob}{(Survival only) OOB survival function. May be \code{NULL}.}
@@ -125,8 +177,6 @@ An object of class \code{(rfsrc, predict)}, which is a list with the following c
 
   \item{cif}{(Competing risks only) Cumulative incidence function (CIF) for each event type.}
   \item{cif.oob}{(Competing risks only) OOB CIF. May be \code{NULL}.}
-  \item{chf}{(Competing risks only) Cause-specific cumulative hazard function (CSCHF).}
-  \item{chf.oob}{(Competing risks only) OOB CSCHF. May be \code{NULL}.}
 }
 }
 
@@ -135,7 +185,15 @@ An object of class \code{(rfsrc, predict)}, which is a list with the following c
 
 The dimensions and contents of returned objects depend on the forest family and whether y-outcomes are available in the test data. In particular, performance-related components (e.g., error rate, VIMP) will be \code{NULL} if y-outcomes are missing.
 
-For multivariate families, predicted values, VIMP, error rates, and performance metrics are stored in the lists \code{regrOutput} and \code{clasOutput}. These can be accessed using the helper functions \code{\link{get.mv.predicted}}, \code{\link{get.mv.vimp}}, and \code{\link{get.mv.error}}.
+For multivariate families, predicted values, VIMP, error rates, and performance metrics are stored in the lists \code{regrOutput} and \code{classOutput}. These can be accessed using the helper functions \code{\link{get.mv.predicted}}, \code{\link{get.mv.vimp}}, and \code{\link{get.mv.error}}.
+See Extracting Multivariate Values (\code{\link{multivariate.values}}) for OOB
+selection, standardization, block errors, and return formats.
+
+Additional classification scores are documented under
+Classification Performance Metrics (\code{\link{classification.performance}});
+\code{\link{get.imbalanced.performance}} provides binary-class summaries
+with selectable thresholds. For right-censored survival diagnostics,
+see \code{\link{plotBrierAUC}}.
 
 }
 
@@ -154,14 +212,23 @@ For multivariate families, predicted values, VIMP, error rates, and performance 
   \emph{Rnews}, 7(2):25-31.
 }	
 \seealso{
-  \command{\link{holdout.vimp.rfsrc}},
-  \command{\link{plot.competing.risk.rfsrc}},
-  \command{\link{plot.rfsrc}},
-  \command{\link{plot.survival.rfsrc}},
-  \command{\link{plot.variable.rfsrc}},
-  \command{\link{rfsrc}},
-  \command{\link{rfsrc.fast}},
-  \command{\link{vimp.rfsrc}}
+  Classification Performance Metrics (\code{\link{classification.performance}}),
+  Extracting Multivariate Values (\code{\link{multivariate.values}}),
+  Fast Saving and Loading Objects (\code{\link{fast.saveload}}),
+  \code{\link{holdout.vimp}},
+  \code{\link{imbalanced.rfsrc}},
+  \code{\link{impute.learn.rfsrc}},
+  \code{\link{plot.competing.risk.rfsrc}},
+  \code{\link{plot.rfsrc}},
+  \code{\link{plot.quantreg.rfsrc}},
+  \code{\link{plot.survival.rfsrc}},
+  \code{\link{plotBrierAUC}},
+  \code{\link{plot.variable.rfsrc}},
+  \code{\link{print.rfsrc}},
+  \code{\link{quantreg.rfsrc}},
+  \code{\link{rfsrc}},
+  \code{\link{rfsrc.fast}},
+  \code{\link{vimp.rfsrc}}
 }
 \examples{
 \donttest{
@@ -175,6 +242,36 @@ veteran.grow <- rfsrc(Surv(time, status) ~ ., veteran[train, ])
 veteran.pred <- predict(veteran.grow, veteran[-train, ])
 print(veteran.grow)
 print(veteran.pred)
+
+## ------------------------------------------------------------
+## autoencoder prediction using the original predictor columns
+## ------------------------------------------------------------
+
+auto.grow <- rfsrc(data = mtcars[1:24, ], splitrule = "auto")
+auto.test <- predict(auto.grow, newdata = mtcars[25:32, ],
+                     importance = TRUE)
+auto.pred <- get.mv.predicted(auto.test)
+auto.error <- get.mv.error(auto.test)
+auto.vimp <- get.mv.vimp(auto.test)
+
+## ------------------------------------------------------------
+## hybrid proximity and distance
+## - rows are test cases; columns are training cases
+## ------------------------------------------------------------
+
+data(mtcars)
+hybrid.train <- mtcars[1:24, ]
+hybrid.test <- mtcars[25:32, ]
+hybrid.obj <- rfsrc(mpg ~ ., data = hybrid.train, ntree = 50)
+
+hybrid.proximity <- predict(hybrid.obj, hybrid.test,
+                            proximity = "hybrid")$proximity
+hybrid.distance <- predict(hybrid.obj, hybrid.test,
+                           distance = "hybrid")$distance
+
+## Both matrices have 8 test rows and 24 training columns.
+print(dim(hybrid.proximity))
+print(dim(hybrid.distance))
 
 
 ## ------------------------------------------------------------

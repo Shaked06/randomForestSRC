@@ -21,9 +21,6 @@ void *copy1DObject(SEXP arr, char type, uint size, char actual) {
   char   *cbuffer;
   double *dbuffer;
   uint i;
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\ncopy1DObject() ENTRY ...\n");
-  //  }
   buffer = NULL;
   if (size > 0) {
     switch (type) {
@@ -43,9 +40,6 @@ void *copy1DObject(SEXP arr, char type, uint size, char actual) {
       break;
     }
   }
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\ncopy1DObject() EXIT ...\n");
-  //  }
   return buffer;
 }
 void free_1DObject(void *arr, char type, uint size) {
@@ -65,9 +59,6 @@ void *copy2DObject(SEXP arr, char type, char flag, uint row, uint col) {
   double *darray;
   uint   *iarray;
   uint i;
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\ncopy2DObject() ENTRY ...\n");
-  //  }
   buffer = NULL;  
   if (flag > 0) {
     switch (type) {
@@ -87,9 +78,6 @@ void *copy2DObject(SEXP arr, char type, char flag, uint row, uint col) {
       break;
     }
   }
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\ncopy2DObject() EXIT ...\n");
-  //  }
   return buffer;
 }
 void free_2DObject(void *arr, char type, char flag, uint row, uint col) {
@@ -126,9 +114,6 @@ void *stackAndProtect(char   mode,
                       ...) {
   void *v;
   SEXP thisVector;
-  // if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //   RF_nativePrint("\nstackAndProtect() ENTRY ...\n");
-  // }
   thisVector = NULL;  
   v          = NULL;  
   if (sizeof(ulong) > sizeof(uint)) {
@@ -174,18 +159,6 @@ void *stackAndProtect(char   mode,
   SET_VECTOR_ELT(RF_sexpVector[RF_OUTP_ID], *sexpIndex, thisVector);
   SET_STRING_ELT(RF_sexpVector[RF_STRG_ID], *sexpIndex, mkChar(sexpString));
   UNPROTECT(1);
-  //  if (getTraceFlag(0) & SUMM_MED_TRACE) {
-  //    RF_nativePrint("\n SNP Ensemble Info Object:");
-  //    RF_nativePrint("\n  stacked:  %20d", *sexpIndex);
-  //    RF_nativePrint("\n     name:  %20s", sexpString);
-  //    RF_nativePrint("\n     type:  %20d", sexpType);
-  //    RF_nativePrint("\n     size:  %20u", size);
-  //    RF_nativePrint("\n  dimSize:  %20d", auxiliaryDimCnt);
-  //  }
-  //  if (getTraceFlag(0) & SUMM_MED_TRACE) {  
-  //    RF_nativePrint("\n  SNP memory actual:    %20x", thisVector);
-  //    RF_nativePrint("\n  SNP memory sized:     %20lu", size);
-  //  }
   switch(sexpType) {
   case NATIVE_TYPE_NUMERIC:
     v = (double*) REAL(thisVector);
@@ -217,17 +190,9 @@ void *stackAndProtect(char   mode,
                         auxiliaryDim);
   free_ivector(auxiliaryDim, 1, auxiliaryDimCnt);
   (*sexpIndex) ++;
-  // if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //   RF_nativePrint("\nstackAndProtect() EXIT ...\n");
-  // }
   return v;
 }
 void setUserTraceFlag (uint traceFlag) {
-  //  setTraceFlag(traceFlag, 0);
-  //  setTraceFlag(traceFlag, 0);
-  //  setMaxMemoryAllocation(0);
-  //  setMinMemoryAllocation(0);
-  //  setProbeMemoryAllocation(0);
   RF_userTraceFlag = traceFlag;
 }
 uint getUserTraceFlag (void) {

@@ -1,0 +1,4 @@
+"version","changed_when_test_outcomes_changed","A_matches_test_outcomes","B_matches_test_outcomes","A_matches_training_outcomes","mean_score_A","mean_score_B"
+"pre_LT_snapshot",FALSE,FALSE,FALSE,TRUE,0.169835970775463,0.169835970775463
+"local_LT_branch",FALSE,FALSE,FALSE,TRUE,0.169835970775463,0.169835970775463
+"upstream_30d95e2",TRUE,TRUE,TRUE,FALSE,0.347775206886574,0.368615484664352

@@ -24,16 +24,7 @@ char bootstrap (char     mode,
   char *permissible;
   char result;
   uint i, j, k;
-  //  if (getTraceFlag(treeID) & BOOT_MED_TRACE) {
-  //    RF_nativePrint("\nbootstrap() ENTRY ...\n");
-  //  }
   result = TRUE;
-  //  if (getTraceFlag(treeID) & BOOT_MED_TRACE) {
-  //    RF_nativePrint("\nBootstrap ran1A() for tree:    %10d, %20d", treeID, randomGetChain(treeID));
-  //    RF_nativePrint("\n  called with subset size:     %10d", subsetSize);
-  //    RF_nativePrint("\n  called with bootstrap size:  %10d", indexSize);
-  //    RF_nativePrint("\n  for current nodeID:          %10d", nodePtr -> nodeID);
-  //  }
   if (!(RF_opt & OPT_BOOT_TYP1) && (RF_opt & OPT_BOOT_TYP2)) {
     for (i=1; i <= subsetSize; i++) {
       index[i] = subsetIndex[i];
@@ -67,11 +58,6 @@ char bootstrap (char     mode,
         }
         else {    
           for (i = 1; i <= indexSize; i++) {
-            //  if (getTraceFlag(treeID) & RAND_DEF_TRACE) {
-            //    if (getTraceFlag(treeID) & TURN_OFF_TRACE) {
-            //      RF_nativePrint("\nBootstrap ran1A() for indv:  %10d, %20d", i, randomGetChain(treeID));
-            //    }
-            //  }
             k = (uint) ceil(ran1A(treeID)*(subsetSize * 1.0));
             index[i] = subsetIndex[k];
           }
@@ -101,19 +87,9 @@ char bootstrap (char     mode,
         obj -> densityAllocSize = RF_subjWeightDensitySize;
         initializeCDFNew(treeID, obj);
         for (i = 1; i <= indexSize; i++) {
-          //  if (getTraceFlag(treeID) & RAND_DEF_TRACE) {
-          //    if (getTraceFlag(treeID) & TURN_OFF_TRACE) {
-          //      RF_nativePrint("\nBootstrap ran1A() for indv:  %10d, %20d", i, randomGetChain(treeID));
-          //    }
-          //  }
           index[i] = sampleFromCDFNew(ran1A, treeID, obj);
           if (RF_optHigh & OPT_BOOT_SWOR) {
             if (index[i] != 0) {
-              //  if (getTraceFlag(treeID) & BOOT_MED_TRACE) {
-              //    if (getTraceFlag(treeID) & TURN_OFF_TRACE) {
-              //      RF_nativePrint("\nUpdating CDF:  %10d %10d", i, index[i]);
-              //    }
-              //  }
               updateCDFNew(treeID, obj);
             }
             else {
@@ -158,58 +134,19 @@ char bootstrap (char     mode,
       RF_ibgMembershipIndex[treeID][++RF_ibgSize[treeID]] = i;
     }
   }
-  //  if (getTraceFlag(treeID) & BOOT_MED_TRACE) {
-  //    RF_nativePrint("\n\nIncoming Subset:  ");
-  //    RF_nativePrint("\n   counter   orgIndex (in original data) \n");
-  //    for (i=1; i <=  subsetSize; i++) {
-  //      RF_nativePrint("%10d %10d \n", i, subsetIndex[i]);
-  //    }
-  //    RF_nativePrint("\n\nReplicates:  ");
-  //    RF_nativePrint("\n   counter   orgIndex (in original data) \n");
-  //    for (i=1; i <=  indexSize; i++) {
-  //      RF_nativePrint("%10d %10d \n", i, index[i]);
-  //    }
-  //    RF_nativePrint("\n\nRelative Membership Flags:  ");
-  //    RF_nativePrint("\n  orgIndex       flag \n");
-  //    for (i=1; i <=  subsetSize; i++) {
-  //      RF_nativePrint("%10d %10d \n", subsetIndex[i], RF_bootMembershipFlag[treeID][subsetIndex[i]]);
-  //    }
-  //    RF_nativePrint("\n\nGlobal Membership Flags:  ");
-  //    RF_nativePrint("\n          i        ibg        oob        cnt");
-  //    for (i = 1; i <= RF_observationSize; i++) {
-  //      RF_nativePrint("\n %10d %10d %10d %10d ", i, RF_bootMembershipFlag[treeID][i], RF_oobMembershipFlag[treeID][i], RF_bootMembershipCount[treeID][i]); 
-  //    }
-  //    RF_nativePrint("\n\nIBG Size:  %10d ", RF_ibgSize[treeID]);
-  //    RF_nativePrint(  "\nOOB Size:  %10d ", RF_oobSize[treeID]);
-  //  }
   if (result) {
     result = getNodeSign(mode, treeID, nodePtr, index, indexSize);
     if (!result) {
-      //    if (getTraceFlag(treeID) & BOOT_MED_TRACE) {
-      //      RF_nativePrint("\nRF-SRC:  Responses are all missing in the sample.  Bootstrap sample has been discarded.");
-      //    }
     }
   }
   else {
-    //    if (getTraceFlag(treeID) & BOOT_MED_TRACE) {
-    //      RF_nativePrint("\nRF-SRC:  Zero OOB count.  Bootstrap sample has been discarded.");
-    //    }
   }
   if (result) {
     if (mode == RF_PRED) {
     }
-    //  if (getTraceFlag(treeID) & BOOT_MED_TRACE) {
-    //    RF_nativePrint("\nRF-SRC:  Bootstrapping complete.");
-    //  }
   } 
   else {
-    //    if (getTraceFlag(treeID) & BOOT_MED_TRACE) {
-    //      RF_nativePrint("\nBootstrap sample is invalid.");
-    //    }
   }
-  //  if (getTraceFlag(treeID) & BOOT_MED_TRACE) {
-  //    RF_nativePrint("\nbootstrap() EXIT ...\n");
-  //  }
   return result;
 }
 char getNodeSign (char mode,
@@ -221,9 +158,6 @@ char getNodeSign (char mode,
   int   *fmvNSptr;
   char result;
   uint i,p,q,m;
-  //  if (getTraceFlag(treeID) & MISS_LOW_TRACE) {
-  //    RF_nativePrint("\ngetNodeSign() ENTRY ...\n");
-  //  }
   result = TRUE;
   switch (mode) {
   case RF_PRED:
@@ -304,35 +238,6 @@ char getNodeSign (char mode,
     if (m == RF_mpIndexSize) {
       result = FALSE;
     }
-    //    if (getTraceFlag(treeID) & MISS_LOW_TRACE) {
-    //      RF_nativePrint("\n\nGROW Individual Sample Signature For Tree:  ");
-    //      RF_nativePrint("\n bootIndex   signatures ->\n");
-    //      RF_nativePrint(  "            ");
-    //      for (i=1; i <= RF_mpIndexSize; i++) {
-    //        RF_nativePrint("%3d", RF_mpIndex[i]);
-    //      }
-    //      RF_nativePrint("\n");
-    //      for (i=1; i <=  repMembrSize; i++) {
-    //        RF_nativePrint("%10d  ", i);
-    //        for (p=1; p <= RF_mpIndexSize; p++) {
-    //          RF_nativePrint("%3d", mvBootstrapSign[p][i]);
-    //        }
-    //        RF_nativePrint("\n");
-    //      }
-    //    }
-    //    if (getTraceFlag(treeID) & MISS_LOW_TRACE) {
-    //      RF_nativePrint("\nGROW Missing Sample Signature For Node:  \n");
-    //      RF_nativePrint(  "            ");
-    //      for (p=1; p <= RF_mpIndexSize; p++) {
-    //        RF_nativePrint("%3d", RF_mpIndex[p]);
-    //      }
-    //      RF_nativePrint("\n");
-    //      RF_nativePrint(  "            ");
-    //      for (p=1; p <= RF_mpIndexSize; p++) {
-    //        RF_nativePrint("%3d", mvNSptr[p]);
-    //      }
-    //      RF_nativePrint("\n");
-    //    }
     free_imatrix(mvBootstrapSign, 1, RF_mpIndexSize, 1, repMembrSize);
   }
   if (fmvNSptr != NULL) {
@@ -372,21 +277,7 @@ char getNodeSign (char mode,
         }
       }  
     }  
-    //    if (getTraceFlag(treeID) & MISS_LOW_TRACE) {
-    //      RF_nativePrint("\nPRED Missing Signature For Node:  \n");
-    //      for (p=1; p <= RF_fmpIndexSize; p++) {
-    //        RF_nativePrint("%3d", RF_fmpIndex[p]);
-    //      }
-    //      RF_nativePrint("\n");
-    //      for (p=1; p <= RF_fmpIndexSize; p++) {
-    //        RF_nativePrint("%3d", fmvNSptr[p]);
-    //      }
-    //      RF_nativePrint("\n");
-    //    }
   }  
-  //  if (getTraceFlag(treeID) & MISS_LOW_TRACE) {
-  //    RF_nativePrint("\ngetNodeSign() EXIT ...\n");
-  //  }
   return result;
 }
 char bootstrapSubject (char     mode,
@@ -400,15 +291,8 @@ char bootstrapSubject (char     mode,
   uint   *iterativeIndex;
   char result;
   uint i, j, k;
-  //  if (getTraceFlag(treeID) & BOOT_MED_TRACE) {
-  //    RF_nativePrint("\nbootstrapSubject() ENTRY ...\n");
-  //  }
   subjIndex = NULL;  
   result = TRUE;
-  //  if (getTraceFlag(treeID) & BOOT_MED_TRACE) {
-  //    RF_nativePrint("\nBootstrap ran1A() for tree:    %10d, %20d", treeID, randomGetChain(treeID));
-  //    RF_nativePrint("\n  for current nodeID:          %10d", nodePtr -> nodeID);
-  //  }
   iterativeIndex = uivector(1, RF_bootstrapSize);
   if (!(RF_opt & OPT_BOOT_TYP1) && (RF_opt & OPT_BOOT_TYP2)) {
     for (i = 1; i <= RF_bootstrapSize; i++) {
@@ -427,11 +311,6 @@ char bootstrapSubject (char     mode,
     else {
       if ((RF_subjWeightType == RF_WGHT_UNIFORM) && !(RF_optHigh & OPT_BOOT_SWOR)) {
         for (i = 1; i <= RF_bootstrapSize; i++) {
-          //  if (getTraceFlag(treeID) & RAND_DEF_TRACE) {
-          //    if (getTraceFlag(treeID) & TURN_OFF_TRACE) {
-          //      RF_nativePrint("\nBootstrap ran1A() for indv:  %10d, %20d", i, randomGetChain(treeID));
-          //    }
-          //  }
           k = (uint) ceil(ran1A(treeID)*(RF_subjSize * 1.0));
           iterativeIndex[i] = k;
         }
@@ -462,19 +341,9 @@ char bootstrapSubject (char     mode,
         obj -> densityAllocSize = RF_subjWeightDensitySize;
         initializeCDFNew(treeID, obj);
         for (i = 1; i <= RF_bootstrapSize; i++) {
-          //  if (getTraceFlag(treeID) & RAND_DEF_TRACE) {
-          //    if (getTraceFlag(treeID) & TURN_OFF_TRACE) {
-          //      RF_nativePrint("\nBootstrap ran1A() for indv:  %10d, %20d", i, randomGetChain(treeID));
-          //    }
-          //  }
           iterativeIndex[i] = sampleFromCDFNew(ran1A, treeID, obj);
           if (RF_optHigh & OPT_BOOT_SWOR) {
             if (iterativeIndex[i] != 0) {
-              //  if (getTraceFlag(treeID) & BOOT_MED_TRACE) {
-              //    if (getTraceFlag(treeID) & TURN_OFF_TRACE) {
-              //      RF_nativePrint("\nUpdating CDF:  %10d %10d", i, iterativeIndex[i]);
-              //    }
-              //  }
               updateCDFNew(treeID, obj);
             }
             else {
@@ -507,44 +376,15 @@ char bootstrapSubject (char     mode,
       (*index)[++k] = RF_subjList[iterativeIndex[i]][j];
     }
   }
-  //  if (getTraceFlag(treeID) & BOOT_MED_TRACE) {
-  //    RF_nativePrint("\n\nIterative Index of Subjects in Bootstrap:  ");
-  //    RF_nativePrint("\n      iter  iterIndex  subjCount \n");
-  //    for (i = 1; i <=  RF_bootstrapSize; i++) {
-  //      RF_nativePrint("%10d %10d \n", i, iterativeIndex[i]);
-  //    }
-  //    RF_nativePrint("\n\nIterative Index of Subjects in Bootstrap:  ");
-  //    RF_nativePrint("\n      iter  iterIndex  subjCount \n");
-  //    for (i = 1; i <=  RF_bootstrapSize; i++) {
-  //      RF_nativePrint("%10d %10d %10d \n", i, iterativeIndex[i], RF_subjSlotCount[iterativeIndex[i]]);
-  //    }
-  //    RF_nativePrint("\n\nReplicates by Subject and Case:  ");
-  //    RF_nativePrint("\n      iter     subjID       case \n");
-  //    for (i = 1; i <=  *indexSize; i++) {
-  //      RF_nativePrint("%10d %10d %10d \n", i, RF_caseMap[(*index)[i]], (*index)[i]);
-  //    }
-  //  }
   free_uivector(iterativeIndex, 1, RF_bootstrapSize);
   result = getNodeSign(mode, treeID, nodePtr, *index, *indexSize);
   if (result == FALSE) {
-    //    if (getTraceFlag(treeID) & BOOT_MED_TRACE) {
-    //      RF_nativePrint("\nRF-SRC:  Responses are all missing in the sample.  Bootstrap sample has been discarded.");
-    //    }
   }
   if (result == TRUE) {
     if (mode == RF_PRED) {
     }
-    //  if (getTraceFlag(treeID) & BOOT_MED_TRACE) {
-    //    RF_nativePrint("\nRF-SRC:  Bootstrapping complete.");
-    //  }
   } 
   else {
-    //    if (getTraceFlag(treeID) & BOOT_MED_TRACE) {
-    //      RF_nativePrint("\nBootstrap sample is invalid.");
-    //    }
   }
-  //  if (getTraceFlag(treeID) & BOOT_MED_TRACE) {
-  //    RF_nativePrint("\nbootstrapSubject() EXIT ...\n");
-  //  }
   return result;
 }

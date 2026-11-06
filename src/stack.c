@@ -5,8 +5,8 @@
 
 // *** THIS HEADER IS AUTO GENERATED. DO NOT EDIT IT ***
 
-      
-    
+
+
 
 #include "stack.h"
 #include "impute.h"
@@ -19,9 +19,6 @@ void stackAndInitializeTimeAndSubjectArrays(char mode) {
   uint i, j;
   uint leadingIndex;
   uint adjObsSize;
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nstackAndInitializeTimeAndSubjectArrays() ENTRY ...\n");
-  //  }
   if (!(RF_opt & OPT_ANON)) {
     RF_masterTime  = dvector(1, RF_observationSize);
     RF_masterTimeIndexIn  = uivector(1, RF_observationSize);
@@ -46,15 +43,6 @@ void stackAndInitializeTimeAndSubjectArrays(char mode) {
     for (i= RF_masterTimeSize + 1; i <= adjObsSize; i++) {
       RF_masterTime[i] = 0;
     }
-    //    if (getTraceFlag(0) & SUMM_MED_TRACE) {
-    //      RF_nativePrint("\n\nSorted Unique Master Times:  \n");
-    //      for (i=1; i <= RF_masterTimeSize; i++) {
-    //        RF_nativePrint("%10d %20.10f \n", i, RF_masterTime[i]);
-    //      }
-    //    }
-    //    if (getTraceFlag(0) & SUMM_DEF_TRACE) {
-    //      RF_nativePrint("\nInitialization of master time data complete.");
-    //    }
   }
   if (!(RF_opt & OPT_IMPU_ONLY)) {
     qksort(RF_timeInterest, RF_timeInterestSize);
@@ -76,41 +64,17 @@ void stackAndInitializeTimeAndSubjectArrays(char mode) {
     for (i = RF_sortedTimeInterestSize + 1; i <= RF_timeInterestSize; i++) {
       RF_timeInterest[i] = 0;
     }
-    //      if (getTraceFlag(0) & SUMM_MED_TRACE) {
-    //        RF_nativePrint("\n\nSorted Unique Times of Interest:  \n");
-    //        for (i=1; i <= RF_sortedTimeInterestSize; i++) {
-    //          RF_nativePrint("%10d %20.10f \n", i, RF_timeInterest[i]);
-    //        }
-    //      }
-    //      if (getTraceFlag(0) & SUMM_DEF_TRACE) {
-    //        RF_nativePrint("\nInitialization of time interest data complete.");
-    //      }
   }  
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nstackAndInitializeTimeAndSubjectArrays() EXIT ...\n");
-  //  }
 }
 void unstackTimeAndSubjectArrays(char mode) {
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nunstackTimeAndSubjectArrays() EXIT ...\n");
-  //  }
   if (!(RF_opt & OPT_ANON)) {
     free_dvector(RF_masterTime, 1, RF_observationSize);
     free_uivector(RF_masterTimeIndexIn, 1, RF_observationSize);
     free_uivector(RF_masterEntryTimeIndexIn, 1, RF_observationSize);
   }
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nunstackTimeAndSubjectArrays() EXIT ...\n");
-  //  }
 }
 void stackFactorArrays(char mode) {
   uint i, k;
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nstackFactorArrays() ENTRY ...\n");
-  //  }
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nStacking y-variables:  \n");
-  //  }
   stackFactorGeneric(TRUE,
                      RF_ySize,
                      RF_rType,
@@ -121,9 +85,6 @@ void stackFactorArrays(char mode) {
                      &RF_rNonFactorMap,
                      &RF_rNonFactorCount,
                      &RF_rNonFactorIndex);
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nStacking x-variables:  \n");
-  //  }
   stackFactorGeneric(FALSE,
                      RF_xSize,
                      RF_xType,
@@ -135,7 +96,7 @@ void stackFactorArrays(char mode) {
                      &RF_xNonFactorCount,
                      &RF_xNonFactorIndex);
   if (RF_xFactorCount > 0) {
-    
+
     RF_xLevels = (uint **) new_vvector(1, RF_xFactorCount, NRUTIL_UPTR);  
     for (k = 1; k <= RF_xFactorCount; k++) {
       if (RF_xLevelsCnt[k] > 0) {
@@ -149,7 +110,7 @@ void stackFactorArrays(char mode) {
         RF_nativeExit();
       }
     }
-    
+
     /*
     RF_xLevels = (uint **) copy2DObject(RF_xLevelsJNIE, NATIVE_TYPE_INTEGER, &RF_nat2DInfoListSize);
     for (k = 1; k <= RF_xFactorCount; k++) {    
@@ -164,7 +125,7 @@ void stackFactorArrays(char mode) {
     }
     */    
     /*
-    RF_xLevels = (uint **) copyXDObject(RF_xLevelsPYTH, &RF_natXDInfoListSize);
+    RF_xLevels = (uint **) copyXDObject2D(RF_xLevelsPYTH, &RF_natXDInfoListSize);
     for (k = 1; k <= RF_xFactorCount; k++) {
       if (RF_xLevelsCnt[k] > 0) {
       }
@@ -216,9 +177,6 @@ void stackFactorArrays(char mode) {
       }
     }  
   }  
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nstackFactorArrays() EXIT ...\n");
-  //  }
 }
 void stackFactorGeneric(char    respFlag,
                         uint    size,
@@ -231,9 +189,6 @@ void stackFactorGeneric(char    respFlag,
                         uint   *nonfactorCount,
                         uint  **p_nonfactorIndex) {
   uint i, j;
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nstackFactorArraysGeneric() ENTRY ...\n");
-  //  }
   if (size > 0) {
     *p_factorMap    = uivector(1, size);
     *p_nonfactorMap = uivector(1, size);
@@ -261,20 +216,6 @@ void stackFactorGeneric(char    respFlag,
           (*p_factorIndex)[++j] = i;
         }
       }
-      //    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-      //      RF_nativePrint("\nFactor Mapping (zero means non-factor):  ");
-      //      RF_nativePrint("\n     index  resp/pred \n");
-      //      for (j = 1; j <= size; j++) {
-      //        RF_nativePrint("%10d %10d \n", j, (*p_factorMap)[j]);
-      //      }
-      //    }
-      //    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-      //      RF_nativePrint("\nFactor Indices:  ");
-      //      RF_nativePrint("\n     index  resp/pred \n");
-      //      for (j = 1; j <= *factorCount; j++) {
-      //        RF_nativePrint("%10d %10d \n", j, (*p_factorIndex)[j]);
-      //      }
-      //    }
       *p_factorSize = uivector(1, *factorCount);
     }
     if (*nonfactorCount > 0) {
@@ -285,34 +226,14 @@ void stackFactorGeneric(char    respFlag,
           (*p_nonfactorIndex)[++j] = i;
         }
       }
-      //    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-      //      RF_nativePrint("\nNon-Factor Mapping:  ");
-      //      RF_nativePrint("\n     index  resp/pred \n");
-      //      for (j = 1; j <= size; j++) {
-      //        RF_nativePrint("%10d %10d \n", j, (*p_nonfactorMap)[j]);
-      //      }
-      //    }
-      //    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-      //      RF_nativePrint("\nNon-Factor Indcies:  ");
-      //      RF_nativePrint("\n     index  resp/pred \n");
-      //      for (j = 1; j <= *nonfactorCount; j++) {
-      //        RF_nativePrint("%10d %10d \n", j, (*p_nonfactorIndex)[j]);
-      //      }
-      //    }
     }
   }
   else {
     *factorCount    = 0;
     *nonfactorCount = 0;
   }
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nstackFactorArraysGeneric() EXIT ...\n");
-  //  }
 }
 void unstackFactorArrays(char mode) {
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nunstackFactorArrays() ENTRY ...\n");
-  //  }
   if (RF_ySize > 0) {
     free_uivector(RF_rFactorMap, 1, RF_ySize);
     if (RF_rFactorCount > 0) {
@@ -328,7 +249,15 @@ void unstackFactorArrays(char mode) {
   if (RF_xFactorCount > 0) {
     free_uivector(RF_xFactorIndex, 1, RF_xFactorCount);
     free_uivector(RF_xFactorSize, 1, RF_xFactorCount);
+
     free_new_vvector(RF_xLevels, 1, RF_xFactorCount, NRUTIL_UPTR);  
+
+    /*
+    RF_xLevels = NULL;
+    */
+    /*
+    RF_xLevels = NULL;
+    */
   }
   free_uivector(RF_xNonFactorMap, 1, RF_xSize);
   if (RF_xNonFactorCount > 0) {
@@ -352,17 +281,11 @@ void unstackFactorArrays(char mode) {
       }
     }
   }
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nunstackFactorArrays() EXIT ...\n");
-  //  }
 }
 char stackMissingArraysPhase1(char mode) {
   char result;
   char mFlag;
   uint i, j;
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nstackMissingArraysPhase1() ENTRY ...\n");
-  //  }
   result = TRUE;
   if (!(RF_opt & OPT_ANON)) {
     if (!(RF_optHigh & OPT_DATA_PASG)) {
@@ -509,9 +432,6 @@ char stackMissingArraysPhase1(char mode) {
       RF_mStatusFlag = RF_mTimeFlag = RF_mResponseFlag = RF_mPredictorFlag = FALSE;
       RF_mRecordSize = 0;
       RF_mRecordMap = NULL;
-      //      if (getTraceFlag(0) & SUMM_DEF_TRACE) {
-      //        RF_nativePrint("\nMissing data analysis of GROW complete -- given a pass by the R-code.");
-      //      }
     }
     else {
       RF_mRecordMap = uivector(1, RF_observationSize);
@@ -521,9 +441,6 @@ char stackMissingArraysPhase1(char mode) {
                                     RF_observationIn);
       if (RF_mRecordSize == 0) {
         RF_mStatusFlag = RF_mTimeFlag = RF_mResponseFlag = RF_mPredictorFlag = FALSE;
-        //    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-        //      RF_nativePrint("\nMissing data analysis of GROW complete -- none found.");
-        //    }
       }
       else {
         RF_optHigh = RF_optHigh & (~OPT_MEMB_INCG);
@@ -563,9 +480,6 @@ char stackMissingArraysPhase1(char mode) {
             RF_observation[i] = NULL;
           }
         }
-        //    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-        //      RF_nativePrint("\nMissing data analysis of GROW complete -- some found.");
-        //    }
       }  
     }  
   }  
@@ -671,9 +585,6 @@ char stackMissingArraysPhase1(char mode) {
       RF_fmStatusFlag = RF_fmTimeFlag = RF_fmResponseFlag = RF_fmPredictorFlag = FALSE;
       RF_fmRecordSize = 0;
       RF_fmRecordMap = NULL;
-      //      if (getTraceFlag(0) & SUMM_DEF_TRACE) {
-      //        RF_nativePrint("\nMissing data analysis of PRED complete -- given a pass by the R-code.");
-      //      }
     }
     else {
     RF_fmRecordMap = uivector(1, RF_fobservationSize);
@@ -683,9 +594,6 @@ char stackMissingArraysPhase1(char mode) {
                                  RF_fobservationIn);
     if (RF_fmRecordSize == 0) {
       RF_fmStatusFlag = RF_fmTimeFlag = RF_fmResponseFlag = RF_fmPredictorFlag = FALSE;
-      //      if (getTraceFlag(0) & SUMM_DEF_TRACE) {
-      //        RF_nativePrint("\nMissing data analysis of PRED complete -- none found.");
-      //      }
     }  
     else {
       if (RF_opt & OPT_ANON) {
@@ -730,15 +638,9 @@ char stackMissingArraysPhase1(char mode) {
           }
         }
       }
-      //      if (getTraceFlag(0) & SUMM_DEF_TRACE) {
-      //        RF_nativePrint("\nMissing data analysis of PRED complete -- some found.");
-      //      }
     }  
     }  
   }  
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nstackMissingArraysPhase1() EXIT ...\n");
-  //  }
   return result;
 }
 char stackMissingArraysPhase2(char mode) {
@@ -747,9 +649,6 @@ char stackMissingArraysPhase2(char mode) {
   char dualUseFlag;
   uint recordSize;
   uint i, j;
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nstackMissingArraysPhase2() ENTRY ...\n");
-  //  }
   result = TRUE;
   if (RF_opt & OPT_ANON) {
     result = FALSE;
@@ -761,7 +660,7 @@ char stackMissingArraysPhase2(char mode) {
       }
       else {
         RF_nativeError("\nRF-SRC:  *** ERROR *** ");
-        RF_nativeError("\nRF-SRC:  An anonymous forest with missingness in the test data requires the JITT flag to be asserted");
+        RF_nativeError("\nRF-SRC:  An anonymous forest with missingness in the test data requires the JIT flag to be asserted");
         RF_nativeError("\nRF-SRC:  Please adjust your script accordingly.");
         RF_nativeExit();
       }      
@@ -808,17 +707,11 @@ char stackMissingArraysPhase2(char mode) {
   else {
     RF_opt = RF_opt & (~OPT_MISS_OUT);    
   }
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nstackMissingArraysPhase2() EXIT ...\n");
-  //  }
   return result;
 }
 void unstackMissingArrays(char mode) {
   char dualUseFlag;
   uint recordSize;
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nunstackMissingArrays() ENTRY ...\n");
-  //  }
   if (!(RF_opt & OPT_ANON)) {  
     free_new_vvector(RF_response, 1, RF_ntree, NRUTIL_DPTR2);
     if (RF_ySize > 0) {
@@ -904,9 +797,6 @@ void unstackMissingArrays(char mode) {
       free_cmatrix(RF_dmRecordBootFlag, 1, RF_ntree, 1, recordSize);
     }
   }
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nunstackMissingArrays() EXIT ...\n");
-  //  }
 }
 void stackMissingSignatures(uint     obsSize,
                             uint     rspSize,
@@ -927,9 +817,6 @@ void stackMissingSignatures(uint     obsSize,
                             char    *pRF_mResponseFlag,
                             char    *pRF_mPredictorFlag) {
   uint i, j, p;
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nstackMissingSignatures() ENTRY ...\n");
-  //  }
   if (recordSize < 1) {
     RF_nativePrint("\nRF-SRC:  *** ERROR *** ");
     RF_nativePrint("\nRF-SRC:  Attempt to allocate for missingness in its absence.");
@@ -1021,61 +908,6 @@ void stackMissingSignatures(uint     obsSize,
       }
     }
   }
-  //  if (getTraceFlag(0) & MISS_LOW_TRACE) {
-  //    RF_nativePrint("\nIndex of Individuals with any Missing Outcomes or Predictors:  ");
-  //    RF_nativePrint("\n    mIndex   orgIndex \n");
-  //    for (i = 1; i <= recordSize; i++) {
-  //      RF_nativePrint("%10d %10d \n", i, (*p_recordIndex)[i]);
-  //    }
-  //    RF_nativePrint("\nIncoming Indices of Missing Outcomes and Predictors:  ");
-  //    RF_nativePrint("\n   element      index \n");
-  //    for (i = 1; i <= (*p_pIndexSize); i++) {
-  //      RF_nativePrint("%10d %10d \n", i, (*p_pIndex)[i]);
-  //    }
-  //    RF_nativePrint("\nIncoming Signatures of Missing Outcomes and Predictors:  ");
-  //    RF_nativePrint("\n       index");
-  //    RF_nativePrint("  outc/resp->");
-  //    if (rspSize > 0) {
-  //      for (i = 1; i <= rspSize - 1; i++) {
-  //        RF_nativePrint(" %12s", " ");
-  //      }
-  //    }
-  //    RF_nativePrint(" predictors->");
-  //    for (i = 1; i <= RF_xSize - 1; i++) {
-  //      RF_nativePrint(" %12s", " ");
-  //    }
-  //    RF_nativePrint("\n            ");
-  //    if (rspSize > 0) {
-  //      for (i = 1; i <= RF_ySize; i++) {
-  //        RF_nativePrint(" %12c", RF_rType[i]);
-  //      }
-  //    }
-  //    for (i = 1; i <= RF_xSize; i++) {
-  //      RF_nativePrint(" %12d", i);
-  //    }
-  //    RF_nativePrint("\n");
-  //    for (i = 1; i <= recordSize; i++) {
-  //      RF_nativePrint("%12d", (*p_recordIndex)[i]);
-  //      for (j=1; j <= rspSize + RF_xSize; j++) {
-  //        RF_nativePrint(" %12d", (*p_pSign)[j][i]);
-  //      }
-  //      RF_nativePrint("\n");
-  //    }
-  //    RF_nativePrint("\nLinking of response/outcome factor data structures to missing data structures:  ");
-  //    RF_nativePrint("\n       index  mrFactorIdx \n");
-  //    for (i = 1; i <= (*pRF_mrFactorSize); i++) {
-  //      RF_nativePrint("%12d %12d \n", i, (*pRF_mrFactorIndex)[i]);
-  //    }
-  //    RF_nativePrint("\n");
-  //    RF_nativePrint("\nLinking of predictor factor data structures to missing data structures:  ");
-  //    RF_nativePrint("\n       index  mxFactorIdx \n");
-  //    for (i = 1; i <= (*pRF_mxFactorSize); i++) {
-  //      RF_nativePrint("%12d %12d \n", i, (*pRF_mxFactorIndex)[i]);
-  //    }
-  //  }
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nstackMissingSignatures() EXIT ...\n");
-  //  }
 }
 void unstackMissingSignatures(uint      rspSize,
                               uint      recordSize,
@@ -1087,9 +919,6 @@ void unstackMissingSignatures(uint      rspSize,
                               uint     *mrFactorIndex,
                               uint      mxFactorSize,
                               uint     *mxFactorIndex) {
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nunstackMissingSignatures() ENTRY ...\n");
-  //  }
   if (recordSize == 0) {
     RF_nativeError("\nRF-SRC:  *** ERROR *** ");
     RF_nativeError("\nRF-SRC:  Attempt to deallocate for missingness in its absence.");
@@ -1103,26 +932,10 @@ void unstackMissingSignatures(uint      rspSize,
     free_uivector(mrFactorIndex, 1, rspSize);
   }
   free_uivector(mxFactorIndex, 1, RF_xSize);
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nunstackMissingSignatures() EXIT ...\n");
-  //  }
 }
 void initializeFactorArrays(char mode) {
   uint j;
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\ninitializeFactorArrays() ENTRY ...\n");
-  //  }
   if (RF_rFactorCount + RF_xFactorCount > 0) {
-    //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-    //    if (RF_rFactorCount > 0) {
-    //      RF_nativePrint("\nIncoming GROW y-variable distinct factor levels actually encountered in data:  ");
-    //      RF_nativePrint("\n      index     Levels");
-    //      for (j = 1; j <= RF_rFactorCount; j++) {
-    //        RF_nativePrint("\n %10d %10d", RF_rFactorIndex[j], RF_rLevelsCnt[j]);
-    //      }
-    //      RF_nativePrint("\n\n");
-    //    }
-    //  }
     RF_rMaxFactorLevel = 0;
     for (j = 1; j <= RF_rFactorCount; j++) {
       RF_rFactorSize[j] = RF_rLevelsMax[RF_rFactorIndex[j]];
@@ -1130,16 +943,6 @@ void initializeFactorArrays(char mode) {
         RF_rMaxFactorLevel = RF_rFactorSize[j];
       }
     }
-    //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-    //    if (RF_xFactorCount > 0) {
-    //      RF_nativePrint("\nIncoming GROW x-variable distinct factor levels actually encountered in data:  ");
-    //      RF_nativePrint("\n      index     Levels");
-    //      for (j = 1; j <= RF_xFactorCount; j++) {
-    //        RF_nativePrint("\n %10d %10d", RF_xFactorIndex[j], RF_xLevelsCnt[j]);
-    //      }
-    //      RF_nativePrint("\n\n");
-    //    }
-    //  }
     RF_xMaxFactorLevel = 0;
     for (j = 1; j <= RF_xFactorCount; j++) {
       RF_xFactorSize[j] = RF_xLevelsMax[RF_xFactorIndex[j]];
@@ -1148,32 +951,11 @@ void initializeFactorArrays(char mode) {
       }
     }
     RF_maxFactorLevel = (RF_xMaxFactorLevel > RF_rMaxFactorLevel) ? RF_xMaxFactorLevel : RF_rMaxFactorLevel;
-    //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-    //    if (RF_rFactorCount > 0) {
-    //      RF_nativePrint("\nIncoming GROW y-variable factor levels continued:  ");
-    //      RF_nativePrint("\n      index     Levels        MaxTheoLevels");
-    //      for (j = 1; j <= RF_rFactorCount; j++) {
-    //        RF_nativePrint("\n %10d %10d %20d", RF_rFactorIndex[j], RF_rLevelsCnt[j], RF_rFactorSize[j]);
-    //      }
-    //      RF_nativePrint("\n\n");
-    //    }
-    //    if (RF_xFactorCount > 0) {
-    //      RF_nativePrint("\nIncoming GROW x-variable factor levels continued:  ");
-    //      RF_nativePrint("\n      index     Levels        MaxTheoLevels");
-    //      for (j = 1; j <= RF_xFactorCount; j++) {
-    //        RF_nativePrint("\n %10d %10d %20d", RF_xFactorIndex[j], RF_xLevelsCnt[j], RF_xFactorSize[j]);
-    //      }
-    //      RF_nativePrint("\n\n");
-    //    }
-    //  }
     RF_factorList = (Factor ***) new_vvector(1, RF_ntree, NRUTIL_FPTR2);
     for (j = 1; j <= RF_ntree; j++) {
       RF_factorList[j] = NULL;
     }
   }
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\ninitializeFactorArrays() EXIT ...\n");
-  //  }
 }
 char stackCompetingArrays(char mode) {
   uint obsSize;
@@ -1185,10 +967,6 @@ char stackCompetingArrays(char mode) {
   char statusFlag;
   uint *eventCounter;
   uint i, j;
-  //  uint n;
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nstackCompetingArrays() ENTRY ...\n");
-  //  }
   if (RF_statusIndex == 0) {
     RF_nativeError("\nRF-SRC:  *** ERROR *** ");
     RF_nativeError("\nRF-SRC:  Attempt to stack competing risk structures in the absence of SURV data.");
@@ -1248,13 +1026,6 @@ char stackCompetingArrays(char mode) {
     for (j = 1; j <= RF_eventTypeSize; j++) {
       RF_eventTypeIndex[RF_eventType[j]] = j;
     }
-    //    if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-    //      RF_nativePrint("\nEvent Type Index Mapping:  \n");
-    //      for (j = 1; j <= RF_eventType[RF_eventTypeSize]; j++) {
-    //        RF_nativePrint("%10d %10d \n", j, RF_eventTypeIndex[j]);
-    //      }
-    //      RF_nativePrint("\nNumber in GROW data missing status: %10d \n", RF_mStatusSize);
-    //    }
   }
   switch (mode) {
   case RF_GROW:
@@ -1298,14 +1069,6 @@ char stackCompetingArrays(char mode) {
         RF_nativeError("\nRF-SRC:  Competing risk weight elements are all zero. \n");
         RF_nativeExit();
       }
-      //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-      //    RF_nativePrint("\nIncoming CR Weights:  ");
-      //    RF_nativePrint("\n     index       weight");
-      //    for (j=1; j <= RF_eventTypeSize; j++) {
-      //      RF_nativePrint("\n%10d  %12.4f", j, RF_crWeight[j]);
-      //    }
-      //    RF_nativePrint("\n");
-      //  }
     }
     break;
   default:
@@ -1416,16 +1179,6 @@ char stackCompetingArrays(char mode) {
     for (j = 1; j <= RF_eventTypeSize; j++) {
       RF_eIndividualIn[j] = uivector(1, RF_eIndividualSize[j] + RF_mStatusSize + 1);
     }
-    // if (getTraceFlag(0) & SUMM_MED_TRACE) {
-    //   RF_nativePrint("\nNon-missing Event Type Subset Sizes: \n");
-    //   for (j=1; j <= RF_eventTypeSize; j++) {
-    //     RF_nativePrint("%10d %10d %10d \n", j, RF_eventType[j], RF_eIndividualSize[j]);
-    //   }
-    //   RF_nativePrint("\nMaximum (allocated - 1) Event Type Subset Sizes: \n");
-    //   for (j=1; j <= RF_eventTypeSize; j++) {
-    //     RF_nativePrint("%10d %10d %10d \n", j, RF_eventType[j], RF_eIndividualSize[j] + RF_mStatusSize);
-    //   }
-    // }
     eventCounter = uivector(1, RF_eventTypeSize);
     for (j = 1; j <= RF_eventTypeSize; j++) {
       eventCounter[j] = 0;
@@ -1472,25 +1225,7 @@ char stackCompetingArrays(char mode) {
       }
     }
     free_uivector(eventCounter, 1, RF_eventTypeSize);
-    // if (getTraceFlag(0) & SUMM_MED_TRACE) {
-    //   RF_nativePrint("\nEvent Type Subsets: \n");
-    //   RF_nativePrint("          ");
-    //   for (n=1; n <= obsSize; n++) {
-    //     RF_nativePrint("%10d", n);
-    //   }
-    //   RF_nativePrint("\n");
-    //   for (j=1; j <= RF_eventTypeSize; j++) {
-    //     RF_nativePrint("%10d", j);
-    //     for (n=1; n <= RF_eIndividualSize[j]; n++) {
-    //       RF_nativePrint("%10d", RF_eIndividualIn[j][n]);
-    //     }
-    //     RF_nativePrint("\n");
-    //   }
-    // }
   }  
-  // if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //   RF_nativePrint("\nstackCompetingArrays() EXIT ...\n");
-  // }
   return TRUE;
 }
 void getEventInfo(char mode) {
@@ -1503,9 +1238,6 @@ void getEventInfo(char mode) {
   uint leadingIndex;
   uint i, j;
   uint jgrow;
-  // if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //   RF_nativePrint("\ngetEventInfo() ENTRY ...\n");
-  // }
   if (RF_statusIndex == 0) {
     RF_nativeError("\nRF-SRC: *** ERROR *** ");
     RF_nativeError("\nRF-SRC: Attempt to stack competing risk structures in the absence of SURV data.");
@@ -1565,9 +1297,6 @@ void getEventInfo(char mode) {
       }
     }
   }
-  // if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //   RF_nativePrint("\nMissing Event Type Count: %10d \n", RF_mStatusSize);
-  // }
   if (mode == RF_PRED) {
     if(eventTypeSizeLocal > 0) {
       hpsortui(eventTypeLocal, eventTypeSizeLocal);
@@ -1582,13 +1311,6 @@ void getEventInfo(char mode) {
     }
     if (eventTypeSizeLocal > 0) {
       RF_feventTypeSize = eventTypeSizeLocal;
-      // if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-      //   RF_nativePrint("\n\nSorted Unique Event Types:  \n");
-      //   for (uint j=1; j <= RF_feventTypeSize; j++) {
-      //     RF_nativePrint("%10d %10d \n", j, eventTypeLocal[j]);
-      //   }
-      //   RF_nativePrint("\nUnique Event Type Count:  %10d ", RF_feventTypeSize);
-      // }
     }
     else {
       RF_feventTypeSize = 0;
@@ -1629,16 +1351,10 @@ void getEventInfo(char mode) {
     }
   }
   free_uivector(eventTypeLocal, 1, obsSize);
-  // if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //   RF_nativePrint("\ngetEventInfo() EXIT ...\n");
-  // }
 }
 void unstackCompetingArrays(char mode) {
   char eventSubsetFlag;
   uint j;
-  // if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //   RF_nativePrint("\nunstackCompetingArrays() ENTRY ...\n");
-  // }
     if (RF_statusIndex == 0) {
       RF_nativeError("\nRF-SRC: *** ERROR *** ");
       RF_nativeError("\nRF-SRC: Attempt to unstack competing risk structures in the absence of SURV data.");
@@ -1681,17 +1397,11 @@ void unstackCompetingArrays(char mode) {
       free_new_vvector(RF_eIndividualIn, 1, RF_eventTypeSize, NRUTIL_UPTR);
       free_uivector(RF_eIndividualSize, 1, RF_eventTypeSize);
     }  
-  // if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //   RF_nativePrint("\nunstackCompetingArrays() EXIT ...\n");
-  // }
 }
 char stackClassificationArrays(char mode) {
   uint  minorityClassID, minorityClassCnt;
   uint  majorityClassID, majorityClassCnt;
   uint i, j, k;
-  // if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //   RF_nativePrint("\nstackClassificationArrays() ENTRY ...\n");
-  // }
   if (RF_rFactorCount == 0) {
     RF_nativeError("\nRF-SRC: *** ERROR *** ");
     RF_nativeError("\nRF-SRC: Attempt to stack classification structures in the absence of CLAS data.");
@@ -1701,7 +1411,7 @@ char stackClassificationArrays(char mode) {
   RF_classLevelSize = uivector(1, RF_rFactorCount);
   RF_classLevel = (uint **) new_vvector(1, RF_rFactorCount, NRUTIL_UPTR);
   RF_rFactorMinorityFlag = cvector(1, RF_rFactorCount);
-  
+
   RF_rLevels = (uint **) new_vvector(1, RF_rFactorCount, NRUTIL_UPTR);  
   for (k = 1; k <= RF_rFactorCount; k++) {
     if (RF_rLevelsCnt[k] > 0) {
@@ -1717,27 +1427,7 @@ char stackClassificationArrays(char mode) {
       RF_nativeExit();
     }
   }
-  // if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //   RF_nativePrint("\nResp Factor sizes (theoretical max level):  ");
-  //   RF_nativePrint("\nIndex:  ");
-  //   for (k = 1; k <= RF_rFactorCount; k++) {
-  //     RF_nativePrint(" %10d", k);
-  //   }
-  //   RF_nativePrint("\n        ");
-  //   for (k = 1; k <= RF_rFactorCount; k++) {  
-  //     RF_nativePrint(" %10d", RF_rLevelsMax[RF_rFactorIndex[k]]);
-  //   }
-  //   RF_nativePrint("\n");
-  //   RF_nativePrint("\nResp Factor levels (actually encountered):  ");
-  //   RF_nativePrint("\n     Factor     Levels ->  ");  
-  //   for (k = 1; k <= RF_rFactorCount; k++) {  
-  //     RF_nativePrint("\n %10d", k);
-  //     for (i = 1; i <= RF_rLevelsCnt[k]; i++) {
-  //       RF_nativePrint(" %10d", RF_rLevels[k][i]);
-  //     }
-  //   }
-  // }
-  
+
   /*
   RF_rLevels = (uint **) copy2DObject(RF_rLevelsJNIE, NATIVE_TYPE_INTEGER, &RF_nat2DInfoListSize);
   for (k = 1; k <= RF_rFactorCount; k++) {
@@ -1754,7 +1444,7 @@ char stackClassificationArrays(char mode) {
   }
   */
   /*
-  RF_rLevels = (uint **) copyXDObject(RF_xLevelsPYTH, &RF_natXDInfoListSize);
+  RF_rLevels = (uint **) copyXDObject2D(RF_rLevelsPYTH, &RF_natXDInfoListSize);
   for (k = 1; k <= RF_rFactorCount; k++) {
     if (RF_rLevelsCnt[k] > 0) {
       RF_classLevelSize[k] = RF_rLevelsCnt[k];
@@ -1778,12 +1468,6 @@ char stackClassificationArrays(char mode) {
     for (j = 1; j <= RF_classLevelSize[k]; j++) {
       RF_classLevelIndex[k][RF_classLevel[k][j]] = j;
     }
-    // if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-    //   RF_nativePrint("\nClass Level Index Mapping: \n");
-    //   for (j = 1; j <= RF_classLevel[k][RF_classLevelSize[k]]; j++) {
-    //     RF_nativePrint("%10d %10d \n", j, RF_classLevelIndex[k][j]);
-    //   }
-    // }
   }  
   if (RF_opt & OPT_PERF) {
     if (RF_opt & OPT_CLAS_RFQ) {
@@ -1803,18 +1487,6 @@ char stackClassificationArrays(char mode) {
             totalCount ++;
           }
         }
-        //  if (getTraceFlag(0) & SUMM_MED_TRACE) {
-        //     RF_nativePrint("\nIncoming Level Counts:");
-        //     RF_nativePrint("\n      Level");
-        //     for (i = 1; i <= RF_rFactorSize[j]; i++) {
-        //        RF_nativePrint(" %10d", i);
-        //     }
-        //     RF_nativePrint("\n           ");
-        //     for (i = 1; i <= RF_rFactorSize[j]; i++) {        
-        //       RF_nativePrint(" %10d", levelCount[i]);
-        //     }
-        //     RF_nativePrint("\n");        
-        //  }
         minorityClassCnt = levelCount[1];
         minorityClassID = 1;
         for (k = 1; k <= RF_rFactorSize[j]; k++) {
@@ -1836,19 +1508,8 @@ char stackClassificationArrays(char mode) {
         }
         RF_rFactorMajority[j] = majorityClassID;
         RF_rFactorThreshold[j] = (double) levelCount[RF_rFactorMinority[j]] / totalCount;
-        //  if (getTraceFlag(0) & SUMM_MED_TRACE) {
-        //     RF_nativePrint("\nIncoming Minority Threshold Ratio:");
-        //     RF_nativePrint("\n FactorIdx[%10d]:   %10.4f \n", j, RF_rFactorThreshold[j]);
-        //  }
         free_uivector(levelCount, 1, RF_rFactorSize[j]);
       }
-      //  if (getTraceFlag(0) & SUMM_MED_TRACE) {
-      //     RF_nativePrint("\nStatic Minority Class Definitions:");
-      //     RF_nativePrint("\n     Factor   Minority   Majority");
-      //     for (j = 1; j <= RF_rFactorCount; j++) {
-      //       RF_nativePrint("\n %10d %10d %10d \n", j, RF_rFactorMinority[j], RF_rFactorMajority[j]);
-      //     }
-      //  }
     }
     for (j = 1; j <= RF_rFactorCount; j++) {
       if (RF_rFactorSize[j] == 2) {
@@ -1865,25 +1526,16 @@ char stackClassificationArrays(char mode) {
           if (!RF_nativeIsNaN(RF_fresponseIn[RF_rFactorIndex[k]][i])) {
             if ((uint) RF_fresponseIn[RF_rFactorIndex[k]][i] > RF_rFactorSize[k]) {
               RF_rFactorSizeTest[k] = (uint) RF_fresponseIn[RF_rFactorIndex[k]][i];
-              //  if (getTraceFlag(0) & SUMM_MED_TRACE) {
-              //     RF_nativePrint("\nUnseen level in indv %10d for compressed factor %10d:  (train vs. test)  %10d %10d", i, k, RF_rFactorSize[k], RF_rFactorSizeTest[k]);
-              //  }
             }
           }
         }
       }
     }
   }
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nstackClassificationArrays() EXIT ...\n");
-  //  }
   return TRUE;
 }
 void unstackClassificationArrays(char mode) {
   uint k;
-  // if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //   RF_nativePrint("\nunstackClassificationArrays() ENTRY ...\n");
-  // }
   if (RF_rFactorCount == 0) {
     RF_nativeError("\nRF-SRC: *** ERROR *** ");
     RF_nativeError("\nRF-SRC: Attempt to unstack classification structures in the absence of CLAS data.");
@@ -1897,9 +1549,9 @@ void unstackClassificationArrays(char mode) {
   free_uivector(RF_classLevelSize, 1, RF_rFactorCount);
   free_new_vvector(RF_classLevel, 1, RF_rFactorCount, NRUTIL_UPTR);
   free_cvector(RF_rFactorMinorityFlag, 1, RF_rFactorCount);
-  
+
   free_new_vvector(RF_rLevels, 1, RF_rFactorCount, NRUTIL_UPTR);  
-  
+
   if (RF_opt & OPT_PERF) {
     if (RF_opt & OPT_CLAS_RFQ) {
       free_dvector(RF_rFactorThreshold, 1, RF_rFactorCount);
@@ -1910,7 +1562,4 @@ void unstackClassificationArrays(char mode) {
   if (mode == RF_PRED) {
     free_uivector(RF_rFactorSizeTest, 1, RF_rFactorCount);
   }
-  // if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //   RF_nativePrint("\nunstackClassificationArrays() EXIT ...\n");
-  // }
 }

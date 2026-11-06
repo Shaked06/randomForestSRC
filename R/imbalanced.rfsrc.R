@@ -4,6 +4,10 @@ imbalanced.rfsrc <- function(formula, data, ntree = 3000,
                              ratio = NULL,  ...)
 {
   ## preliminary checks: all are fatal
+  ## make sure we have a plain data frame
+  if (!identical(class(data), "data.frame")) {
+    data <- as.data.frame(data, optional = TRUE)
+  }
   ## parse the formula to ensure this is a two-class problem
   formulaPrelim <- parseFormula(formula, data)
   if (formulaPrelim$family != "class") {
@@ -19,10 +23,10 @@ imbalanced.rfsrc <- function(formula, data, ntree = 3000,
   if (method == "rfq") {
     rfq.flag <- TRUE
   }
-  ## set default performance
+  ## use normalized Brier performance for RFQ and BRF
   if (is.null(perf.type)) {
     if (method == "brf" || method == "rfq") {
-      perf.type <- "gmean"
+      perf.type <- "brier"
     }
     else {
       perf.type <- "default"##equivalent to misclass

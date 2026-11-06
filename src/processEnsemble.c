@@ -57,9 +57,6 @@ void processEnsembleInSitu(char mode, char multImpFlag, uint b) {
   double **responsePtr;
   char     rImputeFlag;
   uint lo, hi;
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nprocessEnsembleInSitu() ENTRY ...\n");
-  //  }
     if ((RF_opt & OPT_PERF) ||
         (RF_opt & OPT_OENS) ||
         (RF_opt & OPT_FENS)) {
@@ -185,48 +182,41 @@ void processEnsembleInSitu(char mode, char multImpFlag, uint b) {
     }
     if (RF_opt & (OPT_VARUSED_F | OPT_VARUSED_T)) {
       getVariablesUsed(b, RF_root[b], RF_varUsedPtr[b]);
-      //    if (getTraceFlag(b) & SUMM_LOW_TRACE) {
-      //      RF_nativePrint("\nVariables Used Counts by Parameter for tree:  %10d \n", b);
-      //      for (uint i = 1; i <= RF_xSize; i++) {
-      //        RF_nativePrint(" %12d", i);
-      //      }
-      //      RF_nativePrint("\n");
-      //      for (uint i = 1; i <= RF_xSize; i++) {
-      //        RF_nativePrint(" %12d", RF_varUsedPtr[b][i]);
-      //      }
-      //      RF_nativePrint("\n");
-      //    }
     }
     if (RF_optHigh & OPT_PART_PLOT) {
       getAndUpdatePartialMembership(b, RF_root[b]);
     }
-      if (RF_xMarginalSize > 0) {
-        getMarginalMembership(mode, b);
-      }
+    if (RF_xMarginalSize > 0) {
+      getMarginalMembership(mode, b);
+    }
     if (RF_optHigh & OPT_WGHT) {
       updateWeight(mode, b);
     }
     if (RF_optHigh & OPT_DIST) {
-      updateDistance(mode, b);
+      if ((mode == RF_PRED) && (RF_optHigh & OPT_DIST_IBG) && (RF_optHigh & OPT_DIST_OOB)) {
+        updateDistanceHybrid(mode, b);
+      }
+      else {
+        updateDistance(mode, b);
+      }
     }
     if (RF_opt & OPT_PROX) {
-      updateProximity(mode, b);
-    }
-      if (RF_xMarginalSize > 0) {
-        releaseMarginalMembership(mode, b);
+      if ((mode == RF_PRED) && (RF_opt & OPT_PROX_IBG) && (RF_opt & OPT_PROX_OOB)) {
+        updateProximityHybrid(mode, b);
       }
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nprocessEnsembleInSitu() EXIT ...\n");
-  //  }
+      else {
+        updateProximity(mode, b);
+      }
+    }
+    if (RF_xMarginalSize > 0) {
+      releaseMarginalMembership(mode, b);
+    }
 }
 void processEnsemblePost(char mode) {
   char perfFlag;
   double **responsePtr;
   uint lo, hi;
   uint bb;
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nprocessEnsemblePost() ENTRY ...\n");
-  //  }
   if ((RF_opt & OPT_PERF) ||
       (RF_opt & OPT_OENS) ||
       (RF_opt & OPT_FENS)) {
@@ -379,17 +369,6 @@ void processEnsemblePost(char mode) {
       uint b = RF_getTreeIndex[bb];      
       if (RF_tLeafCount[b] > 0) {
         getVariablesUsed(b, RF_root[b], RF_varUsedPtr[b]);
-        //    if (getTraceFlag(bb) & SUMM_LOW_TRACE) {
-        //      RF_nativePrint("\nVariables Used Counts by Parameter for tree:  %10d \n", b);
-        //      for (uint i = 1; i <= RF_xSize; i++) {
-        //        RF_nativePrint(" %12d", i);
-        //      }
-        //      RF_nativePrint("\n");
-        //      for (uint i = 1; i <= RF_xSize; i++) {
-        //        RF_nativePrint(" %12d", RF_varUsedPtr[b][i]);
-        //      }
-        //      RF_nativePrint("\n");
-        //    }
       }
     }
   }
@@ -407,26 +386,33 @@ void processEnsemblePost(char mode) {
   for (bb = 1; bb <= RF_getTreeCount; bb++) {
     uint b = RF_getTreeIndex[bb];
     if (RF_tLeafCount[b] > 0) {
-        if (RF_xMarginalSize > 0) {
-          getMarginalMembership(mode, b);
-        }
-        if (RF_optHigh & OPT_WGHT) {
-          updateWeight(mode, b);
-        }
+      if (RF_xMarginalSize > 0) {
+        getMarginalMembership(mode, b);
+      }
+      if (RF_optHigh & OPT_WGHT) {
+        updateWeight(mode, b);
+      }
       if (RF_optHigh & OPT_DIST) {
-        updateDistance(mode, b);
+        if ((mode == RF_PRED) && (RF_optHigh & OPT_DIST_IBG) && (RF_optHigh & OPT_DIST_OOB)) {
+          updateDistanceHybrid(mode, b);
+        }
+        else {
+          updateDistance(mode, b);
+        }
       }
       if (RF_opt & OPT_PROX) {
-        updateProximity(mode, b);
-      }
-        if (RF_xMarginalSize > 0) {
-          releaseMarginalMembership(mode, b);
+        if ((mode == RF_PRED) && (RF_opt & OPT_PROX_IBG) && (RF_opt & OPT_PROX_OOB)) {
+          updateProximityHybrid(mode, b);
         }
+        else {
+          updateProximity(mode, b);
+        }
+      }
+      if (RF_xMarginalSize > 0) {
+        releaseMarginalMembership(mode, b);
+      }
     }  
   }  
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nprocessEnsemblePost() EXIT ...\n");
-  //  }
 }
 void processEnsembleHoldout(uint xVarIdx, uint b) {
   Terminal *terminalNode;
@@ -436,9 +422,6 @@ void processEnsembleHoldout(uint xVarIdx, uint b) {
   uint   obsSize;
   uint   blockID;
   uint i, j, k, m, ii;
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nprocessEnsembleHoldout() ENTRY ...\n");
-  //  }
   obsSize = RF_observationSize;
     blockID = RF_holdoutMap[xVarIdx][b];
     if (blockID > 0) {
@@ -636,9 +619,6 @@ void processEnsembleHoldout(uint xVarIdx, uint b) {
 #endif
       }  
     }  
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nprocessEnsembleHoldout() EXIT ...\n");
-  //  }
 }
 void processEnsembleHoldoutPost(uint bb) {
   if (RF_tLeafCount[RF_getTreeIndex[bb]] > 0) {

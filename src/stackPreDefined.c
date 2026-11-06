@@ -14,9 +14,6 @@
 #include "error.h"
 void stackIncomingResponseArrays(char mode) {
   uint i, j;
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nstackIncomingResponseArrays() ENTRY ...\n");
-  //  }
   RF_timeIndex = RF_statusIndex = 0;
   RF_masterTime = NULL;
   RF_masterTimeIndexIn = NULL;
@@ -49,13 +46,6 @@ void stackIncomingResponseArrays(char mode) {
         RF_yIndex[++j] = i;
       }
     }
-    //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-    //    RF_nativePrint("\nIncoming Response Types:  ");
-    //    RF_nativePrint("\n     index       type \n");
-    //    for (i = 1; i <= RF_ySize; i++) {
-    //      RF_nativePrint("%10d %10c \n", i, RF_rType[i]);
-    //    }
-    //  }
     if (mode == RF_PRED) {
       if (RF_frSize > 0) {
         if (RF_ySize != RF_frSize) {
@@ -80,62 +70,6 @@ void stackIncomingResponseArrays(char mode) {
     }
     RF_ySizeProxy = RF_ySize - ((RF_timeIndex == 0) ? 0:1) - ((RF_statusIndex == 0) ? 0:1);
     RF_yIndexZeroSize = 0;
-    //  if (getTraceFlag(0) & SUMM_MED_TRACE) {
-    //    if (!(RF_opt & OPT_ANON)) {
-    //    RF_nativePrint("\nIncoming train y-vars:  ");
-    //    RF_nativePrint("\n        index");
-    //    if (RF_subjIn != NULL) {
-    //      RF_nativePrint("      subject");
-    //    }
-    //    RF_nativePrint("  outc/resp->");
-    //    RF_nativePrint("\n             ");
-    //    if (RF_subjIn != NULL) {
-    //      RF_nativePrint("             ");
-    //    }
-    //    for (i = 1; i <= RF_ySize; i++) {
-    //      RF_nativePrint(" %12c", RF_rType[i]);
-    //    }
-    //    RF_nativePrint("\n");
-    //    for (j = 1; j <= RF_observationSize; j++) {
-    //      RF_nativePrint(" %12d", j);
-    //      if (RF_subjIn != NULL) {
-    //        RF_nativePrint(" %12d", RF_subjIn[j]);
-    //      }
-    //      for (i = 1; i <= RF_ySize; i++) {
-    //        RF_nativePrint(" %12.4f", RF_responseIn[i][j]);
-    //      }
-    //      RF_nativePrint("\n");
-    //    }
-    //  }
-    //  }
-    //  if (getTraceFlag(0) & SUMM_MED_TRACE) {
-    //    if (mode == RF_PRED) {
-    //      RF_nativePrint("\nIncoming test Response Data:  ");
-    //      if (RF_frSize > 0) {
-    //        RF_nativePrint("\n       index");
-    //        RF_nativePrint("  out/resp->");
-    //        for (i = 1; i <= RF_frSize; i++) {
-    //          RF_nativePrint(" %12s", " ");
-    //        }
-    //
-    //        RF_nativePrint("\n            ");
-    //        for (i = 1; i <= RF_frSize; i++) {
-    //          RF_nativePrint(" %12c", RF_rType[i]);
-    //        }
-    //        RF_nativePrint("\n");
-    //        for (j = 1; j <= RF_fobservationSize; j++) {
-    //          RF_nativePrint("%12d", j);
-    //          for (i = 1; i <= RF_frSize; i++) {
-    //            RF_nativePrint(" %12.4f", RF_fresponseIn[i][j]);
-    //          }
-    //          RF_nativePrint("\n");
-    //        }
-    //      }
-    //    }
-    //  }
-    //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-    //    RF_nativePrint("\nInitial read complete.");
-    //  }
   }
   else {
     RF_rType      = NULL;
@@ -149,28 +83,15 @@ void stackIncomingResponseArrays(char mode) {
       RF_opt = RF_opt & (~OPT_VIMP);
     }
   }
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nstackIncomingResponseArrays() EXIT ...\n");
-  //  }
 }
 void unstackIncomingResponseArrays(char mode) {
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nunstackIncomingResponseArrays() ENTRY ...\n");
-  //  }
   if (RF_ySize > 0) {
     free_uivector(RF_yIndex, 1, RF_ySize);
     free_uivector(RF_yIndexZero, 1, RF_ySize);
   }
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nunstackIncomingResponseArrays() EXIT ...\n");
-  //  }
 }
 void stackIncomingCovariateArrays(char mode) {
   uint i;
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nstackIncomingCovariateArrays() ENTRY ...\n");
-  //  }
-  //    uint j;
   for (i = 1; i <= RF_xSize; i++) {
     if ((RF_xType[i] != 'B') &&
         (RF_xType[i] != 'R') &&
@@ -183,113 +104,10 @@ void stackIncomingCovariateArrays(char mode) {
       RF_nativeExit();
     }
   }
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nIncoming x-variable Types:  ");
-  //    RF_nativePrint("\n     index       type \n");
-  //    for (i = 1; i <= RF_xSize; i++) {
-  //      RF_nativePrint("%10d %10c \n", i, RF_xType[i]);
-  //    }
-  //  }
-  //  if (getTraceFlag(0) & SUMM_MED_TRACE) {
-  //    if (!(RF_opt & OPT_ANON)) {
-  //    RF_nativePrint("\nIncoming train x-vars:  ");
-  //    RF_nativePrint("\n       index");
-  //    RF_nativePrint(" predictors->");
-  //    for (i = 1; i <= RF_xSize - 1; i++) {
-  //      RF_nativePrint(" %12s", " ");
-  //    }
-  //    RF_nativePrint("\n            ");
-  //    for (i = 1; i <= RF_xSize; i++) {
-  //      RF_nativePrint(" %12d", i);
-  //    }
-  //    RF_nativePrint("\n");
-  //    for (j = 1; j <= RF_observationSize; j++) {
-  //      RF_nativePrint("%12d", j);
-  //      for (i = 1; i <= RF_xSize; i++) {
-  //        RF_nativePrint(" %12.4f", RF_observationIn[i][j]);
-  //      }
-  //      RF_nativePrint("\n");
-  //    }
-  //  }
-  //  }
-  //  if (getTraceFlag(0) & SUMM_MED_TRACE) {
-  //    if (mode == RF_PRED) {
-  //      RF_nativePrint("\nIncoming test Data:  ");
-  //      RF_nativePrint("\n       index");
-  //      RF_nativePrint(" predictors->");
-  //      for (i = 1; i <= RF_xSize - 1; i++) {
-  //        RF_nativePrint(" %12s", " ");
-  //      }
-  //      RF_nativePrint("\n");
-  //      RF_nativePrint("\n            ");
-  //      for (i = 1; i <= RF_xSize; i++) {
-  //        RF_nativePrint(" %12d", i);
-  //      }
-  //      RF_nativePrint("\n");
-  //      for (j = 1; j <= RF_fobservationSize; j++) {
-  //        RF_nativePrint("%12d", j);
-  //        for (i = 1; i <= RF_xSize; i++) {
-  //          RF_nativePrint(" %12.4f", RF_fobservationIn[i][j]);
-  //        }
-  //        RF_nativePrint("\n");
-  //      }
-  //    }
-  //  }
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nstackIncomingCovariateArrays() EXIT ...\n");
-  //  }
 }
 void unstackIncomingCovariateArrays(char mode) {
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nunstackIncomingCovariateArrays() ENTRY ...\n");
-  //  }
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nunstackIncomingCovariateArrays() EXIT ...\n");
-  //  }
 }
 void stackIncomingArrays(char mode) {
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nstackIncomingArrays() ENTRY ...\n");
-  //  }
-  //  uint j;
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nCommon Incoming Parameters:  ");
-  //    RF_nativePrint("\n            traceFlag:  %10d", getTraceFlag(0));
-  //    RF_nativePrint("\n                ntree:  %10d", RF_ntree);
-  //    RF_nativePrint("\n      observationSize:  %10d", RF_observationSize);
-  //    RF_nativePrint("\n     timeInterestSize:  %10d", RF_timeInterestSize);
-  //    RF_nativePrint("\n                rSize:  %10d", RF_ySize);
-  //    RF_nativePrint("\n                xSize:  %10d", RF_xSize);
-  //    RF_nativePrint("\n                 mtry:  %10d", RF_mtry);
-  //    RF_nativePrint("\n                 ytry:  %10d", RF_ytry);
-  //    RF_nativePrint("\n");
-  //  }
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    if (mode == RF_GROW) {
-  //      RF_nativePrint("\nIncoming X-Weights:  ");
-  //      RF_nativePrint("\n     index                          weight");
-  //      for (j=1; j <= RF_xSize; j++) {
-  //        RF_nativePrint("\n%10d  %30.24e", j, RF_xWeight[j]);
-  //      }
-  //      RF_nativePrint("\n");
-  //    }
-  //  }
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    if (mode == RF_GROW) {
-  //      RF_nativePrint("\nIncoming Subject Weights:  ");
-  //      RF_nativePrint("\n     index        weight");
-  //      for (j=1; j <= RF_subjSize; j++) {
-  //        RF_nativePrint("\n%10d  %12.4f", j, RF_subjWeight[j]);
-  //      }
-  //      RF_nativePrint("\n");
-  //      RF_nativePrint("\nIncoming Split Statistical Weights:  ");
-  //      RF_nativePrint("\n     index        weight");
-  //      for (j=1; j <= RF_xSize; j++) {
-  //        RF_nativePrint("\n%10d  %12.4f", j, RF_xWeightStat[j]);
-  //      }
-  //      RF_nativePrint("\n");
-  //    }
-  //  }
   stackIncomingResponseArrays(mode);
   stackIncomingCovariateArrays(mode);
   if (mode == RF_GROW) {
@@ -444,15 +262,8 @@ void stackIncomingArrays(char mode) {
     }
   }
   if (RF_quantileSize > 0) {
-    //    if (getTraceFlag(0) & SUMM_MED_TRACE) {
-    //      RF_nativePrint("\n\nQuantile Vector Specified:  \n");
-    //      RF_nativePrint("      index      value");
-    //    }
     for (uint i = 1; i <= RF_quantileSize; i++) {
       if ((0 < RF_quantile[i]) && (RF_quantile[i] <= 1.0)) {
-        //    if (getTraceFlag(0) & SUMM_MED_TRACE) {          
-        //      RF_nativePrint(" %10d %10.4f \n", i, RF_quantile[i]);
-        //    }
       }
       else {
         RF_nativeError("\nRF-SRC:  *** ERROR *** ");
@@ -462,19 +273,10 @@ void stackIncomingArrays(char mode) {
       }
     }
   }
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nstackIncomingArrays() EXIT ...\n");
-  //  }
 }
 void unstackIncomingArrays(char mode) {
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nunstackIncomingArrays() ENTRY ...\n");
-  //  }
   unstackIncomingResponseArrays(mode);
   unstackIncomingCovariateArrays(mode);
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nunstackIncomingArrays() EXIT ...\n");
-  //  }
 }
 void stackPreDefinedCommonArrays(char          mode,
                                  Node      ****nodeMembership,
@@ -482,9 +284,6 @@ void stackPreDefinedCommonArrays(char          mode,
                                  Terminal  ****tTermList,
                                  Node       ***root) {
   uint i, j, k;
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nstackPreDefinedCommonArrays() ENTRY ...\n");
-  //  }
   *nodeMembership = (Node ***)     new_vvector(1, RF_ntree, NRUTIL_NPTR2);
   *tTermMembership = (Terminal ***) new_vvector(1, RF_ntree, NRUTIL_TPTR2);
   *tTermList = (Terminal ***) new_vvector(1, RF_ntree, NRUTIL_NPTR2);
@@ -508,19 +307,6 @@ void stackPreDefinedCommonArrays(char          mode,
         RF_nativeExit();
       }
     }
-    //  if (getTraceFlag(0) & SUMM_MED_TRACE) {
-    //    RF_nativePrint("\nIncoming user defined bootstrap:  ");
-    //    RF_nativePrint("\n       treeID ");
-    //    RF_nativePrint("  inbag/counts->");
-    //    RF_nativePrint("\n");
-    //    for (i = 1; i <= RF_ntree; i++) {
-    //      RF_nativePrint("%12d", i);
-    //      for (j = 1; j <= RF_subjSize; j++) {
-    //        RF_nativePrint("%12d", RF_bootstrapIn[i][j]);
-    //      }
-    //      RF_nativePrint("\n");
-    //    }
-    //  }
   }
   RF_bootMembershipFlag = (char **) new_vvector(1, RF_ntree, NRUTIL_CPTR);
   RF_bootMembershipCount = (uint **) new_vvector(1, RF_ntree, NRUTIL_UPTR);
@@ -546,14 +332,8 @@ void stackPreDefinedCommonArrays(char          mode,
     RF_pTermList = (Terminal ***) new_vvector(1, RF_ntree, NRUTIL_NPTR2);
     RF_pLeafCount = uivector(1, RF_ntree);
   }
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nAllocating for root nodes in forest complete. \n");
-  //  }
   if ( ( (RF_opt & OPT_BOOT_TYP1) && !(RF_opt & OPT_BOOT_TYP2)) ||
        (!(RF_opt & OPT_BOOT_TYP1) && !(RF_opt & OPT_BOOT_TYP2)) ) {
-    //      if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-    //        RF_nativePrint("\nCase Weights:");
-    //      }
     for (i = 1; i <= RF_subjSize; i++) {
       if(RF_subjWeight[i] < 0) {
         RF_nativeError("\nRF-SRC:  *** ERROR *** ");
@@ -583,18 +363,12 @@ void stackPreDefinedCommonArrays(char          mode,
       }
     }
   }
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nstackPreDefinedCommonArrays() EXIT ...\n");
-  //  }
 }
 void unstackPreDefinedCommonArrays(char         mode,
                                    Node      ***nodeMembership,
                                    Terminal  ***tTermMembership,
                                    Terminal  ***tTermList,
                                    Node       **root) {
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nunstackPreDefinedCommonArrays() ENTRY ...\n");
-  //  }
   free_new_vvector(nodeMembership, 1, RF_ntree, NRUTIL_NPTR2);
   free_new_vvector(tTermMembership, 1, RF_ntree, NRUTIL_TPTR2);
   free_new_vvector(tTermList, 1, RF_ntree, NRUTIL_TPTR2);
@@ -622,23 +396,14 @@ void unstackPreDefinedCommonArrays(char         mode,
     free_new_vvector(RF_pTermList, 1, RF_ntree, NRUTIL_NPTR2);
     free_uivector(RF_pLeafCount, 1, RF_ntree);
   }
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nDe-allocating for root nodes in forest complete. \n");
-  //  }
   if ( (!(RF_opt & OPT_BOOT_TYP1) && !(RF_opt & OPT_BOOT_TYP2)) ||
        ( (RF_opt & OPT_BOOT_TYP1) &&  (RF_opt & OPT_BOOT_TYP2)) ) {
     unstackWeights(RF_subjWeightType, RF_subjSize, RF_subjWeightSorted); 
   }
   free_uivector(RF_getTreeIndex, 1, RF_ntree);
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nunstackPreDefinedCommonArrays() EXIT ...\n");
-  //  }
 }
 void stackPreDefinedGrowthArrays(void) {
   uint i;
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nstackPreDefinedGrowthArrays() ENTRY ...\n");
-  //  }
   if (RF_opt & OPT_VIMP) {
     RF_intrPredictorSize = RF_xSize;
     RF_intrPredictor = uivector(1, RF_intrPredictorSize);
@@ -653,17 +418,11 @@ void stackPreDefinedGrowthArrays(void) {
   else {
     RF_intrPredictorSize = 0;    
   }
-  //      if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //        RF_nativePrint("\nX-Weights:");
-  //      }
   stackWeights(RF_xWeight,
                RF_xSize,
                &RF_xWeightType,
                &RF_xWeightSorted,
                &RF_xWeightDensitySize); 
-  //      if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //        RF_nativePrint("\nY-Weights:");
-  //      }
   if(RF_ySize > 0) {
     stackWeights(RF_yWeight,
                  RF_ySize,
@@ -676,18 +435,9 @@ void stackPreDefinedGrowthArrays(void) {
         RF_yIndexZero[++RF_yIndexZeroSize] = RF_yIndex[i];
       }
     }
-    //      if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-    //        RF_nativePrint("\nCount of zero-weighted responses:  %10d", RF_yIndexZeroSize);
-    //      }
   }
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nstackPreDefinedGrowthArrays() EXIT ...\n");
-  //  }
 }
 void unstackPreDefinedGrowthArrays(void) {
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nunstackPreDefinedGrowthArrays() ENTRY ...\n");
-  //  }
   if (RF_opt & OPT_VIMP) {
     free_uivector(RF_intrPredictor, 1, RF_intrPredictorSize);
     free_cvector(RF_importanceFlag, 1, RF_xSize);
@@ -700,15 +450,9 @@ void unstackPreDefinedGrowthArrays(void) {
                    RF_ySize,
                    RF_yWeightSorted); 
   }
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nunstackPreDefinedGrowthArrays() EXIT ...\n");
-  //  }
 }
 void stackPreDefinedRestoreArrays(void) {
   uint i;
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nstackPreDefinedRestoreArrays() ENTRY ...\n");
-  //  }
   if (RF_opt & OPT_VIMP) {
     checkInteraction();
     RF_importanceFlag = cvector(1, RF_xSize);
@@ -719,26 +463,14 @@ void stackPreDefinedRestoreArrays(void) {
       RF_importanceFlag[RF_intrPredictor[i]] = TRUE;
     }
   }
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nstackPreDefinedRestoreArrays() EXIT ...\n");
-  //  }
 }
 void unstackPreDefinedRestoreArrays(void) {
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nunstackPreDefinedRestoreArrays() ENTRY ...\n");
-  //  }
   if (RF_opt & OPT_VIMP) {
     free_cvector(RF_importanceFlag, 1, RF_xSize);
   }
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nunstackPreDefinedRestoreArrays() EXIT ...\n");
-  //  }
 }
 void stackPreDefinedPredictArrays(void) {
   uint i;
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nstackPreDefinedPredictArrays() ENTRY ...\n");
-  //  }
   RF_fnodeMembership = (Node ***)     new_vvector(1, RF_ntree, NRUTIL_NPTR2);
   RF_ftTermMembership = (Terminal ***) new_vvector(1, RF_ntree, NRUTIL_TPTR2);
   RF_fidentityMembershipIndex = uivector(1, RF_fobservationSize);
@@ -759,14 +491,8 @@ void stackPreDefinedPredictArrays(void) {
       RF_importanceFlag[RF_intrPredictor[i]] = TRUE;
     }
   }
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nstackPreDefinedPredictArrays() EXIT ...\n");
-  //  }
 }
 void unstackPreDefinedPredictArrays(void) {
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nunstackPreDefinedPredictArrays() ENTRY ...\n");
-  //  }
   free_new_vvector(RF_fnodeMembership, 1, RF_ntree, NRUTIL_NPTR2);
   free_new_vvector(RF_ftTermMembership, 1, RF_ntree, NRUTIL_TPTR2);
   free_uivector(RF_fidentityMembershipIndex, 1, RF_fobservationSize);
@@ -774,15 +500,9 @@ void unstackPreDefinedPredictArrays(void) {
   if (RF_opt & OPT_VIMP) {
     free_cvector(RF_importanceFlag, 1, RF_xSize);
   }
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nunstackPreDefinedPredictArrays() EXIT ...\n");
-  //  }
 }
 void checkInteraction(void) {
   uint leadingIndex, i;
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\ncheckInteraction() ENTRY ...\n");
-  //  }
   if((RF_intrPredictorSize <= 0) || (RF_intrPredictorSize > RF_xSize)) {
     RF_nativeError("\nRF-SRC:  *** ERROR *** ");
     RF_nativeError("\nRF-SRC:  Parameter verification failed.");
@@ -817,21 +537,6 @@ void checkInteraction(void) {
       RF_nativeExit();
     }
   }
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\n Interaction xvars:  ");
-  //    RF_nativePrint("\n");
-  //    for (i=1; i <= RF_intrPredictorSize; i++) {
-  //      RF_nativePrint(" %10d", i);
-  //    }
-  //    RF_nativePrint("\n");
-  //    for (i=1; i <= RF_intrPredictorSize; i++) {
-  //      RF_nativePrint(" %10d", RF_intrPredictor[i]);
-  //    }
-  //    RF_nativePrint("\n");
-  //  }
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\ncheckInteraction() EXIT ...\n");
-  //  }
 }
 void stackWeights(double *weight,
                   uint    size,
@@ -841,16 +546,6 @@ void stackWeights(double *weight,
   char uniformFlag, integerFlag;
   double meanWeight;
   uint i;
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nstackWeights() ENTRY ...\n");
-  //  }
-  //      if (getTraceFlag(0) & SPLT_LOW_TRACE) {
-  //        RF_nativePrint("\n     index                         weight");
-  //        for (i=1; i <= size; i++) {
-  //          RF_nativePrint("\n%10d %30.24e", i, weight[i]);
-  //        }
-  //        RF_nativePrint("\n");
-  //      }
   *weightSorted      = NULL;
   *weightDensitySize = 0;
   meanWeight = getMeanValue(weight, size);
@@ -883,9 +578,6 @@ void stackWeights(double *weight,
   }
   switch (*weightType) {
   case RF_WGHT_UNIFORM:
-    //      if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-    //        RF_nativePrint("\nWeights:  Uniform");
-    //      }
     break;
   case RF_WGHT_INTEGER:
     *weightSorted = uivector(1, size);
@@ -894,39 +586,16 @@ void stackWeights(double *weight,
     for (i = 1; i <= size; i++) {
       *weightDensitySize += (uint) weight[i];
     }
-    //      if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-    //        RF_nativePrint("\nWeights:  Integer");
-    //        RF_nativePrint("\nWeight Density Size:  %10d", *weightDensitySize);
-    //      }
     break;
   case RF_WGHT_GENERIC:
     *weightSorted = uivector(1, size);
     indexx(size, weight, *weightSorted);
-    //      if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-    //        RF_nativePrint("\nWeights:  Generic");
-    //        RF_nativePrint("\n");
-    //      }
     break;
   }
-  //      if (*weightType != RF_WGHT_UNIFORM) {
-  //      if (getTraceFlag(0) & SPLT_LOW_TRACE) {
-  //        RF_nativePrint("\n     index        case                         weight");
-  //        for (i=1; i <= size; i++) {
-  //          RF_nativePrint("\n%10d  %10d %30.24e", i, (*weightSorted)[i], weight[(*weightSorted)[i]]);
-  //        }
-  //        RF_nativePrint("\n");
-  //      }
-  //      }
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nstackWeights() EXIT ...\n");
-  //  }
 }
 void unstackWeights(uint    weightType,
                     uint    size,
                     uint   *weightSorted) {
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nunstackWeights() ENTRY ...\n");
-  //  }
   switch (weightType) {
   case RF_WGHT_UNIFORM:
     break;
@@ -937,7 +606,4 @@ void unstackWeights(uint    weightType,
     free_uivector(weightSorted, 1, size);
     break;
   }
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nunstackWeights() EXIT ...\n");
-  //  }
 }

@@ -135,9 +135,6 @@ void getRawNodeSize(uint  type,
   Node   ***nodeMembershipPtr;
   uint      bootMembrSize;
   uint i;
-  //  if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-  //    RF_nativePrint("\ngetRawNodeSize() ENTRY ...\n");
-  //  }
   obsSize           = 0;     
   nodeMembershipPtr = NULL;  
   switch (type) {
@@ -163,73 +160,12 @@ void getRawNodeSize(uint  type,
       allMembrIndx[++(*allMembrSize)] = i;
     }
   }
-  //  if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-  //    RF_nativePrint("\nParent Replicate Count:  %10d \n", *repMembrSize);
-  //    RF_nativePrint("\nReplicate Absolute Index for Parent Node: \n");
-  //    RF_nativePrint("\n       idx  rMembrIndx     \n");
-  //    for (i=1; i <= (*repMembrSize); i++) {
-  //      RF_nativePrint("%10d %10d \n", i, repMembrIndx[i]);
-  //    }
-  //    RF_nativePrint("\nParent Absolute Count:  %10d \n", *allMembrSize);
-  //    RF_nativePrint("\nAbsolute Absolute Index for Parent Node: \n");
-  //    RF_nativePrint("\n       idx  aMembrIndx     \n");
-  //    for (i=1; i <= (*allMembrSize); i++) {
-  //      RF_nativePrint("%10d %10d \n", i, allMembrIndx[i]);
-  //    }
-  //  }
-  //  if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-  //    RF_nativePrint("\ngetRawNodeSize() EXIT ...\n");
-  //  }
 }
 void printTreeInfo(uint treeID, Node *parent) {
-  //      if (getTraceFlag(treeID)) {
-  //        RF_nativePrint("%10d %10d %10d %10d \n", treeID, parent -> nodeID, parent -> depth, parent -> pseudoTerminal);
-  //      }
   if (((parent -> left) != NULL) && ((parent -> right) != NULL)) {
     printTreeInfo(treeID, parent ->  left);
     printTreeInfo(treeID, parent -> right);
   }
 }
 void printParameters(char mode) {
-  //    switch (mode) {
-  //    case RF_PRED:
-  //      RF_nativePrint("\nMode is PRED.");
-  //      RF_nativePrint("\nNumber of PRED individuals:  %10d", RF_fobservationSize);
-  //      break;
-  //    case RF_REST:
-  //      RF_nativePrint("\nMode is REST.");
-  //      RF_nativePrint("\nNumber of REST individuals:  %10d", RF_observationSize);
-  //      break;
-  //    case RF_PART:
-  //      RF_nativePrint("\nMode is PART.");
-  //      RF_nativePrint("\nNumber of PART individuals:  %10d", RF_observationSize);
-  //      break;
-  //    default:
-  //      RF_nativePrint("\nMode is GROW.");
-  //      RF_nativePrint("\nSplit rule is:               %10d", RF_splitRule);
-  //      RF_nativePrint("\nValue of nsplit is:          %10d", RF_nsplit);
-  //      RF_nativePrint("\nMinimum node size is:        %10d", RF_nodeSize);
-  //      RF_nativePrint("\nMaximum node depth is:       %10d", RF_nodeDepth);
-  //      RF_nativePrint("\nValue of mtry is             %10d", RF_mtry);
-  //      RF_nativePrint("\nValue of bootstrap size is   %10d", RF_bootstrapSize);
-  //      RF_nativePrint("\nNumber of GROW individuals:  %10d", RF_observationSize);
-  //      RF_nativePrint("\nNumber of impute iterations: %10d", RF_nImpute);
-  //      break;
-  //    }
-  //    RF_nativePrint("\nIncoming options lo:     0x  %10x", RF_opt);
-  //    RF_nativePrint("\nIncoming options hi:     0x  %10x", RF_optHigh);
-  //    RF_nativePrint("\nNumber of predictors:        %10d", RF_xSize);
-  //    RF_nativePrint("\nNumber of trees in forest:   %10d \n", RF_ntree);
-  //    testEndianness();
-  //    int endian = 1;
-  //    if (*(char *) &endian == 1) {
-  //      RF_nativePrint("\nSystem is little-endian.  ");
-  //    }
-  //    else {
-  //      RF_nativePrint("\nSystem is big-endian.  ");
-  //    }
-  //    RF_nativePrint("\nSize of (int)    is:  %10d   ", sizeof(int));
-  //    RF_nativePrint("\nSize of (long)   is:  %10d   ", sizeof(long));
-  //    RF_nativePrint("\nSize of (double) is:  %10d \n", sizeof(double));
-  //    RF_nativePrint("\nNumber of threads:  %10d \n", RF_numThreads);
 }

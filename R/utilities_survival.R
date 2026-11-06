@@ -218,16 +218,26 @@ get.rmst <- function(o, tau.horizon = NULL, q = .95) {
 }
 ## ---------------------------------------------------------------------
 ##
-## brier score
+## Brier score and time-dependent AUC
 ##
 ## ---------------------------------------------------------------------
 ## trapezoidal rule
-trapz <- function (x, y) {
-  idx = 2:length(x)
-  return(as.double((x[idx] - x[idx - 1]) %*% (y[idx] + y[idx - 1]))/2)
+trapz <- function(x, y) {
+  x <- as.numeric(x)
+  y <- as.numeric(y)
+  if (length(x) != length(y)) {
+    stop("'x' and 'y' must have the same length.")
+  }
+  if (length(x) < 2L) {
+    return(0)
+  }
+  idx <- 2:length(x)
+  sum((x[idx] - x[idx - 1L]) * (y[idx] + y[idx - 1L]) / 2)
 }
 ## returns an index of positions for evaluating a step function at selected times
-sIndex <- function(x,y) {sapply(1:length(y), function(j) {sum(x <= y[j])})}
+sIndex <- function(x, y) {
+  findInterval(y, x)
+}
 ## set nodesize
 set.nodesize <- function(n, p, nodesize = NULL) {
   if (is.null(nodesize)) {
@@ -246,376 +256,1001 @@ set.nodesize <- function(n, p, nodesize = NULL) {
   }
   nodesize
 }
-## main brier function
-## entry.time: optional left-truncation (entry/late-entry) time, one per
-## TRAINING observation (same length and row order as the forest's own
-## yvar -- not the `subset` being scored). NULL (the default) reproduces
-## the standard Brier score exactly. See
-## docs/brier_score_left_truncation.md for the professor's section 9.2:
-## restrict to entered subjects and use delayed-entry censoring risk sets.
-## Predictions and censoring probabilities are conditioned on entry;
-## no entry-CDF weights are applied.
-## ------------------------------------------------------------
-##  Shared setup for the curve-based survival scorers
-## ------------------------------------------------------------
-##  get.brier.survival() and get.auc.survival() need exactly the same
-##  ingredients: the fitted object's OOB (or in-bag) survival matrix mapped
-##  onto the master time grid, the IPCW censoring distribution on that same
-##  grid, and -- under left truncation -- the entry-time CDF G_L on that
-##  grid. Factoring that block out is what keeps the two scorers from
-##  drifting apart in how they build their weights.
+## exact element extraction for stripped RF-SRC objects
 ##
-##  `subset` arrives already resolved (NULL means "everything"), and
-##  `cens.model` already match.arg'd by the caller.
-survival.score.setup <- function(o, subset, cens.model, papply, entry.time,
-                                  compute.censoring = TRUE) {
+## The dollar operator performs partial matching on lists.  This matters for
+## rfsrc.fast(..., forest = FALSE), where xvar is absent but xvar.names is
+## retained: o$forest$xvar can then partially match xvar.names.  Use exact
+## extraction throughout the performance-data path.
+.surv.get.element <- function(x, name) {
+  if (is.null(x) || !is.list(x)) {
+    return(NULL)
+  }
+  x[[name]]
+}
+## identify a supported RF-SRC object
+.surv.object.type <- function(o, allow.forest = TRUE) {
+  if (!inherits(o, "rfsrc")) {
+    return(NULL)
+  }
+  if (inherits(o, "grow")) {
+    return("grow")
+  }
+  if (inherits(o, "predict")) {
+    return("predict")
+  }
+  if (allow.forest && inherits(o, "forest")) {
+    return("forest")
+  }
+  NULL
+}
+## convert a forest object to a grow-like object with OOB predictions
+.surv.prepare.forest <- function(o) {
+  pred.o <- predict(o, perf.type = "none")
+  o[["predicted"]] <- .surv.get.element(pred.o, "predicted")
+  o[["predicted.oob"]] <- .surv.get.element(pred.o, "predicted.oob")
+  o[["survival"]] <- .surv.get.element(pred.o, "survival")
+  o[["survival.oob"]] <- .surv.get.element(pred.o, "survival.oob")
+  if (is.null(.surv.get.element(o, "time.interest"))) {
+    o[["time.interest"]] <- .surv.get.element(pred.o, "time.interest")
+  }
+  o[["forest"]] <- list(yvar = .surv.get.element(o, "yvar"),
+                         xvar = .surv.get.element(o, "xvar"))
+  o
+}
+## use imputed values stored on the current object, when available
+.surv.apply.imputation <- function(o, yvar, xvar) {
+  if (is.null(o$imputed.indv) || is.null(o$imputed.data) ||
+      (is.null(yvar) && is.null(xvar))) {
+    return(list(yvar = yvar, xvar = xvar))
+  }
+  n <- if (!is.null(yvar)) {
+    nrow(yvar)
+  }
+  else {
+    nrow(xvar)
+  }
+  if (is.null(n) || length(n) != 1L || n == 0L) {
+    return(list(yvar = yvar, xvar = xvar))
+  }
+  idx <- o$imputed.indv
+  if (is.logical(idx)) {
+    if (length(idx) != n) {
+      return(list(yvar = yvar, xvar = xvar))
+    }
+    idx <- which(idx)
+  }
+  else {
+    idx <- suppressWarnings(as.integer(idx))
+    idx <- idx[is.finite(idx) & idx >= 1L & idx <= n]
+  }
+  if (length(idx) == 0L) {
+    return(list(yvar = yvar, xvar = xvar))
+  }
+  imp <- data.frame(o$imputed.data, check.names = FALSE)
+  if (nrow(imp) == length(idx)) {
+    imp.row <- seq_along(idx)
+  }
+  else if (nrow(imp) == n) {
+    imp.row <- idx
+  }
+  else {
+    return(list(yvar = yvar, xvar = xvar))
+  }
+  ## Survival imputation stores time and status in the first two columns.
+  if (!is.null(yvar) && ncol(yvar) >= 2L && ncol(imp) >= 2L) {
+    yvar[idx, 1:2] <- imp[imp.row, 1:2, drop = FALSE]
+  }
+  if (!is.null(xvar)) {
+    nx <- ncol(xvar)
+    if (nx > 0L && !is.null(yvar) && ncol(imp) >= 2L + nx) {
+      x.col <- 2L + seq_len(nx)
+    }
+    else if (nx > 0L && ncol(imp) >= nx) {
+      ## Accommodate prediction objects whose imputation matrix contains
+      ## covariates only.
+      x.col <- ncol(imp) - nx + seq_len(nx)
+    }
+    else {
+      x.col <- integer(0L)
+    }
+    if (length(x.col) == nx && nx > 0L) {
+      xvar[idx, ] <- imp[imp.row, x.col, drop = FALSE]
+    }
+  }
+  list(yvar = yvar, xvar = xvar)
+}
+## coerce a survival prediction object to a case-by-time matrix
+.surv.prediction.matrix <- function(x, ncase, ntime, name) {
+  if (is.null(x)) {
+    stop("survival predictions are unavailable in the supplied object.")
+  }
+  if (is.null(dim(x))) {
+    if (ncase == 1L && length(x) == ntime) {
+      x <- matrix(x, nrow = 1L)
+    }
+    else if (ntime == 1L && length(x) == ncase) {
+      x <- matrix(x, ncol = 1L)
+    }
+    else {
+      stop(name, " does not have dimensions compatible with the prediction object.")
+    }
+  }
+  else {
+    x <- as.matrix(x)
+  }
+  if (nrow(x) == ncase && ncol(x) == ntime) {
+    return(x)
+  }
+  if (nrow(x) == ntime && ncol(x) == ncase) {
+    return(t(x))
+  }
+  stop(name, " does not have dimensions compatible with the prediction object.")
+}
+## evaluate case-by-time step functions at requested times
+.surv.step.matrix <- function(x, time.grid, times, initial = 1) {
+  time.grid <- as.numeric(time.grid)
+  times <- as.numeric(times)
+  if (length(time.grid) == 0L || is.unsorted(time.grid, strictly = FALSE)) {
+    stop("the survival time grid must be nondecreasing.")
+  }
+  idx <- findInterval(times, time.grid)
+  out <- matrix(initial, nrow = nrow(x), ncol = length(times))
+  use <- idx > 0L
+  if (any(use)) {
+    out[, use] <- x[, idx[use], drop = FALSE]
+  }
+  out
+}
+## evaluate each row of a case-by-time step function at its own time
+.surv.step.row <- function(x, time.grid, times,
+                           type = c("right", "left"), initial = 1) {
+  type <- match.arg(type)
+  times <- as.numeric(times)
+  if (length(times) != nrow(x)) {
+    stop("row-specific times do not match the number of predicted cases.")
+  }
+  out <- rep(NA_real_, length(times))
+  ok <- is.finite(times)
+  if (!any(ok)) {
+    return(out)
+  }
+  idx <- if (type == "left") {
+    findInterval(times[ok], time.grid, left.open = TRUE)
+  }
+  else {
+    findInterval(times[ok], time.grid)
+  }
+  out[ok] <- initial
+  use <- idx > 0L
+  if (any(use)) {
+    row <- which(ok)[use]
+    out[row] <- x[cbind(row, idx[use])]
+  }
+  out
+}
+## create the event-information list used by the existing plotting code
+.surv.event.info <- function(yvar, times) {
+  if (is.null(yvar)) {
+    return(list(event = NULL, event.type = NULL, cens = NULL,
+                time.interest = times, time = NULL, r.dim = 0L))
+  }
+  if (ncol(yvar) != 2L) {
+    stop("survival outcomes must contain exactly two columns: time and censoring.")
+  }
+  time <- as.numeric(yvar[, 1L])
+  cens <- as.numeric(yvar[, 2L])
+  valid.cens <- is.na(cens) |
+    (is.finite(cens) & cens >= 0 & floor(cens) == cens)
+  if (!all(valid.cens)) {
+    stop("for survival families censoring variable must be coded as a non-negative integer")
+  }
+  event <- na.omit(cens)[na.omit(cens) > 0]
+  event.type <- sort(unique(event))
+  list(event = event, event.type = event.type, cens = cens,
+       time.interest = times, time = time, r.dim = 2L)
+}
+## validate and normalize requested confidence level
+.surv.conf.level <- function(conf.int) {
+  if (length(conf.int) != 1L || is.na(conf.int)) {
+    stop("'conf.int' must be FALSE, TRUE, or a single confidence level.")
+  }
+  if (is.logical(conf.int)) {
+    return(if (conf.int) 0.95 else NULL)
+  }
+  conf.level <- suppressWarnings(as.numeric(conf.int))
+  if (!is.finite(conf.level) || conf.level <= 0 || conf.level >= 1) {
+    stop("a numeric 'conf.int' must be strictly between zero and one.")
+  }
+  conf.level
+}
+## extract grow and evaluation data without mixing their outcomes
+.get.survival.performance.data <- function(o, subset = NULL, times = NULL) {
+  if (is.null(o)) {
+    return(NULL)
+  }
   if (o$family != "surv") {
     stop("this function only supports right-censored survival settings")
   }
-  if (sum(inherits(o, c("rfsrc", "grow"), TRUE) == c(1, 2)) != 2 &
-      sum(inherits(o, c("rfsrc", "forest"), TRUE) == c(1, 2)) != 2 &
-      sum(inherits(o, c("rfsrc", "predict"), TRUE) == c(1, 2)) != 2) {
-    stop("This function only works for objects of class `(rfsrc, grow)', '(rfsrc, forest)' or '(rfsrc, predict)'")
+  object.type <- .surv.object.type(o, allow.forest = TRUE)
+  if (is.null(object.type)) {
+    stop("This function only works for objects of class `(rfsrc, grow)', `(rfsrc, forest)' or `(rfsrc, predict)'")
   }
-  ## special handling if object is a forest
-  if (sum(inherits(o, c("rfsrc", "forest"), TRUE) == c(1, 2)) == 2) {
-    predO <- predict(o, perf.type = "none")
-    o$predicted <- predO$predicted
-    o$predicted.oob <- predO$predicted.oob
-    o$survival.oob <- predO$survival.oob
-    o$forest <- list()
-    o$forest$yvar <- o$yvar
-    o$forest$xvar <- o$xvar
+  if (object.type == "forest") {
+    o <- .surv.prepare.forest(o)
   }
-  ## use imputed missing time or censoring indicators
-  if (!is.null(o$yvar) && !is.null(o$imputed.indv)) {
-    o$yvar[o$imputed.indv, ] <- o$imputed.data[, 1:2]
+  time.grid <- as.numeric(.surv.get.element(o, "time.interest"))
+  if (length(time.grid) == 0L || any(!is.finite(time.grid)) ||
+      is.unsorted(time.grid, strictly = FALSE)) {
+    stop("the supplied object does not contain a valid survival time grid.")
   }
-  ## subsetting: assumes entire data set to be used if not specified
-  if (is.null(subset)) {
-    subset <- 1:length(o$predicted)
+  if (is.null(times)) {
+    times <- time.grid
   }
   else {
-    ## convert the user specified subset into a usable form
-    if (is.logical(subset)) subset <- which(subset)
-    subset <- unique(subset[subset >= 1 & subset <= length(o$predicted)])
-    if (length(subset) == 0) {
+    times <- as.numeric(times)
+    times <- sort(unique(times[is.finite(times)]))
+    if (length(times) == 0L) {
+      stop("'times' does not contain any finite values.")
+    }
+  }
+  ## The full grow data always define the censoring distribution. For a
+  ## prediction object, never substitute test outcomes when grow outcomes are
+  ## unavailable: scoring must stop rather than estimate G from the test set.
+  ## Exact extraction is essential for stripped rfsrc.fast objects, which keep
+  ## xvar.names but intentionally omit xvar when forest = FALSE.
+  forest <- .surv.get.element(o, "forest")
+  forest.yvar <- .surv.get.element(forest, "yvar")
+  forest.xvar <- .surv.get.element(forest, "xvar")
+  object.yvar <- .surv.get.element(o, "yvar")
+  object.xvar <- .surv.get.element(o, "xvar")
+  if (object.type == "predict") {
+    grow.yvar <- forest.yvar
+    grow.xvar <- forest.xvar
+  }
+  else {
+    grow.yvar <- if (!is.null(forest.yvar)) forest.yvar else object.yvar
+    grow.xvar <- if (!is.null(forest.xvar)) forest.xvar else object.xvar
+  }
+  if (!is.null(grow.yvar) &&
+      (is.null(dim(grow.yvar)) || ncol(grow.yvar) != 2L)) {
+    stop("grow outcomes must contain exactly two columns: time and censoring.")
+  }
+  if (!is.null(grow.xvar) && is.null(dim(grow.xvar))) {
+    stop("grow covariates must be stored in a matrix or data frame.")
+  }
+  ## Evaluation data and predictions depend on the object type. Exact
+  ## extraction also prevents predicted from partially matching predicted.oob,
+  ## or survival from partially matching survival.oob, in reduced objects.
+  predicted <- .surv.get.element(o, "predicted")
+  predicted.oob <- .surv.get.element(o, "predicted.oob")
+  survival.full <- .surv.get.element(o, "survival")
+  survival.oob <- .surv.get.element(o, "survival.oob")
+  if (object.type == "predict") {
+    eval.yvar <- object.yvar
+    eval.xvar <- object.xvar
+    mort <- as.numeric(predicted)
+    survival <- survival.full
+    prediction <- "test"
+  }
+  else {
+    eval.yvar <- object.yvar
+    eval.xvar <- object.xvar
+    if (!is.null(predicted.oob) && !is.null(survival.oob)) {
+      mort <- as.numeric(predicted.oob)
+      survival <- survival.oob
+      prediction <- "oob"
+    }
+    else {
+      mort <- as.numeric(predicted)
+      survival <- survival.full
+      prediction <- "ensemble"
+    }
+  }
+  if (length(mort) == 0L) {
+    stop("mortality predictions are unavailable in the supplied object.")
+  }
+  ncase <- length(mort)
+  survival <- .surv.prediction.matrix(survival, ncase, length(time.grid),
+                                      "survival predictions")
+  if (!is.null(eval.yvar)) {
+    if (is.null(dim(eval.yvar)) || ncol(eval.yvar) != 2L) {
+      stop("evaluation outcomes must contain exactly two columns: time and censoring.")
+    }
+    if (nrow(eval.yvar) != ncase) {
+      stop("evaluation outcomes do not align with the predicted cases.")
+    }
+  }
+  if (!is.null(eval.xvar)) {
+    if (is.null(dim(eval.xvar))) {
+      stop("evaluation covariates must be stored in a matrix or data frame.")
+    }
+    if (nrow(eval.xvar) != ncase) {
+      stop("evaluation covariates do not align with the predicted cases.")
+    }
+  }
+  ## Imputation information on a predict object applies to prediction data;
+  ## on a grow/forest object it applies to both grow and evaluation data.
+  eval.imp <- .surv.apply.imputation(o, eval.yvar, eval.xvar)
+  eval.yvar <- eval.imp$yvar
+  eval.xvar <- eval.imp$xvar
+  if (object.type != "predict") {
+    grow.imp <- .surv.apply.imputation(o, grow.yvar, grow.xvar)
+    grow.yvar <- grow.imp$yvar
+    grow.xvar <- grow.imp$xvar
+  }
+  if (is.null(subset)) {
+    subset <- seq_len(ncase)
+  }
+  else {
+    if (is.logical(subset)) {
+      if (length(subset) != ncase) {
+        stop("a logical 'subset' must have length equal to the number of predicted cases.")
+      }
+      subset <- which(subset)
+    }
+    else if (!is.numeric(subset)) {
+      stop("'subset' must be a numeric or logical vector.")
+    }
+    subset <- as.numeric(subset)
+    subset <- unique(subset[is.finite(subset) & subset == floor(subset) &
+                              subset >= 1L & subset <= ncase])
+    subset <- as.integer(subset)
+    if (length(subset) == 0L) {
       stop("'subset' not set properly.")
     }
   }
-  ## yvar is used for building the training (grow) censoring distribution
-  ## however, there is no guarantee that yvar will exist in predict mode
-  ## the forest however always contains yvar, so we use that
-  ## also see above for special handling of forest
-  pred.no.y <- is.null(o$yvar)
-  yvar <- o$forest$yvar
-  o$yvar <- yvar
-  if (!is.null(entry.time)) {
-    if (length(entry.time) != nrow(yvar)) {
-      stop("entry.time must have one value per training observation")
-    }
-    if (any(is.na(entry.time)) || any(entry.time < 0)) {
-      stop("entry.time must be non-negative and non-missing")
-    }
-    if (any(entry.time > yvar[, 1], na.rm = TRUE)) {
-      stop("entry.time must not exceed the observed follow-up time for any subject")
-    }
+  survival <- survival[subset, , drop = FALSE]
+  survival <- .surv.step.matrix(survival, time.grid, times, initial = 1)
+  mort <- mort[subset]
+  if (!is.null(eval.yvar)) {
+    eval.yvar <- eval.yvar[subset, , drop = FALSE]
   }
-  event.info <- get.event.info(o)
-  ## obtain subset event info, but then put original yvar back
-  if (!pred.no.y) {
-    o$yvar <- yvar[subset,, drop = FALSE]
-    subset.event.info <- get.event.info(o)
-    o$yvar <- yvar
+  if (!is.null(eval.xvar)) {
+    eval.xvar <- eval.xvar[subset, , drop = FALSE]
   }
-  else {
-    subset.event.info <- NULL
-  }
-  ## use OOB values if available
-  if (is.null(o$predicted.oob)) {
-    mort <- o$predicted[subset]
-    surv.ensb <- t(o$survival[subset,, drop = FALSE])
-  }
-  else {
-    mort <- o$predicted.oob[subset]
-    surv.ensb <- t(o$survival.oob[subset,, drop = FALSE])
-  }
-  if (!compute.censoring) {
-    return(list(o = o, subset = subset, pred.no.y = pred.no.y, yvar = yvar,
-                event.info = event.info, subset.event.info = subset.event.info,
-                mort = mort, surv.ensb = surv.ensb))
-  }
-  ##-------------------------------------------------------------------------------
-  ##
-  ## censoring distribution estimator for training (grow) data
-  ## match time to grow master list, time.interest
-  ##
-  ##-------------------------------------------------------------------------------
-  ## we match the censoring times with the master list time.interest
-  ## this unifies all further calculations
-  censTime <- sort(unique(event.info$time[event.info$cens == 0]))
-  censTime.pt <- c(sIndex(censTime, event.info$time.interest))
-  ## check to see if there are censoring cases
-  if (length(censTime) > 0) {
-    ## KM censoring distribution estimator
-    if (cens.model == "km") {
-      censModel.obj <- do.call(rbind, papply(1:length(censTime), function(j) {
-        c(sum(event.info$time >= censTime[j], na.rm = TRUE),
-          sum(event.info$time[event.info$cens == 0] == censTime[j], na.rm = TRUE))
-      }))
-      Y <- censModel.obj[, 1]
-      d <- censModel.obj[, 2]
-      r <- d / (Y + 1 * (Y == 0))
-      cens.dist <- c(1, exp(-cumsum(r)))[1 + censTime.pt]
-    }
-    ## rfsrc censoring distribution estimator using random splitting
-    else {
-      cens.dta <- data.frame(time = o$forest$yvar[, 1],
-                             cens = 1 * (o$forest$yvar[, 2] == 0),
-                             o$forest$xvar)
-      cens.o <- rfsrc(Surv(time, cens) ~ ., cens.dta,
-                      ntree = 50,
-                      nsplit = 1,
-                      splitrule = "random",
-                      nodesize = set.nodesize(nrow(cens.dta), ncol(o$forest$xvar)),
-                      perf.type = "none")
-      if (!is.null(o$imputed.indv)) {
-        o$xvar[o$imputed.indv, ] <- o$imputed.data[, -(1:2)]
-      }
-      cens.dist <- predict(cens.o, o$xvar[subset,, drop = FALSE])$survival
-      censTime.pt <- c(sIndex(cens.o$time.interest, event.info$time.interest))
-      cens.dist <- t(cbind(1, cens.dist)[, 1 + censTime.pt])
-    }
-  }
-  ## no censoring cases; assign a default distribution
-  else {
-    cens.dist <- rep(1, length(censTime.pt))
-  }
-  list(o = o,
+  list(object = o,
+       object.type = object.type,
+       prediction = prediction,
        subset = subset,
-       pred.no.y = pred.no.y,
-       yvar = yvar,
-       event.info = event.info,
-       subset.event.info = subset.event.info,
+       time = times,
+       prediction.time = time.grid,
+       survival = survival,
        mort = mort,
-       surv.ensb = surv.ensb,
-       cens.dist = cens.dist,
-       GL = NULL)
+       grow.yvar = grow.yvar,
+       grow.xvar = grow.xvar,
+       eval.yvar = eval.yvar,
+       eval.xvar = eval.xvar,
+       grow.event.info = .surv.event.info(grow.yvar, times),
+       eval.event.info = .surv.event.info(eval.yvar, times))
 }
-get.brier.survival <- function(o, subset, cens.model = c("km", "rfsrc"), papply = lapply,
-                               entry.time = NULL) {
-  ## incoming parameter checks
-  if (is.null(o)) {
+## Nelson-Aalen survival estimator for the evaluation outcomes
+.surv.aalen <- function(time, status, times) {
+  ok <- is.finite(time) & is.finite(status)
+  time <- as.numeric(time[ok])
+  status <- as.numeric(status[ok])
+  if (length(time) == 0L) {
     return(NULL)
   }
-  ## verify the cens.model option
+  event.time <- sort(unique(time[status != 0]))
+  if (length(event.time) == 0L) {
+    return(rep(1, length(times)))
+  }
+  increment <- vapply(event.time, function(tt) {
+    y <- sum(time >= tt)
+    d <- sum(time == tt & status != 0)
+    if (y > 0) d / y else 0
+  }, numeric(1L))
+  surv <- exp(-cumsum(increment))
+  idx <- findInterval(times, event.time)
+  out <- rep(1, length(times))
+  use <- idx > 0L
+  out[use] <- surv[idx[use]]
+  out
+}
+## fit the grow-data censoring distribution and evaluate it on eval cases
+## G.time is a length-m vector for KM and an n-by-m matrix for an RF model.
+.surv.censoring <- function(dat, cens.model) {
   cens.model <- match.arg(cens.model, c("km", "rfsrc"))
-  if (!is.null(entry.time)) {
-    return(get.brier.survival.lt(o, if (missing(subset)) NULL else subset,
-                                cens.model, papply, entry.time))
+  grow.time <- as.numeric(dat$grow.yvar[, 1L])
+  grow.status <- as.numeric(dat$grow.yvar[, 2L])
+  eval.time <- as.numeric(dat$eval.yvar[, 1L])
+  n <- nrow(dat$survival)
+  m <- length(dat$time)
+  grow.complete <- is.finite(grow.time) & is.finite(grow.status)
+  if (!any(grow.complete)) {
+    stop("no non-missing grow outcomes are available for estimating censoring.")
   }
-  ## everything from here down to the KM block is shared with
-  ## get.auc.survival() -- see survival.score.setup() above.
-  setup <- survival.score.setup(o, if (missing(subset)) NULL else subset,
-                                cens.model, papply, entry.time)
-  o                 <- setup$o
-  subset            <- setup$subset
-  pred.no.y         <- setup$pred.no.y
-  yvar              <- setup$yvar
-  event.info        <- setup$event.info
-  subset.event.info <- setup$subset.event.info
-  mort              <- setup$mort
-  surv.ensb         <- setup$surv.ensb
-  cens.dist         <- setup$cens.dist
-  GL.vec            <- setup$GL
-  ##-------------------------------------------------------------------------------
-  ##
-  ## KM for training/testing data - for testing, there must be y
-  ## match time to grow master list, time.interest
-  ##
-  ##-------------------------------------------------------------------------------
-  if (!pred.no.y) {
-    km.obj <- do.call(rbind, papply(1:length(subset.event.info$time.interest), function(j) {
-      c(sum(subset.event.info$time >= subset.event.info$time.interest[j], na.rm = TRUE),
-        sum(subset.event.info$time[subset.event.info$cens != 0] == subset.event.info$time.interest[j], na.rm = TRUE))
-    }))
-    Y <- km.obj[, 1]
-    d <- km.obj[, 2]
-    r <- d / (Y + 1 * (Y == 0))
-    surv.aalen <- exp(-cumsum(r))[1 + sIndex(subset.event.info$time.interest, event.info$time.interest)]
-  }
-  else {
-    surv.aalen <- NULL
-  }
-  ## brier calculations
-  brier.matx <- do.call(rbind, papply(1:ncol(surv.ensb), function(i) {
-    tau <-  event.info$time
-    event <- event.info$cens
-    t.unq <- event.info$time.interest
-    cens.pt <- sIndex(t.unq, tau[i])
+  has.censoring <- any(grow.complete & grow.status == 0)
+  if (!has.censoring) {
+    g.minus <- rep(1, n)
     if (cens.model == "km") {
-      c1 <- 1 * (tau[i] <= t.unq & event[i] != 0)/c(1, cens.dist)[1 + cens.pt]
-      c2 <- 1 * (tau[i] > t.unq) / cens.dist
+      g.time <- rep(1, m)
+      cens.dist <- g.time
     }
     else {
-      c1 <- 1 * (tau[i] <= t.unq & event[i] != 0)/c(1, cens.dist[, i])[1 + cens.pt]
-      c2 <- 1 * (tau[i] > t.unq) / cens.dist[, i]
+      g.time <- matrix(1, nrow = n, ncol = m)
+      cens.dist <- t(g.time)
     }
-    surv.i <- surv.ensb[, i]
-    out <- (1 * (tau[i] > t.unq) - surv.i)^2 * (c1 + c2)
-    out
-  }))
-  brier.score <- data.frame(time = event.info$time.interest,
-                            brier.score = colMeans(brier.matx, na.rm = TRUE))
-  ## crps - continuous rank probability score
-  crps <- trapz(brier.score$time, brier.score$brier.score)
-  ## return the goodies
-  list(brier.matx = brier.matx,
-       brier.score = brier.score,
-       cens.dist = cens.dist,
-       crps = crps,
-       crps.std = crps / max(brier.score$time),
-       time = event.info$time.interest,
-       event.info = event.info,
-       subset = subset,
-       mort = mort,
-       surv.aalen = surv.aalen,
-       surv.ensb = surv.ensb,
-       GL = if (is.null(entry.time)) NULL else GL.vec)
-}
-## ---------------------------------------------------------------------
-##  Time-dependent (cumulative/dynamic) AUC -- see docs/auc_left_truncation.md
-## ---------------------------------------------------------------------
-##  Sits between the two metrics already here. Like get.cindex() it is
-##  rank-based -- it never asks whether a predicted probability is
-##  numerically right, only whether the ordering is right. Like
-##  get.brier.survival() it is evaluated at a fixed time t against the risk
-##  set alive at t, which is precisely where left truncation does damage.
-##
-##  NOT to be confused with the exported get.auc(), which is the Hand & Till
-##  multiclass *classification* AUC and has nothing to do with survival.
-##
-##  At each grid time t the sample splits into cases (T_i <= t, delta_i = 1)
-##  and controls (T_j > t); each subject carries the marker
-##  M_i(t) = 1 - S(t|X_i), i.e. predicted risk of the event by t. The AUC is
-##  the IPCW-weighted probability that a case outranks a control.
-##
-##  Note this is HIGHER-is-better, unlike MAD, the Brier score, and
-##  get.cindex()'s error-rate convention. Callers wanting a common direction
-##  should use 1 - auc.
-##
-##  entry.time = NULL (the default) gives the ordinary right-censored
-##  estimator; supplying it scores entry-conditioned ranking among enrolled
-##  subjects using delayed-entry censoring risk sets, without entry-CDF weights.
-get.auc.survival <- function(o, subset, cens.model = c("km", "rfsrc"), papply = lapply,
-                             entry.time = NULL) {
-  ## incoming parameter checks
-  if (is.null(o)) {
-    return(NULL)
+    return(list(G.time = g.time,
+                G.minus = g.minus,
+                cens.dist = cens.dist,
+                fit = NULL))
   }
-  ## verify the cens.model option
-  cens.model <- match.arg(cens.model, c("km", "rfsrc"))
-  if (!is.null(entry.time)) {
-    return(get.auc.survival.lt(o, if (missing(subset)) NULL else subset,
-                              cens.model, papply, entry.time))
-  }
-  setup <- survival.score.setup(o, if (missing(subset)) NULL else subset,
-                                cens.model, papply, entry.time)
-  subset     <- setup$subset
-  event.info <- setup$event.info
-  mort       <- setup$mort
-  surv.ensb  <- setup$surv.ensb      ## grid x subject, subject in `subset` order
-  cens.dist  <- setup$cens.dist
-  GL.vec     <- setup$GL
-  t.unq <- event.info$time.interest
-  n <- ncol(surv.ensb)
-  ## Subject-level outcomes, aligned to the COLUMNS of surv.ensb. event.info
-  ## is built from the full training yvar, while surv.ensb holds only the
-  ## `subset` rows, so the two must be brought onto a common index before
-  ## they can be paired. (get.brier.survival() pairs them without this step;
-  ## harmless on the default subset = everything, which is all the
-  ## simulations use, but not in general.)
-  tau     <- event.info$time[subset]
-  event   <- event.info$cens[subset]
-  ##-------------------------------------------------------------------------------
-  ##
-  ## subject-level quantities that do not depend on the evaluation time
-  ##
-  ##-------------------------------------------------------------------------------
-  ## grid index of each subject's own observed time, for reading G_C(T_i^-)
-  cens.pt <- sIndex(t.unq, tau)
   if (cens.model == "km") {
-    gc.case <- c(1, cens.dist)[1 + cens.pt]
+    fit <- km_censor_fit(grow.time[grow.complete],
+                         as.integer(grow.status[grow.complete] != 0))
+    g.time <- .km.censor.predict(fit$time, fit$G, dat$time,
+                                 type = "right")
+    g.minus <- .km.censor.predict(fit$time, fit$G, eval.time,
+                                  type = "left")
+    return(list(G.time = g.time,
+                G.minus = g.minus,
+                cens.dist = g.time,
+                fit = fit))
   }
-  else {
-    gc.case <- vapply(1:n, function(i) c(1, cens.dist[, i])[1 + cens.pt[i]], numeric(1))
+  if (is.null(dat$grow.xvar) || is.null(dat$eval.xvar)) {
+    stop("'cens.model = \"rfsrc\"' requires stored grow and evaluation ",
+         "covariates. They are unavailable in the supplied object. For an ",
+         "rfsrc.fast fit, use cens.model = \"km\" or refit with ",
+         "forest = TRUE.")
   }
-  w.case <- 1 / gc.case
-  ##-------------------------------------------------------------------------------
-  ##
-  ## AUC at each evaluation time
-  ##
-  ##-------------------------------------------------------------------------------
-  auc.vec <- unlist(papply(1:length(t.unq), function(k) {
-    tk <- t.unq[k]
-    ## marker = predicted risk of the event by t. Ranking on 1 - S is the
-    ## same as ranking on -S, but the explicit form keeps "higher marker =
-    ## higher risk = should be the case" readable.
-    marker <- 1 - surv.ensb[k, ]
-    is.case <- (tau <= tk) & (event != 0)
-    is.ctrl <- (tau > tk)
-    ## control weight 1/G_C(t), read at the evaluation time
-    gc.ctrl <- if (cens.model == "km") cens.dist[k] else cens.dist[k, ]
-    w.ctrl <- rep_len(1 / gc.ctrl, n)
-    ## a subject with a non-finite weight (zero estimated G_C) carries
-    ## no usable information at this time point
-    is.case <- is.case & is.finite(w.case) & is.finite(marker)
-    is.ctrl <- is.ctrl & is.finite(w.ctrl) & is.finite(marker)
-    if (!any(is.case) || !any(is.ctrl)) {
-      return(NA_real_)
+  if (nrow(dat$grow.xvar) != nrow(dat$grow.yvar)) {
+    stop("grow covariates do not align with grow outcomes.")
+  }
+  ## Missing grow outcomes cannot train the censoring forest. Predictor
+  ## missingness, if present, is handled by RF-SRC in the usual way.
+  grow.use <- which(grow.complete)
+  cens.dta <- data.frame(time = grow.time[grow.use],
+                         cens = 1 * (grow.status[grow.use] == 0),
+                         dat$grow.xvar[grow.use, , drop = FALSE])
+  cens.o <- rfsrc(Surv(time, cens) ~ ., cens.dta,
+                  ntree = 50,
+                  nsplit = 1,
+                  splitrule = "random",
+                  nodesize = set.nodesize(nrow(cens.dta),
+                                           ncol(dat$grow.xvar)),
+                  perf.type = "none")
+  cens.pred <- predict(cens.o, newdata = dat$eval.xvar)$survival
+  cens.pred <- .surv.prediction.matrix(cens.pred, n,
+                                       length(cens.o$time.interest),
+                                       "censoring survival predictions")
+  g.time <- .surv.step.matrix(cens.pred, cens.o$time.interest,
+                              dat$time, initial = 1)
+  g.minus <- .surv.step.row(cens.pred, cens.o$time.interest,
+                            eval.time, type = "left", initial = 1)
+  list(G.time = g.time,
+       G.minus = g.minus,
+       cens.dist = t(g.time),
+       fit = cens.o)
+}
+## Brier score and empirical conditional asymptotic variance
+.surv.brier <- function(dat, censoring, conf.level, papply, keep.matrix) {
+  time <- as.numeric(dat$eval.yvar[, 1L])
+  status <- as.numeric(dat$eval.yvar[, 2L])
+  times <- dat$time
+  survival <- dat$survival
+  n <- nrow(survival)
+  m <- ncol(survival)
+  ans <- papply(seq_len(n), function(i) {
+    loss <- rep(NA_real_, m)
+    bad.g <- rep(FALSE, m)
+    if (!is.finite(time[i]) || !is.finite(status[i])) {
+      return(list(loss = loss, bad.g = bad.g))
     }
-    mi <- marker[is.case]; wi <- w.case[is.case]
-    mj <- marker[is.ctrl]; wj <- w.ctrl[is.ctrl]
-    ## Weighted Mann-Whitney numerator, done by sorting rather than by an
-    ## outer product: the case x control matrix is O(n^2) per time point and
-    ## there is one time point per death, which is quadratic-in-n work
-    ## repeated n times on realistic sample sizes.
-    ord <- order(mj)
-    mj.s <- mj[ord]
-    ## cw[1 + m] = total control weight among the m smallest markers
-    cw <- c(0, cumsum(wj[ord]))
-    ## findInterval counts controls with marker <= mi; left.open = TRUE
-    ## counts those strictly below. The gap between them is the tie mass,
-    ## which gets half credit. Ties are not a corner case here: subjects
-    ## sharing terminal nodes across every tree get identical curves.
-    W.le <- cw[1 + findInterval(mi, mj.s)]
-    W.lt <- cw[1 + findInterval(mi, mj.s, left.open = TRUE)]
-    num <- sum(wi * (W.lt + 0.5 * (W.le - W.lt)))
-    den <- sum(wi) * sum(wj)
-    if (den <= 0) NA_real_ else num / den
-  }))
-  auc <- data.frame(time = t.unq, auc = auc.vec)
-  ## Headline figure: time-averaged AUC over the range where it is defined.
-  ## The historical summary integrates the finite grid points. This can
-  ## bridge interior gaps; it is a descriptive average, not a population
-  ## event-distribution-weighted integrated AUC.
-  ok <- !is.na(auc.vec)
-  iauc <- if (sum(ok) >= 2 && diff(range(t.unq[ok])) > 0) {
-    trapz(t.unq[ok], auc.vec[ok]) / diff(range(t.unq[ok]))
+    case <- time[i] <= times & status[i] != 0
+    control <- time[i] > times
+    censored <- time[i] <= times & status[i] == 0
+    ## Censored observations contribute zero after their censoring time.
+    loss[censored] <- 0
+    if (any(case)) {
+      jj <- which(case)
+      good.s <- is.finite(survival[i, jj])
+      good.g <- is.finite(censoring$G.minus[i]) &&
+        censoring$G.minus[i] > 0
+      if (!good.g) {
+        ## A zero censoring probability invalidates only horizons at which
+        ## this case otherwise has an evaluable prediction.
+        bad.g[jj[good.s]] <- TRUE
+      }
+      else {
+        loss[jj[good.s]] <- survival[i, jj[good.s]]^2 /
+          censoring$G.minus[i]
+      }
+    }
+    if (any(control)) {
+      jj <- which(control)
+      g <- if (is.matrix(censoring$G.time)) {
+        censoring$G.time[i, jj]
+      }
+      else {
+        censoring$G.time[jj]
+      }
+      good.g <- is.finite(g) & g > 0
+      good.s <- is.finite(survival[i, jj])
+      bad.g[jj[good.s & !good.g]] <- TRUE
+      use <- good.g & good.s
+      loss[jj[use]] <- (1 - survival[i, jj[use]])^2 / g[use]
+    }
+    list(loss = loss, bad.g = bad.g)
+  })
+  brier.matx <- do.call(rbind, lapply(ans, function(z) z$loss))
+  bad.g <- do.call(rbind, lapply(ans, function(z) z$bad.g))
+  ## A horizon is unsupported when a required censoring probability is zero.
+  unsupported <- colSums(bad.g, na.rm = TRUE) > 0L
+  if (any(unsupported)) {
+    brier.matx[, unsupported] <- NA_real_
+  }
+  point <- vapply(seq_len(m), function(j) {
+    z <- brier.matx[, j]
+    z <- z[is.finite(z)]
+    if (length(z) > 0L) mean(z) else NA_real_
+  }, numeric(1L))
+  n.eval <- vapply(seq_len(m), function(j) {
+    sum(is.finite(brier.matx[, j]))
+  }, integer(1L))
+  brier.score <- data.frame(time = times, brier.score = point)
+  if (!is.null(conf.level)) {
+    std.err <- vapply(seq_len(m), function(j) {
+      z <- brier.matx[, j]
+      z <- z[is.finite(z)]
+      nz <- length(z)
+      if (nz > 1L) {
+        influence <- z - mean(z)
+        sqrt(sum(influence^2) / (nz * (nz - 1L)))
+      }
+      else {
+        NA_real_
+      }
+    }, numeric(1L))
+    crit <- qnorm((1 + conf.level) / 2)
+    brier.score$std.err <- std.err
+    brier.score$lower <- point - crit * std.err
+    brier.score$upper <- point + crit * std.err
+    brier.score$n.eval <- n.eval
+  }
+  crps <- trapz(times, point)
+  time.max <- max(times, na.rm = TRUE)
+  crps.std <- if (is.finite(time.max) && time.max > 0) {
+    crps / time.max
   }
   else {
     NA_real_
   }
-  ## return the goodies
-  list(auc = auc,
-       iauc = iauc,
-       cens.dist = cens.dist,
-       time = t.unq,
-       event.info = event.info,
-       subset = subset,
-       mort = mort,
-       surv.ensb = surv.ensb,
-       GL = GL.vec)
+  list(brier.matx = if (keep.matrix) brier.matx else NULL,
+       brier.score = brier.score,
+       crps = crps,
+       crps.std = crps.std,
+       n.eval = n.eval)
+}
+## predictor-free Kaplan-Meier survival estimated from the full grow outcomes
+##
+## This is the event-survival distribution, not the censoring distribution.
+## At a tied event/censoring time, all subjects still contribute to the event
+## risk set. Censoring removes them only after the event-survival update.
+.surv.null.km <- function(time, status, times) {
+  ok <- is.finite(time) & is.finite(status)
+  time <- as.numeric(time[ok])
+  status <- as.numeric(status[ok])
+  n <- length(time)
+  if (n == 0L) {
+    stop("no non-missing grow outcomes are available for the null Brier reference.")
+  }
+  ## Group exact ties once; counts and risk sets retain repeated observations.
+  ord <- order(time)
+  time <- time[ord]
+  status <- status[ord]
+  run <- rle(time)
+  first <- c(1L, utils::head(cumsum(run$lengths), -1L) + 1L)
+  n.risk <- n - first + 1L
+  n.event <- tabulate(match(time[status != 0], run$values),
+                      nbins = length(run$values))
+  surv <- cumprod(1 - n.event / n.risk)
+  ## Right-continuous evaluation, with survival one before the first time
+  ## and the final estimate carried forward after the last observed time.
+  idx <- findInterval(times, run$values)
+  list(time = times,
+       survival = c(1, surv)[1L + idx],
+       n.train = n)
+}
+## score the grow-data null predictor on the forest's evaluation contributions
+##
+## The forest loss matrix supplies the eligibility mask, including missing
+## outcomes/predictions and unsupported censoring horizons. Early-censored
+## observations retain their zero contribution and remain in the denominator.
+## The same censoring estimates are reused; no second censoring fit is grown.
+.surv.brier.null <- function(dat, censoring, brier) {
+  null <- .surv.null.km(dat$grow.yvar[, 1L], dat$grow.yvar[, 2L],
+                        dat$time)
+  time <- as.numeric(dat$eval.yvar[, 1L])
+  status <- as.numeric(dat$eval.yvar[, 2L])
+  point <- rep(NA_real_, length(dat$time))
+  n.eval <- integer(length(dat$time))
+  for (j in seq_along(dat$time)) {
+    use <- which(is.finite(brier$brier.matx[, j]))
+    if (length(use) == 0L) next
+    tt <- dat$time[j]
+    s0 <- null$survival[j]
+    case <- time[use] <= tt & status[use] != 0
+    control <- time[use] > tt
+    loss <- numeric(length(use))
+    if (any(case)) {
+      loss[case] <- s0^2 / censoring$G.minus[use[case]]
+    }
+    if (any(control)) {
+      g <- if (is.matrix(censoring$G.time)) {
+        censoring$G.time[use[control], j]
+      }
+      else {
+        censoring$G.time[j]
+      }
+      loss[control] <- (1 - s0)^2 / g
+    }
+    ## An unrepresentable null loss invalidates this reference horizon;
+    ## do not silently drop a case and change the comparison denominator.
+    if (all(is.finite(loss))) {
+      point[j] <- mean(loss)
+      n.eval[j] <- length(use)
+    }
+  }
+  crps <- trapz(dat$time, point)
+  time.max <- max(dat$time, na.rm = TRUE)
+  crps.std <- if (is.finite(time.max) && time.max > 0) {
+    crps / time.max
+  }
+  else {
+    NA_real_
+  }
+  list(brier.score = data.frame(time = dat$time, brier.score = point),
+       crps = crps,
+       crps.std = crps.std,
+       n.eval = n.eval,
+       survival = null$survival,
+       n.train = null$n.train,
+       method = "kaplan-meier",
+       source = "grow")
+}
+## weighted case/control placements for cumulative/dynamic AUC
+.surv.auct.placements <- function(case.risk, control.risk,
+                                   case.weight, control.weight) {
+  if (length(case.risk) == 0L || length(control.risk) == 0L ||
+      length(case.risk) != length(case.weight) ||
+      length(control.risk) != length(control.weight)) {
+    stop("case and control risks must have matching nonempty weight vectors.")
+  }
+  if (any(!is.finite(case.risk)) || any(!is.finite(control.risk)) ||
+      any(!is.finite(case.weight) | case.weight <= 0) ||
+      any(!is.finite(control.weight) | control.weight <= 0)) {
+    stop("AUCT risks must be finite and AUCT weights must be finite and positive.")
+  }
+  ## Scale before normalization to avoid overflow when IPCW weights are
+  ## highly concentrated. The common scale does not change the AUC.
+  p <- case.weight / max(case.weight)
+  p <- pmax(p, .Machine$double.xmin)
+  p <- p / sum(p)
+  q <- control.weight / max(control.weight)
+  q <- pmax(q, .Machine$double.xmin)
+  q <- q / sum(q)
+  ## Control-weight distribution used for case placements.
+  ord <- order(control.risk)
+  risk <- control.risk[ord]
+  weight <- q[ord]
+  run <- rle(risk)
+  run.end <- cumsum(run$lengths)
+  run.start <- run.end - run$lengths + 1L
+  control.unique <- run$values
+  control.weight.group <- vapply(seq_along(run.start), function(k) {
+    sum(weight[run.start[k]:run.end[k]])
+  }, numeric(1L))
+  control.cum <- cumsum(control.weight.group)
+  idx <- findInterval(case.risk, control.unique)
+  equal <- idx > 0L
+  equal[equal] <- control.unique[idx[equal]] == case.risk[equal]
+  lower.idx <- idx - as.integer(equal)
+  lower <- rep(0, length(case.risk))
+  use <- lower.idx > 0L
+  lower[use] <- control.cum[lower.idx[use]]
+  same <- rep(0, length(case.risk))
+  same[equal] <- control.weight.group[idx[equal]]
+  case.place <- lower + 0.5 * same
+  ## Case-weight distribution used for control placements.
+  ord <- order(case.risk)
+  risk <- case.risk[ord]
+  weight <- p[ord]
+  run <- rle(risk)
+  run.end <- cumsum(run$lengths)
+  run.start <- run.end - run$lengths + 1L
+  case.unique <- run$values
+  case.weight.group <- vapply(seq_along(run.start), function(k) {
+    sum(weight[run.start[k]:run.end[k]])
+  }, numeric(1L))
+  case.cum <- cumsum(case.weight.group)
+  idx <- findInterval(control.risk, case.unique)
+  equal <- idx > 0L
+  equal[equal] <- case.unique[idx[equal]] == control.risk[equal]
+  leq <- rep(0, length(control.risk))
+  use <- idx > 0L
+  leq[use] <- case.cum[idx[use]]
+  same <- rep(0, length(control.risk))
+  same[equal] <- case.weight.group[idx[equal]]
+  control.place <- 1 - leq + 0.5 * same
+  auct <- sum(p * case.place)
+  list(auct = auct,
+       case.place = case.place,
+       control.place = control.place,
+       case.weight = p,
+       control.weight = q)
+}
+## stratified delete-one jackknife for weighted cumulative/dynamic AUC
+.surv.auct.jackknife <- function(place) {
+  p <- place$case.weight
+  q <- place$control.weight
+  n.case <- length(p)
+  n.control <- length(q)
+  n.case.eff <- if (n.case > 0L) 1 / sum(p^2) else NA_real_
+  n.control.eff <- if (n.control > 0L) 1 / sum(q^2) else NA_real_
+  max.case.weight <- if (n.case > 0L) max(p) else NA_real_
+  max.control.weight <- if (n.control > 0L) max(q) else NA_real_
+  ## Delete one member of a stratum and renormalize the remaining IPCW
+  ## weights. Prefix and suffix sums avoid subtracting a dominant weighted
+  ## placement from the full AUC, which can lose precision under heavy
+  ## censoring. Each set of replicates is centered at its own replicate mean.
+  jackknife.component <- function(weight, placement) {
+    n <- length(weight)
+    if (n <= 1L) {
+      return(NA_real_)
+    }
+    weighted.placement <- weight * placement
+    keep <- seq_len(n - 1L)
+    weight.before <- c(0, cumsum(weight)[keep])
+    weight.after <- rev(c(0, cumsum(rev(weight))[keep]))
+    value.before <- c(0, cumsum(weighted.placement)[keep])
+    value.after <- rev(c(0, cumsum(rev(weighted.placement))[keep]))
+    remain.weight <- weight.before + weight.after
+    remain.value <- value.before + value.after
+    if (any(!is.finite(remain.weight)) ||
+        any(remain.weight <= 0) ||
+        any(!is.finite(remain.value))) {
+      return(NA_real_)
+    }
+    delete.value <- remain.value / remain.weight
+    if (any(!is.finite(delete.value))) {
+      return(NA_real_)
+    }
+    delete.mean <- mean(delete.value)
+    (n - 1) / n * sum((delete.value - delete.mean)^2)
+  }
+  var.case <- jackknife.component(p, place$case.place)
+  var.control <- jackknife.component(q, place$control.place)
+  std.err <- if (is.finite(var.case) && is.finite(var.control)) {
+    sqrt(max(0, var.case + var.control))
+  }
+  else {
+    NA_real_
+  }
+  list(std.err = std.err,
+       var.case = var.case,
+       var.control = var.control,
+       n.case.eff = n.case.eff,
+       n.control.eff = n.control.eff,
+       max.case.weight = max.case.weight,
+       max.control.weight = max.control.weight)
+}
+## cumulative/dynamic AUC and stratified delete-one jackknife variance
+.surv.auct <- function(dat, censoring, conf.level, papply) {
+  time <- as.numeric(dat$eval.yvar[, 1L])
+  status <- as.numeric(dat$eval.yvar[, 2L])
+  times <- dat$time
+  risk <- 1 - dat$survival
+  empty.result <- function(n.case, n.control) {
+    c(auct = NA_real_, std.err = NA_real_,
+      n.case = n.case, n.control = n.control,
+      n.case.eff = NA_real_, n.control.eff = NA_real_,
+      max.case.weight = NA_real_, max.control.weight = NA_real_)
+  }
+  ans <- papply(seq_along(times), function(j) {
+    complete <- is.finite(time) & is.finite(status) & is.finite(risk[, j])
+    case <- complete & time <= times[j] & status != 0
+    control <- complete & time > times[j]
+    n.case <- sum(case)
+    n.control <- sum(control)
+    if (n.case == 0L || n.control == 0L) {
+      return(empty.result(n.case, n.control))
+    }
+    g.case <- censoring$G.minus[case]
+    g.control <- if (is.matrix(censoring$G.time)) {
+      censoring$G.time[control, j]
+    }
+    else {
+      rep(censoring$G.time[j], n.control)
+    }
+    if (any(!is.finite(g.case) | g.case <= 0) ||
+        any(!is.finite(g.control) | g.control <= 0)) {
+      return(empty.result(n.case, n.control))
+    }
+    ## Only relative IPCW weights enter AUC. Scaling by the smallest
+    ## censoring probability keeps the largest weight at one and avoids
+    ## overflow in heavily censored settings.
+    case.weight <- pmax(min(g.case) / g.case, .Machine$double.xmin)
+    control.weight <- pmax(min(g.control) / g.control,
+                           .Machine$double.xmin)
+    if (any(!is.finite(case.weight) | case.weight <= 0) ||
+        any(!is.finite(control.weight) | control.weight <= 0)) {
+      return(empty.result(n.case, n.control))
+    }
+    place <- .surv.auct.placements(
+      case.risk = risk[case, j],
+      control.risk = risk[control, j],
+      case.weight = case.weight,
+      control.weight = control.weight
+    )
+    ## Weight diagnostics are useful even when confidence intervals are not
+    ## requested. The jackknife calculation itself is only needed for an SE.
+    p <- place$case.weight
+    q <- place$control.weight
+    n.case.eff <- 1 / sum(p^2)
+    n.control.eff <- 1 / sum(q^2)
+    max.case.weight <- max(p)
+    max.control.weight <- max(q)
+    std.err <- NA_real_
+    if (!is.null(conf.level)) {
+      jackknife <- .surv.auct.jackknife(place)
+      std.err <- jackknife$std.err
+    }
+    c(auct = place$auct, std.err = std.err,
+      n.case = n.case, n.control = n.control,
+      n.case.eff = n.case.eff,
+      n.control.eff = n.control.eff,
+      max.case.weight = max.case.weight,
+      max.control.weight = max.control.weight)
+  })
+  ans <- as.data.frame(do.call(rbind, ans))
+  auct.score <- data.frame(time = times, auct = ans$auct)
+  if (!is.null(conf.level)) {
+    crit <- qnorm((1 + conf.level) / 2)
+    auct.score$std.err <- ans$std.err
+    auct.score$lower <- ans$auct - crit * ans$std.err
+    auct.score$upper <- ans$auct + crit * ans$std.err
+  }
+  auct.score$n.case <- as.integer(ans$n.case)
+  auct.score$n.control <- as.integer(ans$n.control)
+  auct.score$n.case.eff <- ans$n.case.eff
+  auct.score$n.control.eff <- ans$n.control.eff
+  auct.score$max.case.weight <- ans$max.case.weight
+  auct.score$max.control.weight <- ans$max.control.weight
+  list(auct.score = auct.score)
+}
+## shared engine for Brier score and time-dependent AUC
+.get.survival.performance <- function(o,
+                                      subset = NULL,
+                                      cens.model = c("km", "rfsrc"),
+                                      papply = lapply,
+                                      times = NULL,
+                                      conf.int = FALSE,
+                                      keep.matrix = TRUE,
+                                      metrics = c("brier", "auct"),
+                                      brier.null = FALSE) {
+  cens.model <- match.arg(cens.model)
+  metrics <- unique(match.arg(metrics, c("brier", "auct"),
+                              several.ok = TRUE))
+  if (!is.function(papply)) {
+    stop("'papply' must be a function such as lapply or mclapply.")
+  }
+  if (length(keep.matrix) != 1L || is.na(keep.matrix) ||
+      !is.logical(keep.matrix)) {
+    stop("'keep.matrix' must be TRUE or FALSE.")
+  }
+  if (length(brier.null) != 1L || is.na(brier.null) ||
+      !is.logical(brier.null)) {
+    stop("'brier.null' must be TRUE or FALSE.")
+  }
+  conf.level <- .surv.conf.level(conf.int)
+  dat <- .get.survival.performance.data(o, subset = subset, times = times)
+  if (is.null(dat)) {
+    return(NULL)
+  }
+  if (is.null(dat$eval.yvar)) {
+    stop("evaluation outcomes are required to calculate Brier score or time-dependent AUC.")
+  }
+  if (is.null(dat$grow.yvar)) {
+    stop("grow outcomes are required to estimate the censoring distribution.")
+  }
+  eval.complete <- is.finite(as.numeric(dat$eval.yvar[, 1L])) &
+    is.finite(as.numeric(dat$eval.yvar[, 2L]))
+  if (!any(eval.complete)) {
+    stop("no non-missing evaluation outcomes are available.")
+  }
+  censoring <- .surv.censoring(dat, cens.model)
+  surv.aalen <- .surv.aalen(dat$eval.event.info$time,
+                            dat$eval.event.info$cens,
+                            dat$time)
+  common <- list(cens.dist = censoring$cens.dist,
+                 time = dat$time,
+                 event.info = dat$grow.event.info,
+                 grow.event.info = dat$grow.event.info,
+                 eval.event.info = dat$eval.event.info,
+                 test.event.info = dat$eval.event.info,
+                 subset = dat$subset,
+                 mort = dat$mort,
+                 surv.aalen = surv.aalen,
+                 surv.ensb = t(dat$survival),
+                 prediction = dat$prediction,
+                 cens.model = cens.model,
+                 conf.level = conf.level)
+  out <- list()
+  if ("brier" %in% metrics) {
+    ## Retain losses only long enough to align the optional null reference.
+    ## Existing helper calls do not request the null and keep their output.
+    brier <- .surv.brier(dat, censoring, conf.level, papply,
+                         keep.matrix = keep.matrix || brier.null)
+    if (brier.null) {
+      brier$null <- .surv.brier.null(dat, censoring, brier)
+    }
+    if (!keep.matrix) {
+      brier["brier.matx"] <- list(NULL)
+    }
+    out$brier <- c(brier, common)
+  }
+  if ("auct" %in% metrics) {
+    auct <- .surv.auct(dat, censoring, conf.level, papply)
+    out$auct <- c(auct, common)
+  }
+  out
+}
+## Brier score helper
+get.brier.survival <- function(o,
+                               subset = NULL,
+                               cens.model = c("km", "rfsrc"),
+                               papply = lapply,
+                               times = NULL,
+                               conf.int = FALSE,
+                               keep.matrix = TRUE,
+                               entry.time = NULL) {
+  if (!is.null(entry.time)) {
+    if (!identical(conf.int, FALSE)) {
+      stop("Confidence intervals are not implemented for entry-conditioned Brier scoring.")
+    }
+    out <- get.brier.survival.lt(o, subset, match.arg(cens.model), papply,
+                                 entry.time, times = times)
+    if (!keep.matrix) out["brier.matx"] <- list(NULL)
+    return(out)
+  }
+  ans <- .get.survival.performance(o,
+                                   subset = subset,
+                                   cens.model = cens.model,
+                                   papply = papply,
+                                   times = times,
+                                   conf.int = conf.int,
+                                   keep.matrix = keep.matrix,
+                                   metrics = "brier")
+  if (is.null(ans)) NULL else ans$brier
+}
+## cumulative/dynamic time-dependent AUC helper
+get.auct.survival <- function(o,
+                              subset = NULL,
+                              cens.model = c("km", "rfsrc"),
+                              papply = lapply,
+                              times = NULL,
+                              conf.int = FALSE,
+                              entry.time = NULL) {
+  if (!is.null(entry.time)) {
+    if (!identical(conf.int, FALSE)) {
+      stop("Confidence intervals are not implemented for entry-conditioned AUC scoring.")
+    }
+    out <- get.auc.survival.lt(o, subset, match.arg(cens.model), papply,
+                               entry.time, times = times)
+    out$auct.score <- data.frame(time = out$auc$time, auct = out$auc$auc)
+    return(out)
+  }
+  ans <- .get.survival.performance(o,
+                                   subset = subset,
+                                   cens.model = cens.model,
+                                   papply = papply,
+                                   times = times,
+                                   conf.int = conf.int,
+                                   keep.matrix = FALSE,
+                                   metrics = "auct")
+  if (is.null(ans)) NULL else ans$auct
 }
 ## ------------------------------------------------------------
 ## Uno weights
@@ -666,9 +1301,11 @@ km_censor_fit <- function(time, status) {
   }
   list(time = times[1L:k], G = G[1L:k])
 }
-## Generic left-limit step evaluation: returns Ghat(t-)
-## for arbitrary t_new using knots/time_knots and post-step values G.
-uno_Ghat_minus_predict <- function(time_knots, G, t_new) {
+## Generic step evaluation for the censoring distribution.
+## The stored values G are post-step values at time_knots.
+.km.censor.predict <- function(time_knots, G, t_new,
+                               type = c("left", "right")) {
+  type <- match.arg(type)
   t_new <- as.numeric(t_new)
   out <- rep(NA_real_, length(t_new))
   ok <- !is.na(t_new)
@@ -677,9 +1314,18 @@ uno_Ghat_minus_predict <- function(time_knots, G, t_new) {
     out[ok] <- 1.0
     return(out)
   }
-  idx <- findInterval(t_new[ok], time_knots, left.open = TRUE)
-  out[ok] <- ifelse(idx == 0L, 1.0, G[idx])
+  idx <- if (type == "left") {
+    findInterval(t_new[ok], time_knots, left.open = TRUE)
+  }
+  else {
+    findInterval(t_new[ok], time_knots)
+  }
+  out[ok] <- c(1.0, G)[1L + idx]
   out
+}
+## Generic left-limit step evaluation retained for the Uno helpers.
+uno_Ghat_minus_predict <- function(time_knots, G, t_new) {
+  .km.censor.predict(time_knots, G, t_new, type = "left")
 }
 ## Effective sample size of positive weights
 uno_ess <- function(w) {
@@ -857,4 +1503,24 @@ uno.prepare.test <- function(time_test, status_test, fit,
 ## ------------------------------------------------------------
 get.uno.weights <- function(time, status) {
   get.uno.weights.train(time, status, return_fit = FALSE)
+}
+
+## Compatibility name used by the thesis simulations. Upstream's canonical
+## helper is get.auct.survival(); retain the established auc/iauc fields here.
+get.auc.survival <- function(o, subset = NULL, cens.model = c("km", "rfsrc"),
+                             papply = lapply, entry.time = NULL, times = NULL) {
+  if (is.null(o)) return(NULL)
+  cens.model <- match.arg(cens.model)
+  if (!is.null(entry.time)) {
+    return(get.auc.survival.lt(o, subset, cens.model, papply, entry.time,
+                               times = times))
+  }
+  out <- get.auct.survival(o, subset, cens.model, papply, times = times)
+  out$auc <- data.frame(time = out$auct.score$time, auc = out$auct.score$auct)
+  ok <- is.finite(out$auc$auc)
+  out$iauc <- if (sum(ok) >= 2 && diff(range(out$time[ok])) > 0) {
+    trapz(out$time[ok], out$auc$auc[ok]) / diff(range(out$time[ok]))
+  } else NA_real_
+  out$GL <- NULL
+  out
 }

@@ -1,7 +1,7 @@
 ## Practical entry-restricted IPCW score from the project outline, section 9.2.
 ## See docs/brier_score_left_truncation.md for the conditioning and assumptions.
-get.brier.survival.lt <- function(o, subset, cens.model, papply, entry.time) {
-  setup <- survival.score.setup.lt(o, subset, cens.model, papply, entry.time)
+get.brier.survival.lt <- function(o, subset, cens.model, papply, entry.time, times = NULL) {
+  setup <- survival.score.setup.lt(o, subset, cens.model, papply, entry.time, times)
   info <- setup$event.info
   time <- info$time
   status <- info$cens
@@ -11,8 +11,8 @@ get.brier.survival.lt <- function(o, subset, cens.model, papply, entry.time) {
   S <- setup$conditional.survival
   entry <- setup$entry.selected
   censoring <- setup$censoring
-  tau <- time[selected]
-  event <- status[selected]
+  tau <- setup$time.selected
+  event <- setup$status.selected
   contributions <- do.call(rbind, papply(seq_along(selected), function(i) {
     out <- rep(NA_real_, length(grid))
     eligible <- entry[i] <= grid & is.finite(S[, i])
@@ -41,6 +41,8 @@ get.brier.survival.lt <- function(o, subset, cens.model, papply, entry.time) {
        cens.dist = censoring$on.grid, crps = crps,
        crps.std = if (max(grid) > 0) crps / max(grid) else NA_real_,
        time = grid, event.info = info,
+       grow.event.info = setup$grow.event.info,
+       eval.event.info = setup$eval.event.info,
        subset = selected, mort = setup$mort, surv.aalen = NULL,
        surv.ensb = raw.S, conditional.survival = S, GL = NULL,
        score.type = "entry-restricted IPCW Brier",

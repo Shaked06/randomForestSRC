@@ -28,9 +28,6 @@ void updateEnsembleSurvival(char mode,
 #ifdef _OPENMP
   omp_lock_t   *lockDENptr;
 #endif
-  //  if (getTraceFlag(treeID) & SUMM_MED_TRACE) {
-  //    RF_nativePrint("\nupdateEnsembleSurvival() ENTRY ...\n");
-  //  }
   ensembleSRGnum = NULL;  
   ensembleCIFnum = NULL;  
   ensembleSRVnum = NULL;  
@@ -103,9 +100,6 @@ void updateEnsembleSurvival(char mode,
         if ((parent -> membrCount) > 0) {
         }
         else {
-          //  if (getTraceFlag(treeID) & SUMM_MED_TRACE) {
-          //    RF_nativePrint("\nSURV OUTC_TYPE case no predicted value:  %10d \n", ii);
-          //  }
           selectionFlag = FALSE;
         }
       }
@@ -156,120 +150,6 @@ void updateEnsembleSurvival(char mode,
 #endif
       }  
     }  
-    //    if (getTraceFlag(treeID) & ENSB_HGH_TRACE) {
-    //    uint obsSize = (mode == RF_PRED) ? RF_fobservationSize : RF_observationSize;
-    //      if (oobFlag == TRUE) {
-    //        RF_nativePrint("\nOOB Ensemble calculations follow: \n");
-    //      }
-    //      else {
-    //        if (fullFlag == TRUE) {
-    //          RF_nativePrint("\nFULL Ensemble calculations follow: \n");
-    //        }
-    //      }
-    //
-    //      if (!(RF_opt & OPT_COMP_RISK)) {
-    //        RF_nativePrint("\nEnsemble CHF:  \n");
-    //        RF_nativePrint("          ");
-    //        for (uint n = 1; n <= obsSize; n++) {
-    //          RF_nativePrint("%10d", n);
-    //        }
-    //        RF_nativePrint("\n");
-    //        for (uint k = 1; k <= RF_sortedTimeInterestSize; k++) {
-    //          RF_nativePrint("%10d", k);
-    //          for (uint n = 1; n <= obsSize; n++) {
-    //            RF_nativePrint("%10.4f", ensembleSRGnum[1][k][n]);
-    //          }
-    //          RF_nativePrint("\n");
-    //        }
-    //      }
-    //      else {
-    //        for (uint j = 1; j <= RF_eventTypeSize; j++) {
-    //          RF_nativePrint("\nEnsemble CSH:  Event %10d \n", j);
-    //          RF_nativePrint("          ");
-    //          for (uint n = 1; n <= obsSize; n++) {
-    //            RF_nativePrint("%10d", n);
-    //          }
-    //          RF_nativePrint("\n");
-    //          for (uint k = 1; k <= RF_sortedTimeInterestSize; k++) {
-    //            RF_nativePrint("%10d", k);
-    //            for (uint n = 1; n <= obsSize; n++) {
-    //              RF_nativePrint("%10.4f", ensembleSRGnum[j][k][n]);
-    //            }
-    //            RF_nativePrint("\n");
-    //          }
-    //        }
-    //      }
-    //      if (!(RF_opt & OPT_COMP_RISK)) {
-    //        RF_nativePrint("\nSRV Numerator calculation: \n");
-    //        RF_nativePrint("          ");
-    //        for (uint n = 1; n <= obsSize; n++) {
-    //          RF_nativePrint("%10d", n);
-    //        }
-    //        RF_nativePrint("\n");
-    //        for (uint k = 1; k <= RF_sortedTimeInterestSize; k++) {
-    //          RF_nativePrint("%10d", k);
-    //          for (uint n = 1; n <= obsSize; n++) {
-    //            RF_nativePrint("%10.4f", ensembleSRVnum[k][n]);
-    //          }
-    //          RF_nativePrint("\n");
-    //        }
-    //      }
-    //      else {
-    //        for (uint j = 1; j <= RF_eventTypeSize; j++) {
-    //          RF_nativePrint("\nEnsemble CIF:  Event %10d \n", (!(RF_opt & OPT_COMP_RISK)) ? 0: j);
-    //          RF_nativePrint("          ");
-    //          for (uint n = 1; n <= obsSize; n++) {
-    //            RF_nativePrint("%10d", n);
-    //          }
-    //          RF_nativePrint("\n");
-    //          for (uint k = 1; k <= RF_sortedTimeInterestSize; k++) {
-    //            RF_nativePrint("%10d", k);
-    //            for (uint n = 1; n <= obsSize; n++) {
-    //              RF_nativePrint("%10.4f", ensembleCIFnum[j][k][n]);
-    //            }
-    //            RF_nativePrint("\n");
-    //          }
-    //        }
-    //      }
-    //      if (!(RF_opt & OPT_COMP_RISK)) {
-    //        RF_nativePrint("\nEnsemble Mortality (numerator): \n");
-    //        RF_nativePrint("          ");
-    //        for (uint n = 1; n <= obsSize; n++) {
-    //          RF_nativePrint("%10d", n);
-    //        }
-    //        RF_nativePrint("\n");
-    //        RF_nativePrint("          ");
-    //        for (uint n = 1; n <= obsSize; n++) {
-    //          RF_nativePrint("%10.4f", ensembleMRTnum[1][n]);
-    //        }
-    //        RF_nativePrint("\n");
-    //      }
-    //      else {
-    //        for (uint j = 1; j <= RF_eventTypeSize; j ++) {
-    //          RF_nativePrint("\nEnsemble Mortality for event:  %10d \n", j);
-    //          RF_nativePrint("          ");
-    //          for (uint n = 1; n <= obsSize; n++) {
-    //            RF_nativePrint("%10d", n);
-    //          }
-    //          RF_nativePrint("\n");
-    //          RF_nativePrint("          ");
-    //          for (uint n = 1; n <= obsSize; n++) {
-    //            RF_nativePrint("%10.4f", ensembleMRTnum[j][n]);
-    //          }
-    //          RF_nativePrint("\n");
-    //        }
-    //      }
-    //      RF_nativePrint("\nEnsemble Denominator: \n");
-    //      RF_nativePrint("          ");
-    //      for (uint i = 1; i <= obsSize; i++) {
-    //        RF_nativePrint("%10d", i);
-    //      }
-    //      RF_nativePrint("\n          ");
-    //      for (uint i = 1; i <= obsSize; i++) {
-    //        RF_nativePrint("%10d", ensembleDen[i]);
-    //      }
-    //      RF_nativePrint("\n");
-    //    }
     if (outcomeFlag == TRUE) {
       outcomeFlag = FALSE;
     }
@@ -280,9 +160,6 @@ void updateEnsembleSurvival(char mode,
       fullFlag = FALSE;
     }
   }  
-  //  if (getTraceFlag(treeID) & SUMM_MED_TRACE) {
-  //    RF_nativePrint("\nupdateEnsembleSurvival() EXIT ...\n");
-  //  }
 }
 void getEnsembleMortalityCR(char      mode,
                             uint      treeID,
@@ -291,9 +168,6 @@ void getEnsembleMortalityCR(char      mode,
                             double   *ensembleDen,
                             double  **cMortality) {
   uint i, j;
-  //  if (getTraceFlag(treeID) & SUMM_MED_TRACE) {
-  //    RF_nativePrint("\ngetEnsembleMortalityCR() ENTRY ...\n");
-  //  }
   for (i = 1; i <= obsSize; i++) {
     if (ensembleDen[i] != 0) {
       for (j = 1; j <= RF_eventTypeSize; j ++) {
@@ -306,24 +180,6 @@ void getEnsembleMortalityCR(char      mode,
       }
     }
   }
-  //    if (getTraceFlag(treeID) & ENSB_HGH_TRACE) {
-  //        for (j = 1; j <= RF_eventTypeSize; j ++) {
-  //          RF_nativePrint("\nEnsemble Mortality for event:  %10d \n", j);
-  //          RF_nativePrint("          ");
-  //          for (uint n = 1; n <= obsSize; n++) {
-  //            RF_nativePrint("%10d", n);
-  //          }
-  //          RF_nativePrint("\n");
-  //          RF_nativePrint("          ");
-  //          for (uint n = 1; n <= obsSize; n++) {
-  //            RF_nativePrint("%10.4f", cMortality[j][n]);
-  //          }
-  //          RF_nativePrint("\n");
-  //        }
-  //    }
-  //  if (getTraceFlag(treeID) & SUMM_MED_TRACE) {
-  //    RF_nativePrint("\ngetEnsembleMortalityCR() EXIT ...\n");
-  //  }
 }
 void getEnsembleMortality(char      mode,
                           uint      treeID,
@@ -332,9 +188,6 @@ void getEnsembleMortality(char      mode,
                           double   *ensembleDen,
                           double   *mortality) {
   uint i;
-  //  if (getTraceFlag(treeID) & SUMM_MED_TRACE) {
-  //    RF_nativePrint("\ngetEnsembleMortality() ENTRY ...\n");
-  //  }
   for (i = 1; i <= obsSize; i++) {
     if (ensembleDen[i] != 0) {
       mortality[i] = ensembleMRTptr[1][i] / ensembleDen[i];
@@ -343,22 +196,6 @@ void getEnsembleMortality(char      mode,
       mortality[i] = RF_nativeNaN;
     }
   }
-  //    if (getTraceFlag(treeID) & ENSB_HGH_TRACE) {
-  //        RF_nativePrint("\nEnsemble Mortality: \n");
-  //        RF_nativePrint("          ");
-  //        for (uint n=1; n <= obsSize; n++) {
-  //          RF_nativePrint("%10d", n);
-  //        }
-  //        RF_nativePrint("\n");
-  //        RF_nativePrint("          ");
-  //        for (uint n = 1; n <= obsSize; n++) {
-  //          RF_nativePrint("%10.4f", mortality[n]);
-  //        }
-  //        RF_nativePrint("\n");
-  //    }
-  //  if (getTraceFlag(treeID) & SUMM_MED_TRACE) {
-  //    RF_nativePrint("\ngetEnsembleMortality() EXIT ...\n");
-  //  }
 }
 void getConditionalConcordanceArrays(uint     j,
                                      double  *timePtr,
@@ -374,9 +211,6 @@ void getConditionalConcordanceArrays(uint     j,
                                      double  *subsettedEnsembleDen,
                                      double  *subsettedWeight) {
   uint i;
-  //  if (getTraceFlag(0) & SUMM_MED_TRACE) {
-  //    RF_nativePrint("\ngetConditionalConcordanceArrays() ENTRY ...\n");
-  //  }
   if (!(RF_opt & OPT_COMP_RISK)) {
     RF_nativePrint("\nRF-SRC:  *** ERROR *** ");
     RF_nativePrint("\nRF-SRC:  Attempt to update event type subsets in a non-CR analysis.");
@@ -394,9 +228,6 @@ void getConditionalConcordanceArrays(uint     j,
       subsettedWeight[i] = weight[eIndividual[j][i]];
     }
   }
-  //  if (getTraceFlag(0) & SUMM_MED_TRACE) {
-  //    RF_nativePrint("\ngetConditionalConcordanceArrays() EXIT ...\n");
-  //  }
 }
 double getConcordanceIndex(int     fastAction,
                            uint    size,
@@ -411,9 +242,6 @@ double getConcordanceIndex(int     fastAction,
   double *genericWeight;
   double  result;
   uint    i, j;
-  //  if (getTraceFlag(0) & SUMM_MED_TRACE) {
-  //    RF_nativePrint("\ngetConcordanceIndex() ENTRY ...\n");
-  //  }
   getConcordanceIndexActual = NULL;
   if (fastAction == 1) {
     fastFlag = TRUE;
@@ -483,9 +311,6 @@ double getConcordanceIndex(int     fastAction,
   else {
     free_dvector(genericWeight, 1, size);
   }
-  //  if (getTraceFlag(0) & SUMM_MED_TRACE) {
-  //    RF_nativePrint("\ngetConcordanceIndex() EXIT ...\n");
-  //  }
   return result;
 }
 double getConcordanceIndexOriginal(uint    size,
@@ -498,9 +323,6 @@ double getConcordanceIndexOriginal(uint    size,
   double concordancePairCount;
   double concordanceCount;
   double result;
-  //  if (getTraceFlag(0) & SUMM_MED_TRACE) {
-  //    RF_nativePrint("\ngetConcordanceIndexOriginal() ENTRY ...\n");
-  //  }
   // Left truncation: a pair is only comparable at the earlier event time
   // if the later/surviving subject had actually entered the study by
   // then. `entry[k] <= own time[k]` always holds by construction, so the
@@ -551,24 +373,6 @@ double getConcordanceIndexOriginal(uint    size,
   else {
     result = 1.0 - (concordanceCount / concordancePairCount);
   }
-  //  if (getTraceFlag(0) & ENSB_HGH_TRACE) {
-  //    
-  //    RF_nativePrint("\nPredicted Outcome used in Concordance Index Calculations:  ");
-  //    RF_nativePrint("\n        count     OOBcount       Status         Time    Mortality");
-  //    for (i=1; i <= size; i++) {
-  //      RF_nativePrint("\n %12d %12d %12d %12.4f, %12.4f", i, (uint) denom[i], (uint) statusPtr[i], timePtr[i], predictedOutcome[i]);
-  //    }
-  //    RF_nativePrint("\n");
-  //    
-  //    RF_nativePrint("\nConcordance pair and error update complete:");
-  //    RF_nativePrint("\nCount of concordance pairs:         %20.0f", concordancePairCount);
-  //    RF_nativePrint("\nCount of pairs with worse outcome:  %20.0f", concordanceCount);
-  //    RF_nativePrint("\nResult:                             %20.4f", result);
-  //    RF_nativePrint("\n");
-  //  }
-  //  if (getTraceFlag(0) & SUMM_MED_TRACE) {
-  //    RF_nativePrint("\ngetConcordanceIndexOriginal() EXIT() ...\n");
-  //  }
   return result;
 }
 double getConcordanceIndexUno(uint    size,
@@ -582,9 +386,6 @@ double getConcordanceIndexUno(uint    size,
   double concordanceWeight;
   double w;
   double result;
-  //  if (getTraceFlag(0) & SUMM_MED_TRACE) {
-  //    RF_nativePrint("\ngetConcordanceIndexUno() ENTRY ...\n");
-  //  }
   // Left truncation: same comparability filter as Original -- see there.
   // The tied-both-events branch needs no filter (entry <= own time always
   // holds by construction).
@@ -657,9 +458,6 @@ double getConcordanceIndexUno(uint    size,
   else {
     result = 1.0 - (concordanceWeight / concordancePairWeight);
   }
-  //  if (getTraceFlag(0) & SUMM_MED_TRACE) {
-  //    RF_nativePrint("\ngetConcordanceIndexUno() EXIT ...\n");
-  //  }
   return result;
 }
 static inline void rfsrc_bitAdd(uint *bit, uint m, uint idx, uint delta) {
@@ -702,9 +500,6 @@ double getConcordanceIndexFenwick(uint    size,
   // Fenwick paths when entry != NULL (see there). The parameter exists
   // only so this function's signature matches the shared function-pointer
   // typedef used to select among all four algorithm variants.
-  //  if (getTraceFlag(0) & SUMM_MED_TRACE) {
-  //    RF_nativePrint("\ngetConcordanceIndexFenwick() ENTRY ...\n");
-  //  }
   uint n = 0;
   for (i = 1; i <= size; i++) {
     if (denom[i] != 0) {
@@ -834,9 +629,6 @@ double getConcordanceIndexFenwick(uint    size,
   else {
     result = 1.0 - (concordanceCount / concordancePairCount);
   }
-  //  if (getTraceFlag(0) & SUMM_MED_TRACE) {
-  //    RF_nativePrint("\ngetConcordanceIndexFenwick() EXIT ...\n");
-  //  }
   return result;
 }
 double getConcordanceIndexUnoFenwick(uint    size,
@@ -848,9 +640,6 @@ double getConcordanceIndexUnoFenwick(uint    size,
   uint i;
   double result;
   // entry is unused -- see getConcordanceIndexFenwick() above.
-  //  if (getTraceFlag(0) & SUMM_MED_TRACE) {
-  //    RF_nativePrint("\ngetConcordanceIndexUnoFenwick() ENTRY ...\n");
-  //  }
   uint n = 0;
   for (i = 1; i <= size; i++) {
     if (weight[i] != 0.0) {
@@ -1001,9 +790,6 @@ double getConcordanceIndexUnoFenwick(uint    size,
   else {
     result = 1.0 - (concordanceWeight / concordancePairWeight);
   }
-  //  if (getTraceFlag(0) & SUMM_MED_TRACE) {
-  //    RF_nativePrint("\ngetConcordanceIndexFenwick() EXIT ...\n");
-  //  }
   return result;
 }
 double getCRConcordanceIndexIPCW_Fenwick(uint    size,
@@ -1015,9 +801,6 @@ double getCRConcordanceIndexIPCW_Fenwick(uint    size,
                                          uint    eventType) {
   uint i;
   double result;
-  //  if (getTraceFlag(0) & SUMM_MED_TRACE) {
-  //    RF_nativePrint("\ngetCRConcordanceIndexIPCW_Fenwick() ENTRY() ...\n");
-  //  }
   uint n = 0;
   for (i = 1; i <= size; i++) {
     if ((denom[i] != 0.0) && (weight[i] != 0.0) &&
@@ -1212,9 +995,6 @@ double getCRConcordanceIndexIPCW_Fenwick(uint    size,
   else {
     result = 1.0 - (numerW / denomW);
   }
-  //  if (getTraceFlag(0) & SUMM_MED_TRACE) {
-  //    RF_nativePrint("\ngetCRConcordanceIndexIPCW_Fenwick() EXIT() ...\n");
-  //  }
   return result;
 }
 void getCRPerformance (char     mode,
@@ -1232,9 +1012,6 @@ void getCRPerformance (char     mode,
   double *subsettedWeight;
   double concordanceIndex;
   uint j;
-  //  if (getTraceFlag(0) & SUMM_MED_TRACE) {
-  //    RF_nativePrint("\ngetCRPerformance() ENTRY() ...\n");
-  //  }
   if (!(RF_opt & OPT_COMP_RISK)) {
     RF_nativePrint("\nRF-SRC:  *** ERROR *** ");
     RF_nativePrint("\nRF-SRC:  Attempt at conditional performance updates in a non-CR analysis.");
@@ -1294,9 +1071,6 @@ void getCRPerformance (char     mode,
       subsettedWeight = NULL;
     }
     for (j = 1; j <= RF_eventTypeSize; j++) {
-      //    if (getTraceFlag(0) & SUMM_MED_TRACE) {
-      //      RF_nativePrint("\nConcordance Calculation for Event:  %10d", j);
-      //    }
       getConditionalConcordanceArrays(j,
                                       responsePtr[RF_timeIndex],
                                       responsePtr[RF_statusIndex],
@@ -1340,9 +1114,6 @@ void getCRPerformance (char     mode,
       free_dvector(subsettedWeight, 1, obsSize);
     }
   }
-  //  if (getTraceFlag(0) & SUMM_MED_TRACE) {
-  //    RF_nativePrint("\ngetCRPerformance() EXIT() ...\n");
-  //  }
 }
 uint getTimeInterestIndex(double *array, uint length, double value) {
   uint low, high, mid, result;

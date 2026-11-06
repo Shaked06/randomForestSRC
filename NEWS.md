@@ -1,3 +1,247 @@
+# randomForestSRC 3.9.7
+
+## Left truncation in this fork
+
+- Integrated upstream updates while retaining delayed-entry growing, stored forest entry times, entry-aware restored performance, and the existing regression fixes.
+- Survival evaluation now keeps training and validation outcomes separate for ordinary and LT Brier/AUC scoring, including different-sized test sets and subsets. Both `get.auct.survival()` and the thesis compatibility name `get.auc.survival()` support explicit evaluation entry times.
+- The `km` censoring option follows upstream's product-limit estimator; LT risk sets account for entry. This replaces the earlier LT exponential cumulative-hazard weights. LT confidence intervals remain unsupported and are rejected explicitly.
+
+## Random seed compatibility
+
+* Starting with version 3.10.0, new forests use the wider seed-head
+  generator by default. Growing with the same seed as an earlier release
+  can produce a different forest. The per-tree random generator and the
+  storage formats for bootstrap and VIMP seeds are unchanged.
+
+* Added `rfsrc.RNGversion()` to query or select the RNG protocol for
+  subsequent fits in the current R session. Most users should keep the
+  recommended wide default (`"3.10.0"`) without calling this function.
+  Use `rfsrc.RNGversion("3.2.3")` only to reproduce or test legacy
+  behavior; the legacy generator is not recommended for new analyses.
+  Calling with no argument queries the selection, and supplying `NULL`
+  resets it to the wide default. Selecting the legacy protocol does not
+  undo other algorithm changes or guarantee identical historical results.
+
+* New forests record the protocol in `fit$forest$rng.version`.
+  Restoration, prediction, partial dependence, and VIMP on an existing
+  forest follow its saved protocol, independently of the current session
+  setting. Forests without this metadata use the legacy protocol
+  (`"3.2.3"`); the package version is not used to infer the protocol.
+
+## Forest storage and imputation
+
+* Forests are much smaller when saved with `save()` or `saveRDS()`. The
+  stored sampling-size function (`$sampsize`, also in `$forest`) and the
+  formula kept in `$call` were closures that carried the environment they
+  were created in: the internal frame of `rfsrc()` (data, weights and other
+  working objects) for the default sampling size, or the calling function's
+  frame for a formula built inside a function (e.g. the learners of
+  `impute.learn()`). Both now keep only what they refer to, and data frames,
+  matrices and long vectors passed by value through `do.call()` are no
+  longer copied into `$call`. Predictions are unchanged. For example, a
+  regression forest on 5,000 rows now saves at a third of its former size,
+  and an `impute.learn()` bank kept in memory is about 20 times smaller.
+  A forest restored by `fast.load()` no longer holds a copy of itself inside
+  its `$sampsize` function.
+
+* Added `compress` to `fast.save()`, `fast.save.list()`,
+  `impute.learn()`, and `save.impute.learn()` to control FST compression
+  from 0 to 100 (default 50). Higher values can reduce file sizes at the
+  cost of saving speed. Compression is independent of `compact`, and
+  invalid values are rejected before an existing destination is removed.
+  Loading requires no compression argument.
+
+* Added optional `share.xvar = TRUE` to `impute.learn()` to reduce disk
+  duplication by saving the completed training predictor table once per
+  learner bank. Each target learner's predictors are reconstructed when
+  loading. Shared storage requires `anonymous = FALSE`; load the complete
+  bank with `load.impute.learn()`. Existing independent learner banks remain
+  supported, and saving a shared bank with `share.xvar = FALSE` writes
+  self-contained learners. The default remains `share.xvar = FALSE`.
+
+## Imbalanced classification
+
+* `imbalanced()` now uses normalized Brier score by default for RFQ and
+  BRF prediction error and variable importance. This changes `err.rate`,
+  VIMP, and inference based on these quantities. Set `perf.type = "gmean"`
+  to use the previous default. Expanded the documentation and examples
+  to explain metric selection and compare Brier and G-mean VIMP.
+
+# randomForestSRC 3.9.0
+
+## Forest storage and imputation
+
+* Added optional `compact = TRUE` saving to `fast.save()` and
+  `fast.save.list()`. Compact saves omit terminal-node information and
+  reconstruct it during prediction without growing new trees. This can
+  reduce disk use at the cost of additional prediction time. The fitted
+  object is unchanged, and both saving modes use the existing loaders.
+  The default remains `compact = FALSE`.
+
+* Added compact-save eligibility checks before removing an existing
+  destination, including checks of every forest when saving a list.
+  Compact saving requires a non-anonymous forest with retained training
+  predictors and responses, and a sampling-size specification that
+  preserves the training sample size after loading. `fast.save()` also
+  checks the grow-object class before removing its destination.
+
+* `impute.learn()` now accepts `terminal.qualts` and `terminal.quants`
+  in `full.sweep.options`, allowing terminal-node storage controls to
+  reach the saved target learners. These settings are independent of
+  initial-imputation and supervised auxiliary-forest options.
+
+## Documentation and build
+
+* Reorganized and clarified help for forest saving and loading,
+  imputation and OOD scoring, quantile regression, survival and
+  classification performance, multivariate extraction, partial dependence,
+  subsampling, tuning, and associated plots. Expanded explanations of
+  prediction selection, score and interval interpretation, returned
+  values, graphical controls, and examples.
+
+# randomForestSRC 3.8.0
+
+## Quantile regression
+
+* Renamed the default `quantreg()` method from `"local"` to
+  `"exchangeable"`, retaining `"local"` as an alias. Exchangeable and
+  forest-weighted quantiles and moments are now calculated directly from
+  the saved residual distribution. They no longer depend on the `maxn`
+  reporting grid, and quantiles can extend beyond the training-response
+  range.
+
+* Added `get.pinball.error()` for scoring selected probability levels,
+  observations, and continuous outcomes without refitting. Added
+  `quantreg.tau` controls for printed losses and optional plot annotations.
+
+* Quantile plots now include an empirical training-response null CRPS
+  curve by default, controlled by `crps.null`. Graphical arguments in
+  `...` now customize the main panel; use the new `inset.args` argument
+  for the CRPS inset. Improved subset handling and preservation of
+  multipanel graphics layouts.
+
+* Fixed prediction-time quantile probability alignment and default
+  Greenwald--Khanna tolerances for singleton or repeated-singleton
+  probability requests. Improved handling of selected multivariate
+  responses, missing predictions, and singleton output dimensions.
+
+## Imputation and out-of-distribution scoring
+
+* Improved validation of imputation inputs and controls, support for
+  tabular data containers and non-syntactic column names, and column
+  alignment in blocked imputation.
+
+* Integer restoration now rounds only generated imputations, preserving
+  observed fractional values. Corrected detection of integer-supported
+  variables and avoided integer conversion when it would lose information.
+
+* Learned-imputer saving now stages and reads back learners before
+  replacing an existing destination. Added path and learner-layout checks,
+  protection against overwriting a full learner bank with a loaded subset,
+  and recovery handling for failed replacements.
+
+* Training now reports partially failed learner banks and stops when no
+  target learner succeeds. Prediction preserves previous fills when an
+  update fails and reports convergence and failed-update diagnostics.
+  Added support for empty deployment tables and reporting of numeric
+  conversion failures.
+
+* Corrected OOD scoring of invalid class probabilities and discrepancies
+  above the training reference. Improved numerical stability for extreme
+  aggregation weights and powers.
+
+## Partial dependence and subsampling
+
+* Fixed partial-dependence extraction for multivariate and mixed outcomes,
+  singleton dimensions, factor codes, and competing-risk event selection.
+  `plot.variable()` now returns `partial.summary` with means, standard
+  deviations, standard errors, and finite prediction counts. Standard
+  errors consistently use the empirical spread and available row count.
+
+* Improved graphical argument handling and cached partial-plot reuse,
+  together with axis limits, labels, and horizontal layouts in
+  `plot.subsample()`.
+
+* Corrected nonparametric VIMP p-values to use the same centered
+  subsampling distribution as confidence intervals. Subsampling and
+  double-bootstrap summaries now align outcomes, predictors, and
+  class/event columns by name and preserve unavailable statistics.
+  Fixed performance-only double bootstrapping when the original forest
+  already contains VIMP, and singleton-stratum sampling.
+
+## Survival and classification performance
+
+* Added a training-data Kaplan--Meier null Brier reference to
+  `plotBrierAUC()`, enabled by default through `brier.null = TRUE`.
+  The reference uses the same evaluation rows and censoring weights as
+  the forest score.
+
+* Added `threshold = "auto"` and `threshold = "bayes"` to
+  `get.imbalanced.performance()`. Improved probability-column alignment,
+  consistent exclusion of unavailable outcomes and predictions, and
+  handling of zero-valued F-scores and threshold optimization.
+
+* Corrected AUC and Brier handling when scores are unavailable, and
+  preserved available multivariate errors when another response has no
+  error output.
+
+## Compatibility and documentation
+
+* Quantile grow objects now store numerical training residuals as
+  `residual` and `residual.oob`, also retained in the saved forest,
+  with source metadata recorded separately. These replace the legacy
+  `yvar.grow` and `res.grow` fields.
+
+* Normalize data-frame subclasses before training and prediction.
+  Removed the `lsos` export.
+
+* Added dedicated help topics for classification performance,
+  multivariate extraction, and fast save/load utilities. Expanded
+  documentation for quantile regression, imputation, partial dependence,
+  subsampling, and plotting.
+
+# randomForestSRC 3.7.0
+
+## Survival prediction performance
+
+* Expanded `get.brier.survival()` to support user-selected prediction
+  horizons, optional pointwise confidence intervals, and optional retention
+  of the subject-by-time IPCW loss matrix. The censoring distribution is
+  estimated from the full grow data, while predictions are scored against
+  their correctly aligned grow or test outcomes.
+
+* Added `get.auct.survival()` for cumulative/dynamic time-dependent AUC using
+  the time-specific risk `1 - S(t)`. The implementation uses efficient
+  weighted rank calculations, gives half credit to ties, and returns case and
+  control counts together with IPCW effective sample sizes and maximum
+  normalized weights.
+
+* Added `plotBrierAUC()`, a base-R helper for plotting Brier and AUC(t) curves
+  with optional pointwise confidence bands. No new package dependencies are
+  required.
+
+* Added fixed-fit conditional standard errors. Brier-score uncertainty uses
+  the delete-one jackknife of subject-level IPCW losses, which is equivalent
+  to the empirical influence-value calculation when predictions and
+  censoring weights are held fixed. AUC(t) uncertainty uses a stratified
+  delete-one jackknife that separately deletes cases and controls and
+  renormalizes the remaining IPCW weights; with equal weights it reduces to
+  the ordinary DeLong variance.
+
+* Corrected `plot.survival()` and the underlying Brier calculations for
+  prediction objects. Test predictions are now paired with test outcomes,
+  arbitrary subsets retain their proper outcome alignment, and prediction
+  objects without outcomes are limited to survival-curve displays rather
+  than incorrectly calculating Brier score or CRPS.
+
+* Restored compatibility with reduced objects returned by
+  `rfsrc.fast(..., forest = FALSE)` for the default Kaplan--Meier censoring
+  model. Requests for `cens.model = "rfsrc"` now give an informative error
+  when stored grow or evaluation covariates are unavailable.
+
+* New `hybrid` proxmity and distance that compares test observations (rows)
+  with original training observations.
+
 # randomForestSRC 3.6.2
 
 ## New features
@@ -425,4 +669,3 @@
 ## Changes
 
 * First release of the package.
-

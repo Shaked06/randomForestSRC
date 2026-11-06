@@ -1,0 +1,10 @@
+r-interface: exit 0
+core-state-and-imputation: exit 0
+metrics: exit 0
+simulation-cox: exit 0
+performance-zero-entry: exit 0
+cache: exit 0
+core-grow: exit 0
+core-predict: exit -11
+core-predict exit -11 is the intentionally reproduced SIGSEGV.
+All other scripts characterize observed bugs, not desired behavior.

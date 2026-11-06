@@ -16,7 +16,6 @@
 #include "impute.h"
 #include "termOps.h"
 #include "nrutil.h"
-// #include "error.h"
 void updateTerminalNodeOutcomes(char       mode,
                                 uint       treeID,
                                 Terminal  *parent,
@@ -28,35 +27,23 @@ void updateTerminalNodeOutcomes(char       mode,
                                 uint      *ambrIterator) {
   uint clasIterator, regrIterator;
   uint i;
-  //  if (getTraceFlag(treeID) & SUMM_HGH_TRACE) {
-  //    RF_nativePrint("\nupdateTerminalNodeOutcomes(%10d) ENTRY ...\n", treeID);
-  //  }
   if (!(RF_optHigh & OPT_JIT_TOP)) {
     if (RF_optHigh & OPT_MEMB_INCG) {
       for (i = 1; i <= genMembrSize; i++) {
         ++(*ambrIterator);
         RF_tTermMembership[treeID][RF_AMBR_ID_ptr[treeID][(*ambrIterator)]] = parent;
       }
-      //  if (getTraceFlag(treeID) & SUMM_HGH_TRACE) {
-      //    RF_nativePrint("\n OPT_MEMB_INCG active with genMembrSize:  %10d", genMembrSize);
-      //  }
     }
     else if (RF_optHigh & OPT_MEMB_OUTG) {
       for (i = 1; i <= genMembrSize; i++) {
         RF_tTermMembership[treeID][genMembrIndx[i]] = parent;
         RF_AMBR_ID_ptr[treeID][++(*ambrIterator)] = genMembrIndx[i];
       }
-      //  if (getTraceFlag(treeID) & SUMM_HGH_TRACE) {
-      //    RF_nativePrint("\n OPT_MEMB_OUTG active with genMembrSize:  %10d", genMembrSize);
-      //  }
     }
     else {
       for (i = 1; i <= genMembrSize; i++) {
         RF_tTermMembership[treeID][genMembrIndx[i]] = parent;
       }
-      //  if (getTraceFlag(treeID) & SUMM_HGH_TRACE) {
-      //    RF_nativePrint("\n OPT_MEMB_---- inactive with genMembrSize:  %10d", genMembrSize);
-      //  }
     }
   }  
   if ((RF_opt & OPT_PERF) ||
@@ -102,9 +89,6 @@ void updateTerminalNodeOutcomes(char       mode,
   else {
     getMembrCountOnly(treeID, parent, repMembrIndx, repMembrSize, genMembrIndx, genMembrSize);
   }
-  //  if (getTraceFlag(treeID) & SUMM_HGH_TRACE) {
-  //    RF_nativePrint("\nupdateTerminalNodeOutcomes() EXIT ...\n");
-  //  }
 }
 void getMembrCountOnly (uint       treeID,
                         Terminal  *parent,
@@ -112,9 +96,6 @@ void getMembrCountOnly (uint       treeID,
                         uint       repMembrSize,
                         uint      *genMembrIndx,
                         uint       genMembrSize) {
-  //  if (getTraceFlag(treeID) & SUMM_MED_TRACE) {
-  //    RF_nativePrint("\ngetMembrCountOnly() ENTRY ...\n");
-  //  }
   if ( !(RF_opt & OPT_BOOT_TYP1) && (RF_opt & OPT_BOOT_TYP2) ) {
     parent -> membrCount = genMembrSize;
   }
@@ -130,16 +111,10 @@ void getMembrCountOnly (uint       treeID,
     if (!(RF_opt & OPT_OUTC_TYPE)) {
     }
   }
-  //  if (getTraceFlag(treeID) & SUMM_MED_TRACE) {
-  //    RF_nativePrint("\ngetMembrCountOnly() EXIT ...\n");
-  //  }
 }
 void updateEnsemble (char mode, uint b) {
   LeafLinkedObj *leafLinkedPtr;
   char      potentiallyMixedMultivariate;
-  //  if (getTraceFlag(b) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nupdateEnsemble(%10d) ENTRY ...\n", b);
-  //  }
     if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
       updateEnsembleSurvival(mode, b, FALSE);
     }
@@ -213,12 +188,6 @@ void updateEnsemble (char mode, uint b) {
       }
       break;
     }
-  //  if (getTraceFlag(b) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nRF-SRC:  Ensemble updates complete.");
-  //  }
-  //  if (getTraceFlag(b) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nupdateEnsemble(%10d) EXIT ...\n", b);
-  //  }
 }
 void summarizeFaithfulBlockPerformance (char        mode,
                                         uint        b,
@@ -232,9 +201,6 @@ void summarizeFaithfulBlockPerformance (char        mode,
                                         double   ***perfCLSblk,
                                         double    **perfRGRblk) {
   uint      obsSize;
-  //  if (getTraceFlag(b) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nsummarizeFaithfulBlockPerformance(%10d) ENTRY ...\n", b);
-  //  }
   obsSize = (mode == RF_PRED) ?  RF_fobservationSize : RF_observationSize;
   if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
     getPerformance(b,
@@ -277,9 +243,6 @@ void summarizeFaithfulBlockPerformance (char        mode,
                      perfRGRblk[blockID]);
     }
   }
-  //  if (getTraceFlag(b) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nsummarizeFaithfulBlockPerformance(%10d) EXIT ...\n", b);
-  //  }
 }
 void summarizeHoldoutBlockPerformance (char        mode,
                                        uint        b,
@@ -294,9 +257,6 @@ void summarizeHoldoutBlockPerformance (char        mode,
                                        double    **holdCLSptr,
                                        double     *holdRGRptr) {
   uint      obsSize;
-  //  if (getTraceFlag(b) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nsummarizeHoldoutBlockPerformance(%10d) ENTRY ...\n", b);
-  //  }
   obsSize = RF_observationSize;
   if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
     getPerformance(b,
@@ -343,9 +303,6 @@ void summarizeHoldoutBlockPerformance (char        mode,
       }
     }
   }
-  //  if (getTraceFlag(b) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nsummarizeHoldoutBlockPerformance(%10d) EXIT ...\n", b);
-  //  }
 }
 char stackAndImputePerfResponse(char      mode,
                                 char      multImpFlag,
@@ -358,12 +315,6 @@ char stackAndImputePerfResponse(char      mode,
   uint     obsSize;
   char     imputeFlag;
   uint     i, p;
-  //  if (getTraceFlag(b) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nstackAndImputePerfResponse(%10d) ENTRY ...\n", b);
-  //  }
-  //  if (getTraceFlag(b) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\n  Called with (b, lo, hi) = (%10d %10d %10d)", b, loSerialTreeID, hiSerialTreeID);
-  //  }
   imputeFlag = FALSE;
   switch (mode) {
   case RF_PRED:
@@ -406,9 +357,6 @@ char stackAndImputePerfResponse(char      mode,
     }
     if (b != 0) {
       imputeResponse(mode, loSerialTreeID, hiSerialTreeID, serialTreePtr, mResponsePtr);
-      //  if (getTraceFlag(b) & SUMM_LOW_TRACE) {
-      //    RF_nativePrint("\n  Allocation and Imputation Conducted. \n");
-      //  }
       *responsePtr = mResponsePtr;
     }
     else {
@@ -416,26 +364,14 @@ char stackAndImputePerfResponse(char      mode,
       *responsePtr = mResponsePtr;
     }      
   }
-  //  if (getTraceFlag(b) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\n  Returning imputeFlag:  %10d", imputeFlag);
-  //  }
-  //  if (getTraceFlag(b) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nstackAndImputePerfResponse(%10d) EXIT ...\n", b);
-  //  }
   return imputeFlag;
 }
 void unstackPerfResponse(char mode, char flag, double **mResponsePtr) {
   uint obsSize;
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nunstackPerfResponse() ENTRY ...\n");
-  //  }
   if (flag == TRUE) {
     obsSize = (mode == RF_PRED) ?  RF_fobservationSize : RF_observationSize;
     free_dmatrix(mResponsePtr, 1, RF_ySize, 1, obsSize);
   }
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nunstackPerfResponse() EXIT ...\n");
-  //  }
 }
 void getPerformance(uint      serialTreeID,
                     char      mode,
@@ -449,9 +385,6 @@ void getPerformance(uint      serialTreeID,
                     double  **perfCLSptr,
                     double   *perfRGRptr) {
   uint j, k;
-  //  if (getTraceFlag(serialTreeID) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\ngetPerformance() ENTRY() ...\n");
-  //  }
   // Growing and restoration score training subjects using their saved entry
   // times. New-data prediction has no test-entry array and must not reuse
   // the training vector for different subjects.
@@ -551,49 +484,6 @@ void getPerformance(uint      serialTreeID,
       }
     }
   }
-  //    if (getTraceFlag(serialTreeID) & SUMM_LOW_TRACE) {
-  //      RF_nativePrint("\nError Rate:  %10d", serialTreeID);
-  //      RF_nativePrint("\n");
-  //      if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
-  //        for (j = 1; j <= RF_eventTypeSize ; j++) {
-  //          RF_nativePrint("                [%2d]", j);
-  //        }
-  //        RF_nativePrint("\n");
-  //        for (j = 1; j <= RF_eventTypeSize; j++) {
-  //          RF_nativePrint("%20.4f", perfMRTptr[j]);
-  //        }
-  //        RF_nativePrint("\n");
-  //      }
-  //      else {
-  //        if (perfCLSptr != NULL) {
-  //          for (j = 1; j <= RF_rTargetFactorCount; j++) {
-  //            RF_nativePrint("                [%2d]", j);
-  //            RF_nativePrint("\n");
-  //            for (k = 1; k <= RF_rFactorSize[RF_rFactorMap[RF_rTargetFactor[j]]] + 1; k++) {
-  //              RF_nativePrint("                [%2d]", k-1);
-  //            }
-  //            RF_nativePrint("\n");
-  //            for (k = 1; k <= RF_rFactorSize[RF_rFactorMap[RF_rTargetFactor[j]]] + 1; k++) {
-  //              RF_nativePrint("%20.4f", perfCLSptr[j][k]);
-  //            }
-  //          }
-  //          RF_nativePrint("\n");
-  //        }
-  //        if (perfRGRptr != NULL) {
-  //          for (j = 1; j <= RF_rTargetNonFactorCount; j++) {
-  //            RF_nativePrint("                [%2d]", j);
-  //          }
-  //          RF_nativePrint("\n");
-  //          for (j = 1; j <= RF_rTargetNonFactorCount; j++) {
-  //            RF_nativePrint("%20.4f", perfRGRptr[j]);
-  //          }
-  //          RF_nativePrint("\n");
-  //        }
-  //      }
-  //    }
-  //  if (getTraceFlag(serialTreeID) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\ngetPerformance() EXIT() ...\n");
-  //  }
 }
 void normalizeEnsembleEstimates(char mode, char final) {
   char oobFlag, fullFlag;
@@ -615,9 +505,6 @@ void normalizeEnsembleEstimates(char mode, char final) {
   uint         **quantileStreamSize;
   double   *ensembleDen;
   uint i, j, k;
-  //  if (getTraceFlag(0) & SUMM_MED_TRACE) {
-  //    RF_nativePrint("\nnormalizeEnsembleEstimates() ENTRY ...\n");
-  //  }
   oobFlag = fullFlag = FALSE;
   switch (mode) {
   case RF_PRED:
@@ -776,154 +663,6 @@ void normalizeEnsembleEstimates(char mode, char final) {
         }
       }
     }
-    //    if (getTraceFlag(0) & ENSB_LOW_TRACE) {
-    //      if (oobFlag == TRUE) {
-    //        RF_nativePrint("\nFinalized OOB  Ensembles Follow:  \n");
-    //      }
-    //      else {
-    //        RF_nativePrint("\nFinalized FULL Ensembles Follow:  \n");
-    //      }
-    //      if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
-    //        if (!(RF_opt & OPT_COMP_RISK)) {
-    //            if (final) {
-    //            RF_nativePrint("\nEnsemble SRG:  \n");
-    //            RF_nativePrint("          ");
-    //            for (i=1; i <= obsSize; i++) {
-    //              RF_nativePrint("%10d", i);
-    //            }
-    //            RF_nativePrint("\n");
-    //            for (k=1; k <= RF_sortedTimeInterestSize; k++) {
-    //              RF_nativePrint("%10d", k);
-    //              for (i=1; i <= obsSize; i++) {
-    //                RF_nativePrint("%10.4f", ensembleSRGptr[1][k][i]);
-    //              }
-    //              RF_nativePrint("\n");
-    //            }
-    //            RF_nativePrint("\nEnsemble SRV:  \n");
-    //            RF_nativePrint("          ");
-    //            for (i=1; i <= obsSize; i++) {
-    //              RF_nativePrint("%10d", i);
-    //            }
-    //            RF_nativePrint("\n");
-    //            for (k=1; k <= RF_sortedTimeInterestSize; k++) {
-    //              RF_nativePrint("%10d", k);
-    //              for (i=1; i <= obsSize; i++) {
-    //                RF_nativePrint("%10.4f", ensembleSRVptr[k][i]);
-    //              }
-    //              RF_nativePrint("\n");
-    //            }
-    //            }
-    //            RF_nativePrint("\nEnsemble MRT:  \n");
-    //            RF_nativePrint("          ");
-    //            for (i=1; i <= obsSize; i++) {
-    //              RF_nativePrint("%10d", i);
-    //            }
-    //            RF_nativePrint("\n");
-    //            RF_nativePrint("          ");
-    //            for (i=1; i <= obsSize; i++) {
-    //              RF_nativePrint("%10.4f", ensembleMRTptr[1][i]);
-    //            }
-    //            RF_nativePrint("\n");
-    //        }
-    //        else {
-    //          for (j = 1; j <= RF_eventTypeSize; j++) {
-    //            if (final) {
-    //            RF_nativePrint("\nEnsemble SRG:  Event %10d \n", j);
-    //            RF_nativePrint("          ");
-    //            for (i=1; i <= obsSize; i++) {
-    //              RF_nativePrint("%10d", i);
-    //            }
-    //            RF_nativePrint("\n");
-    //            for (k=1; k <= RF_sortedTimeInterestSize; k++) {
-    //              RF_nativePrint("%10d", k);
-    //              for (i=1; i <= obsSize; i++) {
-    //                RF_nativePrint("%10.4f", ensembleSRGptr[j][k][i]);
-    //              }
-    //              RF_nativePrint("\n");
-    //            }
-    //            RF_nativePrint("\nEnsemble CIF:  Event %10d \n", j);
-    //            RF_nativePrint("          ");
-    //            for (i=1; i <= obsSize; i++) {
-    //              RF_nativePrint("%10d", i);
-    //            }
-    //            RF_nativePrint("\n");
-    //            for (k=1; k <= RF_sortedTimeInterestSize; k++) {
-    //              RF_nativePrint("%10d", k);
-    //              for (i=1; i <= obsSize; i++) {
-    //                RF_nativePrint("%10.4f", ensembleCIFptr[j][k][i]);
-    //              }
-    //              RF_nativePrint("\n");
-    //            }
-    //            }
-    //            RF_nativePrint("\nEnsemble MRT:  Event %10d \n", j);
-    //            RF_nativePrint("          ");
-    //            for (i=1; i <= obsSize; i++) {
-    //              RF_nativePrint("%10d", i);
-    //            }
-    //            RF_nativePrint("\n");
-    //            RF_nativePrint("          ");
-    //            for (i=1; i <= obsSize; i++) {
-    //              RF_nativePrint("%10.4f", ensembleMRTptr[j][i]);
-    //            }
-    //            RF_nativePrint("\n");
-    //          }
-    //        }
-    //      }    
-    //      else {
-    //        if (RF_rTargetFactorCount > 0) {
-    //          RF_nativePrint("\nEnsemble CLS:  \n");
-    //          RF_nativePrint("          ");
-    //          for (i=1; i <= obsSize; i++) {
-    //            RF_nativePrint("%10d", i);
-    //          }
-    //          for (j = 1; j <= RF_rTargetFactorCount; j++) {
-    //            RF_nativePrint("\nTarget:   %10d \n", RF_rTargetFactor[j]);
-    //            for (k=1; k <= RF_rFactorSize[RF_rFactorMap[RF_rTargetFactor[j]]]; k++) {
-    //              RF_nativePrint("%10d", k);
-    //              for (i=1; i <= obsSize; i++) {
-    //                RF_nativePrint("%10.4f", ensembleCLSptr[j][k][i]);
-    //              }
-    //              RF_nativePrint("\n");
-    //            }
-    //          }
-    //        }
-    //        if (RF_rTargetNonFactorCount > 0) {
-    //          RF_nativePrint("\nEnsemble RGR:  \n");
-    //          RF_nativePrint("          ");
-    //          for (i=1; i <= obsSize; i++) {
-    //            RF_nativePrint("%10d", i);
-    //          }
-    //          for (j = 1; j <= RF_rTargetNonFactorCount; j++) {
-    //            RF_nativePrint("\nTarget:   %10d \n", RF_rTargetNonFactor[j]);
-    //            RF_nativePrint("          ");
-    //            for (i=1; i <= obsSize; i++) {
-    //              RF_nativePrint("%10.4f", ensembleRGRptr[j][i]);
-    //            }
-    //            RF_nativePrint("\n");
-    //          }
-    //          if (final) {
-    //          if (RF_opt & OPT_QUANTLE) {
-    //          RF_nativePrint("\nEnsemble QNT:  \n");
-    //          RF_nativePrint("                             ");
-    //          for (i=1; i <= obsSize; i++) {
-    //            RF_nativePrint("%10d", i);
-    //          }
-    //          for (j = 1; j <= RF_rTargetNonFactorCount; j++) {
-    //            RF_nativePrint("\nTarget:   %10d \n", RF_rTargetNonFactor[j]);
-    //            for (k=1; k <= RF_quantileSize; k++) {
-    //              RF_nativePrint("%10d (phi = %10.4f)", k, RF_quantile[k]);
-    //              for (i=1; i <= obsSize; i++) {
-    //                RF_nativePrint("%10.4f", ensembleQNTptr[j][k][i]);
-    //              }
-    //              RF_nativePrint("\n");
-    //            }
-    //          }
-    //          }
-    //          }
-    //        }
-    //      }
-    //      RF_nativePrint("\nRF-SRC:  Ensemble outputs finalized. \n");
-    //    }
     if (oobFlag == TRUE) {
       oobFlag = FALSE;
     }
@@ -931,9 +670,6 @@ void normalizeEnsembleEstimates(char mode, char final) {
       fullFlag = FALSE;
     }
   }  
-  //  if (getTraceFlag(0) & SUMM_MED_TRACE) {
-  //    RF_nativePrint("\nnormalizeEnsembleEstimates() EXIT ...\n");
-  //  }
 }
 char getPerfFlag (char mode, uint serialTreeID) {
   char result;
@@ -958,9 +694,6 @@ char getPerfFlag (char mode, uint serialTreeID) {
 }
 void getVariablesUsed(uint treeID, Node *parent, uint *varUsedVector) {
   SplitInfo *info;
-  //  if (getTraceFlag(0) & OUTP_DEF_TRACE) {
-  //    RF_nativePrint("\ngetVariablesUsed() ENTRY ...\n");
-  //  }
   if (RF_tLeafCount[treeID] > 0) {
     if (((parent -> left) != NULL) && ((parent -> right) != NULL)) {
       info = parent -> splitInfo;
@@ -969,8 +702,5 @@ void getVariablesUsed(uint treeID, Node *parent, uint *varUsedVector) {
       getVariablesUsed(treeID, parent -> right, varUsedVector);
     }
   }
-  //  if (getTraceFlag(0) & OUTP_DEF_TRACE) {
-  //    RF_nativePrint("\ngetVariablesUsed() EXIT ...\n");
-  //  }
   return;
 }

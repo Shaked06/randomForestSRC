@@ -15,7 +15,6 @@
 #include "rfsrcUtil.h"
 #include "nodeOps.h"
 #include "nrutil.h"
-// #include "error.h"
 void getRandomMembership (char       mode,
                           uint       treeID,
                           Terminal **vimpMembership,
@@ -24,16 +23,6 @@ void getRandomMembership (char       mode,
   uint    *membershipIndex;
   uint     membershipSize;
   double **xArray;
-  //  if (getTraceFlag(treeID) & VIMP_LOW_TRACE) {
-  //    if (getTraceFlag(0) & !TURN_OFF_TRACE) {
-  //      RF_nativePrint("\ngetRandomMembership() ENTRY.");
-  //    }
-  //  }
-  //  if (getTraceFlag(treeID) & VIMP_LOW_TRACE) {
-  //    if (getTraceFlag(0) & !TURN_OFF_TRACE) {
-  //      RF_nativePrint("\nType is VIMP_RAND.");
-  //    }
-  //  }
   rootPtr = RF_root[treeID];
   switch (mode) {
   case RF_PRED:
@@ -52,11 +41,6 @@ void getRandomMembership (char       mode,
     ii = membershipIndex[i];
     vimpMembership[ii] = randomMembership(treeID, rootPtr, ii, p, xArray) -> mate;
   }
-  //  if (getTraceFlag(treeID) & VIMP_LOW_TRACE) {
-  //    if (getTraceFlag(0) & !TURN_OFF_TRACE) {
-  //      RF_nativePrint("\ngetRandomMembership() EXIT.");
-  //    }
-  //  }
 }
 Node *randomMembershipGeneric(uint     treeID,
                               Node    *parent,
@@ -69,11 +53,6 @@ Node *randomMembershipGeneric(uint     treeID,
   SplitInfo *info;
   uint repMembrSize, leftRepMembrSize;
   double alpha;
-  //  if (getTraceFlag(0) & VIMP_LOW_TRACE) {
-  //    if (getTraceFlag(treeID) & !TURN_OFF_TRACE) {
-  //      RF_nativePrint("\nrandomMembershipGeneric() ENTRY... \n");
-  //    }
-  //  }
   result = parent;
   if (((parent -> left) != NULL) && ((parent -> right) != NULL)) {
     info = parent -> splitInfo;
@@ -93,10 +72,6 @@ Node *randomMembershipGeneric(uint     treeID,
       leftRepMembrSize = (parent -> left) -> repMembrSize;
       alpha = ran1D(treeID);
       if (alpha <= RF_vimpThreshold) {
-        //        if (getTraceFlag(treeID) & VIMP_LOW_TRACE) {
-        //            RF_nativePrint("\nRandom assignment in VIMP for (x-var, indv) = (%10d, %10d)", vimpX, individual);
-        //            RF_nativePrint("\n       with probability:  %10.4f", (double) leftRepMembrSize / repMembrSize);
-        //        }
         if (alpha <= (double) leftRepMembrSize / (repMembrSize * RF_vimpThreshold)) {
           daughterFlag = LEFT;
         }
@@ -110,16 +85,6 @@ Node *randomMembershipGeneric(uint     treeID,
     }  
     else {
       daughterFlag = getDaughterPolarity(0, info, individual, xArray);
-      //      if (getTraceFlag(treeID) & VIMP_LOW_TRACE) {
-      //        if (getTraceFlag(treeID) & !TURN_OFF_TRACE) {
-      //          if(daughterFlag == LEFT) {
-      //            RF_nativePrint("\nRandom Faithful Daughter LEFT :  indv = %10d, vimpX =  %10d, nodeID = %10d", individual, vimpX, (parent -> left) -> nodeID);
-      //          }
-      //          else {
-      //            RF_nativePrint("\nRandom Faithful Daughter RGHT :  indv = %10d, vimpX =  %10d, nodeID = %10d", individual, vimpX, (parent -> right) -> nodeID);
-      //          }
-      //        }
-      //      }
     }  
     if (daughterFlag == LEFT) {
       result = randomMembershipGeneric(treeID, parent ->  left, individual, vimpX, xArray);
@@ -128,11 +93,6 @@ Node *randomMembershipGeneric(uint     treeID,
       result = randomMembershipGeneric(treeID, parent -> right, individual, vimpX, xArray);
     }
   }
-  //  if (getTraceFlag(0) & VIMP_LOW_TRACE) {
-  //    if (getTraceFlag(0) & !TURN_OFF_TRACE) {
-  //      RF_nativePrint("\nrandomMembershipGeneric() EXIT... \n");
-  //    }
-  //  }
   return result;
 }
 Node *randomMembershipJIT(uint     treeID,
@@ -151,11 +111,6 @@ Node *randomMembershipJIT(uint     treeID,
   uint repMembrSize, leftRepMembrSize;
   double alpha;
   uint adj, i, k;
-  //  if (getTraceFlag(0) & VIMP_LOW_TRACE) {
-  //    if (getTraceFlag(0) & !TURN_OFF_TRACE) {
-  //      RF_nativePrint("\nrandomMembershipJIT() ENTRY... \n");
-  //    }
-  //  }
   rmbrDummyIter = ambrDummyIter = 0;
   nodeAbsIndex = rootIndex = RF_restoreTreeOffset[treeID];
   rmbrAbsOffset = ambrAbsOffset = 0;
@@ -165,18 +120,9 @@ Node *randomMembershipJIT(uint     treeID,
   parseFlag = TRUE;
   Node *parent = root;
   while (parseFlag) {
-    //      if (getTraceFlag(treeID) & SPLT_DEF_TRACE) {
-    //        RF_nativePrint("\n JIT parent and absolute offset:  %20x %10d", parent, nodeAbsIndex); 
-    //      }
     if (parent -> nodeID == 0) {
-      //      if (getTraceFlag(treeID) & SPLT_DEF_TRACE) {
-      //        RF_nativePrint("\n JIT parent is not initialized:  (parent = %20x) -> nodeID %10d", parent, parent -> nodeID); 
-      //      }
       parent -> nodeID = RF_nodeID_[nodeAbsIndex];
       parent -> repMembrSize = RF_nodeSZ_[nodeAbsIndex];
-      //      if (getTraceFlag(treeID) & SPLT_DEF_TRACE) {
-      //        RF_nativePrint("\n JIT parent is being initialized to:  (parent = %20x) -> nodeID %10d", parent, parent -> nodeID); 
-      //      }
       parent -> bnodeID = nodeAbsIndex - rootIndex + 1;
       if (RF_parmID_[1][nodeAbsIndex] != 0) {
         parent -> blnodeID = parent -> bnodeID + 1;
@@ -187,28 +133,13 @@ Node *randomMembershipJIT(uint     treeID,
         info -> randomVar   = ivector(1, adj);
         info -> randomPts   = new_vvector(1, adj, NRUTIL_VPTR);
         for (k = 1; k <= adj; k++) {
-          //      if (getTraceFlag(treeID) & SPLT_DEF_TRACE) {
-          //        RF_nativePrint("\n  randomMembershipJIT() (h-idx, (parent -> splitInfo) -> randomVar[k])   = (%10d, %10d)", k, RF_parmID_[k][nodeAbsIndex]); 
-          //      }
           info -> randomVar[k] = RF_parmID_[k][nodeAbsIndex];
           info -> mwcpSizeAbs[k] = RF_mwcpSZ_[k][nodeAbsIndex];
-          //      if (getTraceFlag(treeID) & SPLT_DEF_TRACE) {
-          //        RF_nativePrint("\n  randomMembershipJIT() (h-idx, (parent -> splitInfo) -> mwcpSizeAbs[k]) = (%10d, %10d)", k, RF_mwcpSZ_[k][nodeAbsIndex]);
-          //      }
           if (RF_mwcpSZ_[k][nodeAbsIndex] > 0) {
             nodeAbsMWCPoffset[k] = rootMWCPoffset[k] + RF_fsrecID_[k][nodeAbsIndex];
-            //      if (getTraceFlag(treeID) & SPLT_DEF_TRACE) {
-            //        RF_nativePrint("\n (h-idx, absolute mwcp offset) -> (%10d %10d)", k, nodeAbsMWCPoffset[k]);
-            //      }
-            //      if (getTraceFlag(treeID) & SPLT_DEF_TRACE) {
-            //        RF_nativePrint("\n  mwcpPT (reversed):  [%20x] ", RF_mwcpPT_[k]);
-            //      }
             info -> randomPts[k] = uivector(1, RF_mwcpSZ_[k][nodeAbsIndex]);
             for (i = 1; i <= RF_mwcpSZ_[k][nodeAbsIndex]; i++) {
               ((uint *) info -> randomPts[k])[i] = RF_mwcpPT_[k][nodeAbsMWCPoffset[k]];
-              //        if (getTraceFlag(treeID) & SPLT_DEF_TRACE) {
-              //          RF_nativePrint("%8x ", RF_mwcpPT_[k][nodeAbsMWCPoffset[k]]);
-              //        }
               nodeAbsMWCPoffset[k] ++;
             }
           }
@@ -217,12 +148,6 @@ Node *randomMembershipJIT(uint     treeID,
             ((double *) info -> randomPts[k])[1] =  RF_contPT_[k][nodeAbsIndex];
           }
         }
-        //  if (getTraceFlag(treeID) & FORK_DEF_TRACE) {
-        //    if (getTraceFlag(treeID) & !TURN_OFF_TRACE) {
-        //      RF_nativePrint("\n randomMembershipJIT() parent -> splitInfo:  %20x", info);
-        //      getSplitObjectInfo(parent -> splitInfo);
-        //    }
-        //  }
       }
       else {
         info = parent -> splitInfo = NULL;
@@ -230,9 +155,6 @@ Node *randomMembershipJIT(uint     treeID,
     }  
     else {
       info = parent -> splitInfo;
-      //      if (getTraceFlag(treeID) & SPLT_DEF_TRACE) {
-      //        RF_nativePrint("\n JIT parent is initialized:  (parent = %20x) -> nodeID %10d", parent, parent -> nodeID); 
-      //      }
     }
     if (info != NULL) {
       randomSplitFlag = FALSE;
@@ -256,53 +178,19 @@ Node *randomMembershipJIT(uint     treeID,
         }
         alpha = ran1D(treeID);
         if (alpha <= RF_vimpThreshold) {
-          //        if (getTraceFlag(treeID) & VIMP_LOW_TRACE) {
-          //            RF_nativePrint("\nRandom assignment in VIMP for (x-var, indv) = (%10d, %10d)", vimpX, individual);
-          //            RF_nativePrint("\n       with probability:  %10.4f", (double) leftRepMembrSize / repMembrSize);
-          //        }
           if (alpha <= (double) leftRepMembrSize / (repMembrSize * RF_vimpThreshold)) {
             daughterFlag = LEFT;
           }
           else {
             daughterFlag = RIGHT;
           }
-          //      if (getTraceFlag(treeID) & VIMP_LOW_TRACE) {
-          //        if (getTraceFlag(treeID) & !TURN_OFF_TRACE) {
-          //          if(daughterFlag == LEFT) {
-          //            RF_nativePrint("\nRandom (Alpha) Randomized Daughter LEFT :  indv = %10d, vimpX =  %10d", individual, vimpX);
-          //          }
-          //          else {
-          //            RF_nativePrint("\nRandom (Alpha) Randomized Daughter RGHT :  indv = %10d, vimpX =  %10d", individual, vimpX);
-          //          }
-          //        }
-          //      }
         }
         else {
           daughterFlag = getDaughterPolarity(0, info, individual, xArray);
-          //      if (getTraceFlag(treeID) & VIMP_LOW_TRACE) {
-          //        if (getTraceFlag(treeID) & !TURN_OFF_TRACE) {
-          //          if(daughterFlag == LEFT) {
-          //            RF_nativePrint("\nRandom (Alpha) Faithful Daughter LEFT :  indv = %10d, vimpX =  %10d", individual, vimpX);
-          //          }
-          //          else {
-          //            RF_nativePrint("\nAnti (Alpha) Faithful Daughter RGHT :  indv = %10d, vimpX =  %10d", individual, vimpX);
-          //          }
-          //        }
-          //      }
         }
       }  
       else {
         daughterFlag = getDaughterPolarity(0, info, individual, xArray);
-        //      if (getTraceFlag(treeID) & VIMP_LOW_TRACE) {
-        //        if (getTraceFlag(treeID) & !TURN_OFF_TRACE) {
-        //          if(daughterFlag == LEFT) {
-        //            RF_nativePrint("\nRandom Faithful Daughter LEFT :  indv = %10d, vimpX =  %10d", individual, vimpX);
-        //          }
-        //          else {
-        //            RF_nativePrint("\nRandom Faithful Daughter RGHT :  indv = %10d, vimpX =  %10d", individual, vimpX);
-        //          }
-        //        }
-        //      }
       }  
       if (daughterFlag == LEFT) {
         nodeAbsIndex = nodeAbsIndex + 1;
@@ -326,15 +214,9 @@ Node *randomMembershipJIT(uint     treeID,
         setParent(parent -> right, parent);
         parent = parent -> right;
       }
-      //            if (getTraceFlag(treeID) & SPLT_DEF_TRACE) {
-      //              RF_nativePrint("\nJIT running RMBR and AMBR offsets:  %10d and %10d", rmbrAbsOffset, ambrAbsOffset);
-      //            }
     }
     else {
       if (RF_tTermList[treeID][parent -> nodeID] != NULL) {
-        //            if (getTraceFlag(treeID) & SPLT_DEF_TRACE) {
-        //              RF_nativePrint("\nJIT terminal node exists:  %20x -> %10d", RF_tTermList[treeID][parent -> nodeID], RF_tTermList[treeID][parent -> nodeID] -> nodeID);
-        //            }
       }
       else {
         RF_leafLinkedObjTail[treeID] = makeAndSpliceLeafLinkedObj(RF_leafLinkedObjTail[treeID],
@@ -342,9 +224,6 @@ Node *randomMembershipJIT(uint     treeID,
                                                                   RF_TN_RCNT_ptr[treeID][parent -> nodeID],
                                                                   RF_TN_ACNT_ptr[treeID][parent -> nodeID]);
         RF_tTermList[treeID][parent -> nodeID] = RF_leafLinkedObjTail[treeID] -> termPtr;
-        //            if (getTraceFlag(treeID) & SPLT_DEF_TRACE) {
-        //              RF_nativePrint("\nJIT terminal node does not exist (creating it):  %20x -> %10d", RF_tTermList[treeID][parent -> nodeID], RF_tTermList[treeID][parent -> nodeID] -> nodeID);
-        //            }
         updateTerminalNodeOutcomes(RF_PRED,
                                    treeID,
                                    parent -> mate,
@@ -355,19 +234,10 @@ Node *randomMembershipJIT(uint     treeID,
                                    & rmbrDummyIter,
                                    & ambrDummyIter);
       }
-      //            if (getTraceFlag(treeID) & SPLT_DEF_TRACE) {
-      //              RF_nativePrint("\nJIT final RMBR and AMBR offsets:  %10d and %10d", rmbrAbsOffset, ambrAbsOffset);
-      //              RF_nativePrint("\nJIT final RCNT and ACNT sizes:    %10d and %10d", RF_TN_RCNT_ptr[treeID][parent -> nodeID], RF_TN_ACNT_ptr[treeID][parent -> nodeID]);
-      //            }
       parseFlag = FALSE;
     }
   }  
   free_ulvector(rootMWCPoffset, 1, 1);
   free_ulvector(nodeAbsMWCPoffset, 1, 1);
-  //  if (getTraceFlag(0) & VIMP_LOW_TRACE) {
-  //    if (getTraceFlag(treeID) & !TURN_OFF_TRACE) {
-  //      RF_nativePrint("\nrandomMembershipJIT() EXIT... \n");
-  //    }
-  //  }
   return parent;
 }

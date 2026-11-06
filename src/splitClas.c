@@ -13,7 +13,6 @@
 #include "splitInfo.h"
 #include "node.h"
 #include "nrutil.h"
-// #include "error.h"
 char classificationXwghtSplitCur (uint       treeID,
                                   Node      *parent,
                                   SplitInfoMax *splitInfoMax,
@@ -36,9 +35,6 @@ char classificationXwghtSplitCur (uint       treeID,
   char preliminaryResult, result;
   double delta;
   uint j, k, p;
-  //  if (getTraceFlag(treeID) & SPLT_LOW_TRACE) {
-  //    RF_nativePrint("\nclassificationXwghtSplitCur(%10d) ENTRY ...\n", treeID);
-  //  }
   mwcpSizeAbsolute       = 0;     
   indxx = NULL;
   preliminaryResult = getPreSplitResult(treeID,
@@ -142,14 +138,6 @@ char classificationXwghtSplitCur (uint       treeID,
                              priorMembrIter,
                              & currentMembrIter);
           rghtSize = nonMissMembrSize - leftSize;
-          //  if (getTraceFlag(treeID) & SPLT_MED_TRACE) {
-          //    RF_nativePrint("\nNon-miss Node Size:  %10d, Non-miss Left Size:  %10d, Non-miss Right Size:  %10d", nonMissMembrSize, leftSize, rghtSize);
-          //  }
-          //          if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-          //            if (getTraceFlag(treeID) & TURN_OFF_TRACE) {
-          //              RF_nativePrint("\n PriorIter:     %10d  CurrentIter:   %10d", priorMembrIter, currentMembrIter);
-          //            }
-          //          }
           if ((leftSize != 0) && (rghtSize != 0)) {
             if (factorFlag == TRUE) {
               for (p=1; p <= responseClassCount; p++) {
@@ -201,27 +189,6 @@ char classificationXwghtSplitCur (uint       treeID,
               delta = (leftTemp1 + rghtTemp1) / nonMissMembrSize;
               break;
             }
-            //          if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-            //            if (getTraceFlag(treeID) & TURN_OFF_TRACE) {
-            //              RF_nativePrint("\nClass proportions:       parent       left");
-            //              for (p = 1; p <= responseClassCount; p++) {
-            //                RF_nativePrint("\n          %10d %10d %10d", RF_classLevel[1][p], parentClassProp[p], leftClassProp[p]);
-            //              }
-            //            }
-            //          }
-            //          if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-            //            if (getTraceFlag(treeID) & TURN_OFF_TRACE) {
-            //              RF_nativePrint("\nVirtual (non-miss) Membership:  ");
-            //              for (k = 1; k <= nonMissMembrSize; k++) {
-            //                if (localSplitIndicator[ nonMissMembrIndx[indxx[k]] ] == LEFT) {
-            //                  RF_nativePrint("\n %10d %10d %12.4f %12.4f --> LEFT ", k, nonMissMembrIndx[indxx[k]], repMembrIndx[nonMissMembrIndx[indxx[k]]], observation[ repMembrIndx[nonMissMembrIndx[indxx[k]]] ], RF_response[treeID][1][  repMembrIndx[nonMissMembrIndx[indxx[k]]]  ]);
-            //                }
-            //                else {
-            //                  RF_nativePrint("\n %10d %10d %12.4f %12.4f --> RGHT ", k, nonMissMembrIndx[indxx[k]], repMembrIndx[nonMissMembrIndx[indxx[k]]], observation[ repMembrIndx[nonMissMembrIndx[indxx[k]]] ], RF_response[treeID][1][  repMembrIndx[nonMissMembrIndx[indxx[k]]]  ]);
-            //                }
-            //              }
-            //            }
-            //          }
           }
           else {
             delta = RF_nativeNaN;
@@ -278,10 +245,6 @@ char classificationXwghtSplitCur (uint       treeID,
                   multImpFlag,
                   FALSE);  
   result = summarizeSplitResult(splitInfoMax);
-  //  if (getTraceFlag(treeID) & SPLT_LOW_TRACE) {
-  //    RF_nativePrint("\nclassificationXwghtSplitCur(%10d) result:  %10d", treeID, result);
-  //    RF_nativePrint("\nclassificationXwghtSplitCur(%10d) EXIT ...\n", treeID);
-  //  }
   return result;
 }
 char classificationAreaUnderROCSplit (uint       treeID,
@@ -306,9 +269,6 @@ char classificationAreaUnderROCSplit (uint       treeID,
   char preliminaryResult, result;
   double delta;
   uint j, k, p;
-  //  if (getTraceFlag(treeID) & SPLT_LOW_TRACE) {
-  //    RF_nativePrint("\nclassificationAreaUnderROCSplit(%10d) ENTRY ...\n", treeID);
-  //  }
   mwcpSizeAbsolute       = 0;     
   preliminaryResult = getPreSplitResult(treeID,
                                         parent,
@@ -417,14 +377,6 @@ char classificationAreaUnderROCSplit (uint       treeID,
                              priorMembrIter,
                              & currentMembrIter);
           rghtSize = nonMissMembrSize - leftSize;
-          //  if (getTraceFlag(treeID) & SPLT_MED_TRACE) {
-          //    RF_nativePrint("\nNon-miss Node Size:  %10d, Non-miss Left Size:  %10d, Non-miss Right Size:  %10d", nonMissMembrSize, leftSize, rghtSize);
-          //  }
-          //          if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-          //            if (getTraceFlag(treeID) & TURN_OFF_TRACE) {
-          //              RF_nativePrint("\n PriorIter:     %10d  CurrentIter:   %10d", priorMembrIter, currentMembrIter);
-          //            }
-          //          }
           if ((leftSize != 0) && (rghtSize != 0)) {
             if (factorFlag == TRUE) {
               for (p=1; p <= responseClassCount; p++) {
@@ -470,27 +422,6 @@ char classificationAreaUnderROCSplit (uint       treeID,
               }
               delta = delta / sLen;
             }
-            //          if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-            //            if (getTraceFlag(treeID) & TURN_OFF_TRACE) {
-            //              RF_nativePrint("\nClass proportions:       parent       left");
-            //              for (p = 1; p <= responseClassCount; p++) {
-            //                RF_nativePrint("\n          %10d %10d %10d", RF_classLevel[1][p], parentClassProp[p], leftClassProp[p]);
-            //              }
-            //            }
-            //          }
-            //          if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-            //            if (getTraceFlag(treeID) & TURN_OFF_TRACE) {
-            //              RF_nativePrint("\nVirtual (non-miss) Membership:  ");
-            //              for (k = 1; k <= nonMissMembrSize; k++) {
-            //                if (localSplitIndicator[ nonMissMembrIndx[indxx[k]] ] == LEFT) {
-            //                  RF_nativePrint("\n %10d %10d %12.4f %12.4f --> LEFT ", k, nonMissMembrIndx[indxx[k]], repMembrIndx[nonMissMembrIndx[indxx[k]]], observation[ repMembrIndx[nonMissMembrIndx[indxx[k]]] ], RF_response[treeID][1][  repMembrIndx[nonMissMembrIndx[indxx[k]]]  ]);
-            //                }
-            //                else {
-            //                  RF_nativePrint("\n %10d %10d %12.4f %12.4f --> RGHT ", k, nonMissMembrIndx[indxx[k]], repMembrIndx[nonMissMembrIndx[indxx[k]]], observation[ repMembrIndx[nonMissMembrIndx[indxx[k]]] ], RF_response[treeID][1][  repMembrIndx[nonMissMembrIndx[indxx[k]]]  ]);
-            //                }
-            //              }
-            //            }
-            //          }
           }
           else {
             delta = RF_nativeNaN;
@@ -547,10 +478,6 @@ char classificationAreaUnderROCSplit (uint       treeID,
                   multImpFlag,
                   FALSE);  
   result = summarizeSplitResult(splitInfoMax);
-  //  if (getTraceFlag(treeID) & SPLT_LOW_TRACE) {
-  //    RF_nativePrint("\nclassificationAreaUnderROCSplit(%10d) result:  %10d", treeID, result);
-  //    RF_nativePrint("\nclassificationAreaUnderROCSplit(%10d) EXIT ...\n", treeID);
-  //  }
   return result;
 }
 char classificationEntropySplit (uint       treeID,
@@ -575,9 +502,6 @@ char classificationEntropySplit (uint       treeID,
   char preliminaryResult, result;
   double delta, deltaLeft, deltaRght;
   uint j, k, p;
-  //  if (getTraceFlag(treeID) & SPLT_LOW_TRACE) {
-  //    RF_nativePrint("\nclassificationEntropySplit(%10d) ENTRY ...\n", treeID);
-  //  }
   mwcpSizeAbsolute       = 0;     
   preliminaryResult = getPreSplitResult(treeID,
                                         parent,
@@ -680,14 +604,6 @@ char classificationEntropySplit (uint       treeID,
                              priorMembrIter,
                              & currentMembrIter);
           rghtSize = nonMissMembrSize - leftSize;
-          //  if (getTraceFlag(treeID) & SPLT_MED_TRACE) {
-          //    RF_nativePrint("\nNon-miss Node Size:  %10d, Non-miss Left Size:  %10d, Non-miss Right Size:  %10d", nonMissMembrSize, leftSize, rghtSize);
-          //  }
-          //          if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-          //            if (getTraceFlag(treeID) & TURN_OFF_TRACE) {
-          //              RF_nativePrint("\n PriorIter:     %10d  CurrentIter:   %10d", priorMembrIter, currentMembrIter);
-          //            }
-          //          }
           if ((leftSize != 0) && (rghtSize != 0)) {
             if (factorFlag == TRUE) {
               for (p=1; p <= responseClassCount; p++) {
@@ -721,27 +637,6 @@ char classificationEntropySplit (uint       treeID,
               }
             }
             delta = (deltaLeft * leftSize / (double) repMembrSize) + (deltaRght * rghtSize / (double) repMembrSize);
-            //          if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-            //            if (getTraceFlag(treeID) & TURN_OFF_TRACE) {
-            //              RF_nativePrint("\nClass proportions:       parent       left");
-            //              for (p = 1; p <= responseClassCount; p++) {
-            //                RF_nativePrint("\n          %10d %10d %10d", RF_classLevel[1][p], parentClassProp[p], leftClassProp[p]);
-            //              }
-            //            }
-            //          }
-            //          if (getTraceFlag(treeID) & SPLT_HGH_TRACE) {
-            //            if (getTraceFlag(treeID) & TURN_OFF_TRACE) {
-            //              RF_nativePrint("\nVirtual (non-miss) Membership:  ");
-            //              for (k = 1; k <= nonMissMembrSize; k++) {
-            //                if (localSplitIndicator[ nonMissMembrIndx[indxx[k]] ] == LEFT) {
-            //                  RF_nativePrint("\n %10d %10d %12.4f %12.4f --> LEFT ", k, nonMissMembrIndx[indxx[k]], repMembrIndx[nonMissMembrIndx[indxx[k]]], observation[ repMembrIndx[nonMissMembrIndx[indxx[k]]] ], RF_response[treeID][1][  repMembrIndx[nonMissMembrIndx[indxx[k]]]  ]);
-            //                }
-            //                else {
-            //                  RF_nativePrint("\n %10d %10d %12.4f %12.4f --> RGHT ", k, nonMissMembrIndx[indxx[k]], repMembrIndx[nonMissMembrIndx[indxx[k]]], observation[ repMembrIndx[nonMissMembrIndx[indxx[k]]] ], RF_response[treeID][1][  repMembrIndx[nonMissMembrIndx[indxx[k]]]  ]);
-            //                }
-            //              }
-            //            }
-            //          }
           }          
           else {
             delta = RF_nativeNaN;
@@ -800,9 +695,5 @@ char classificationEntropySplit (uint       treeID,
                   multImpFlag,
                   FALSE);  
   result = summarizeSplitResult(splitInfoMax);
-  //  if (getTraceFlag(treeID) & SPLT_LOW_TRACE) {
-  //    RF_nativePrint("\nclassificationEntropySplit(%10d) result:  %10d", treeID, result);
-  //    RF_nativePrint("\nclassificationEntropySplit(%10d) EXIT ...\n", treeID);
-  //  }
   return result;
 }

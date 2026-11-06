@@ -60,8 +60,8 @@ With no censoring, every weight is one and this is plain pairwise ranking
 among entered subjects. No entry-distribution weights are included.
 
 The shared censoring implementation is identical to Brier's: the `km`
-option retains exponential Nelson–Aalen survival with delayed-entry risk
-sets; the `rfsrc` option fits a random-split censoring forest using the
+option uses product-limit Kaplan–Meier survival with delayed-entry risk
+sets and failures removed before censoring at tied times; the `rfsrc` option fits a random-split censoring forest using the
 covariates and entry, with delayed-entry risk sets and predictor imputation.
 Pooled `km` requires a common censoring hazard. More generally, independent
 censoring given the censoring-model information and positive observation
@@ -89,7 +89,9 @@ controls gives `7/12 = 0.5833333`. The old entry weights instead give
 
 ## API, computation, and limitations
 
-Supply `entry.time` in full training-row order, even when scoring `subset`.
+Supply `entry.time` in full evaluation-row order before scoring `subset`.
+For new-data prediction objects, censoring is fitted using the saved training
+entries and outcomes, separately from validation entries and outcomes.
 Selected outcomes, predictions, and entries are aligned. Predicted survival
 must be valid for conditioning; zero survival at entry produces an error.
 Before-entry and missing OOB predictions are excluded from comparisons.
@@ -97,10 +99,10 @@ A time with no usable cases or controls returns `NA`. Zero or undefined
 required censoring probabilities produce an error asking for a supported
 horizon; cases are not silently discarded for zero weights.
 
-`entry.time = NULL` retains the historical right-censored path. Explicit
-zero entry has the ordinary IPCW interpretation; actual-time lookup and
-left-limit handling can differ numerically from legacy coarse-grid/tie
-handling. Existing Brier results are unchanged by sharing its helpers.
+`entry.time = NULL` uses the updated upstream right-censored path. Explicit
+zero entry uses the updated ordinary IPCW estimator on supported horizons.
+Historical numerical results can change with the updated censoring estimator
+and RNG protocol; the uncensored oracle examples retain their expected values.
 
 The implementation sorts control markers and uses cumulative weights,
 retaining half credit for ties without constructing a quadratic pair matrix.
@@ -117,10 +119,14 @@ integration over defined grid points divided by their time span. It can
 bridge interior undefined points. This is not an event-distribution-weighted
 population integrated AUC.
 
-The inherited prediction-object issue (bug 7) remains open: shared setup
-uses training outcomes, so this correction does not validate new-data
-prediction-object scoring. Historical simulation outputs have not been
-regenerated.
+Bug 7 is addressed in the integration by using upstream's separate grow
+and evaluation outcomes, for both the ordinary and LT paths. Unlabeled
+prediction objects raise a clear error. The upstream name
+`get.auct.survival()` is retained alongside our compatibility name
+`get.auc.survival()`. Both accept `entry.time` and `times`; the compatibility
+name retains the `auc`/`iauc` output used by thesis simulations. LT confidence
+intervals are explicitly unsupported. Historical simulation outputs have
+not been regenerated.
 
 ## Regression tests
 
@@ -129,7 +135,7 @@ five-subject counterexample, an explicit weighted case-by-control reference,
 hand-computed delayed-entry censoring, event/censor ties, inclusive entry,
 no entrants/cases/controls, one-point grids, subset permutations, and missing
 OOB predictions. Random small fixtures compare against independently
-estimated cumulative hazards from `survival::survfit` and quadratic pair
+estimated product-limit survival from `survival::survfit` and quadratic pair
 matrices. The forest-censoring check also verifies agreement with Brier's
 censoring curves under the same RNG seed, including missing predictors.
 An actual delayed-entry forest's OOB AUC is checked against the independent

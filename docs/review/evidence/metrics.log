@@ -1,0 +1,11 @@
+Package: /private/var/folders/4v/ydm4_m3n3yb12w3jmtncgx4r0000gn/T/rfsrc-review-eggj7gxf/library/randomForestSRC
+Subset permutation CRPS: 1.228217 0.3383005
+Without LT, same inherited permutation bug: 1.112106 0.2925387
+Tied-entry earliest case Brier row: Inf Inf Inf Inf
+Test-size error: entry.time must have one value per training observation
+Equal-sized test set scored against training times: TRUE
+Selected F_L(.5): 0.7495413 ;true source CDF:.5;selected analytic:.75
+           oracle distorted
+at_half 0.3797227 0.3558849
+crps    0.3631282 0.3476223
+Confirmed all five metric counterexamples.

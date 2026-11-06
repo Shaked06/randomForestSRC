@@ -12,7 +12,18 @@
 #include "entryGeneric.h"
 #include "nativeUtil.h"
 #include "rfsrc.h"
+#include "random.h"
 #include "stackOutput.h"
+static int getRNGProtocol(SEXP value) {
+  if (TYPEOF(value) != INTSXP || XLENGTH(value) != 1) {
+    Rf_error("RNG protocol must be a single integer.");
+  }
+  int protocol = INTEGER(value)[0];
+  if (protocol != RF_RNG_LEGACY && protocol != RF_RNG_WIDE) {
+    Rf_error("Unsupported RNG protocol.");
+  }
+  return protocol;
+}
 SEXP rfsrcGrow(SEXP traceFlag,
                SEXP seedPtr,
                SEXP optLow,
@@ -50,8 +61,10 @@ SEXP rfsrcGrow(SEXP traceFlag,
                SEXP quantileInfo,
                SEXP qStarPlus,
                SEXP unoWeight,
+               SEXP rngProtocol,
                SEXP numThreads,
                SEXP entryTime) {
+  RF_rngProtocol = getRNGProtocol(rngProtocol);
   clock_t cpuTimeStart = clock();
   setUserTraceFlag(INTEGER(traceFlag)[0]);
   setNativeGlobalEnv(&RF_nativeIndex, &RF_stackCount);
@@ -182,7 +195,12 @@ SEXP rfsrcGrow(SEXP traceFlag,
     }
   }
   RF_xWeightStat          = REAL(xWeightStat);  RF_xWeightStat--;
-  RF_yWeight              = REAL(yWeight);  RF_yWeight--;
+  if (yWeight != R_NilValue) {
+    RF_yWeight              = REAL(yWeight);  RF_yWeight--;
+  }
+  else {
+    RF_yWeight = NULL;
+  }
   RF_xWeight              = REAL(xWeight);  RF_xWeight--;
   RF_timeInterestSize = INTEGER(VECTOR_ELT(timeInterest, 0))[0];
   if (VECTOR_ELT(timeInterest, 1) != R_NilValue) {
@@ -243,9 +261,6 @@ SEXP rfsrcGrow(SEXP traceFlag,
   free_2DObject(RF_observationIn, NATIVE_TYPE_NUMERIC, TRUE, RF_xSize, RF_observationSize);  
   free_2DObject(RF_qStarPlus, NATIVE_TYPE_NUMERIC, RF_qStarPlus != NULL, RF_ySize, RF_ySize);
   free_2DObject(RF_vtryArray, NATIVE_TYPE_INTEGER, RF_vtry > 0, RF_ntree, RF_xSize);  
-  //  if (getTraceFlag(0) & SUMM_DEF_TRACE) {
-  //    memoryCheck();
-  //  }
   RF_cpuTime_[1] = (double) (clock() - cpuTimeStart) / CLOCKS_PER_SEC;
   RF_entryTimeIn = NULL;
   R_ReleaseObject(RF_sexpVector[RF_OUTP_ID]);
@@ -314,9 +329,11 @@ SEXP rfsrcPredict(SEXP traceFlag,
                   SEXP quantile,
                   SEXP getTree,
                   SEXP unoWeight,
+                  SEXP rngProtocol,
                   SEXP numThreads,
                   SEXP entryTime) {
   char mode;
+  RF_rngProtocol = getRNGProtocol(rngProtocol);
   clock_t cpuTimeStart = clock();
   setUserTraceFlag(INTEGER(traceFlag)[0]);
   setNativeGlobalEnv(&RF_nativeIndex, &RF_stackCount);
@@ -559,9 +576,6 @@ SEXP rfsrcPredict(SEXP traceFlag,
   free_2DObject(RF_bootstrapIn, NATIVE_TYPE_INTEGER, (RF_opt & OPT_BOOT_TYP1) && (RF_opt & OPT_BOOT_TYP2), RF_ntree, RF_subjSize);
   free_2DObject(RF_fresponseIn, NATIVE_TYPE_NUMERIC, RF_frSize > 0, RF_frSize, RF_fobservationSize);
   free_2DObject(RF_fobservationIn, NATIVE_TYPE_NUMERIC, RF_fobservationSize > 0 , RF_xSize, RF_fobservationSize);
-  //  if (getTraceFlag(0) & SUMM_DEF_TRACE) {
-  //    memoryCheck();
-  //  }
   RF_cpuTime_[1] = (double) (clock() - cpuTimeStart) / CLOCKS_PER_SEC;
   RF_entryTimeIn = NULL;
   R_ReleaseObject(RF_sexpVector[RF_OUTP_ID]);

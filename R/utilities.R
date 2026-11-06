@@ -1,3 +1,16 @@
+get.rng.version.code <- function(version) {
+  ## Protocol codes match RF_RNG_LEGACY and RF_RNG_WIDE in random.h.
+  ## Forests without RNG metadata use the legacy protocol.
+  if (is.null(version)) {
+    return(1L)
+  }
+  if (!is.character(version) || length(version) != 1L ||
+      !is.null(dim(version)) || is.na(version) ||
+      !(version %in% c("3.2.3", "3.10.0"))) {
+    stop("rng.version must be '3.2.3' or '3.10.0'", call. = FALSE)
+  }
+  return(match(version, c("3.2.3", "3.10.0")))
+}
 get.block.size.bits <- function (block.size, ntree) {
   ## Check for user silliness.
   if (!is.null(block.size)) {
@@ -140,6 +153,7 @@ get.distance.bits <- function (grow.equivalent, distance) {
     }
     else if (grow.equivalent == TRUE) {
       if (distance == TRUE) {
+        ## inbag is the default
         dist.bits <- 2^20 + 2^21
       }
       else if (distance == "inbag") {
@@ -157,9 +171,15 @@ get.distance.bits <- function (grow.equivalent, distance) {
     }
     else if (grow.equivalent == FALSE) {
       if (distance == TRUE) {
-        dist.bits <- 2^20 + 2^21 + 2^22
+        ## We equate oob with test data.
+        dist.bits <- 2^20 + 2^22
       }
       else if (distance == "all") {
+        ## We equate oob with test data.
+        dist.bits <- 2^20 + 2^22
+      }
+      else if (distance == "hybrid") {
+        ## We equate oob with test data.
         dist.bits <- 2^20 + 2^21 + 2^22
       }
       else {
@@ -475,7 +495,8 @@ get.proximity.bits <- function (grow.equivalent, proximity) {
     }
     else if (grow.equivalent == TRUE) {
       if (proximity == TRUE) {
-        prox.bits <- 2^28 + 2^29
+          ## inbag is the default
+          prox.bits <- 2^28 + 2^29
       }
       else if (proximity == "inbag") {
         prox.bits <- 2^28 + 2^29
@@ -492,9 +513,15 @@ get.proximity.bits <- function (grow.equivalent, proximity) {
     }
     else if (grow.equivalent == FALSE) {
       if (proximity == TRUE) {
-        prox.bits <- 2^28 + 2^29 + 2^30
+        ## We equate oob with test data.
+          prox.bits <- 2^28 + 2^30
       }
       else if (proximity == "all") {
+        ## We equate oob with test data.
+        prox.bits <- 2^28 + 2^30
+      }
+      else if (proximity == "hybrid") {
+        ## We equate oob with test data.
         prox.bits <- 2^28 + 2^29 + 2^30
       }
       else {

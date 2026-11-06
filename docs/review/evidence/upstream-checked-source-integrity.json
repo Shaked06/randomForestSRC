@@ -1,0 +1,10 @@
+[
+  {
+    "file": "src/rfsrc.c",
+    "trailing_whitespace_only": true
+  },
+  {
+    "file": "src/stack.c",
+    "trailing_whitespace_only": true
+  }
+]

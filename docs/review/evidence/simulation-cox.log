@@ -1,0 +1,13 @@
+BUG Cox grid: returned survival at t=9,12 = 0.2960055 0.8824973 ; correct values = 0.2960055 0.2960055
+01_cox_random_forerst_lt phase 1: saved/reproduced MAD 0.11017292; corrected 0.11017243; affected 8/10
+01_cox_random_forerst_lt phase 2: saved/reproduced MAD 0.02783970; corrected 0.01021246; affected 8/10
+02_flexihaz_gompertz_lt phase 1: saved/reproduced MAD 0.12305806; corrected 0.12272987; affected 1/10
+02_flexihaz_gompertz_lt phase 2: saved/reproduced MAD 0.10512830; corrected 0.10423138; affected 1/10
+03_rist_scenario1_lt phase 1: saved/reproduced MAD 0.09952075; corrected 0.09952075; affected 0/10
+03_rist_scenario1_lt phase 2: saved/reproduced MAD 0.01852972; corrected 0.01852972; affected 0/10
+04_rist_scenario2_lt phase 1: saved/reproduced MAD 0.15085046; corrected 0.15075376; affected 1/10
+04_rist_scenario2_lt phase 2: saved/reproduced MAD 0.08517660; corrected 0.08431690; affected 1/10
+05_rist_scenario3_lt phase 1: saved/reproduced MAD 0.19951839; corrected 0.19951839; affected 0/10
+05_rist_scenario3_lt phase 2: saved/reproduced MAD 0.15242182; corrected 0.15242182; affected 0/10
+06_rist_scenario4_lt phase 1: saved/reproduced MAD 0.17672852; corrected 0.17510374; affected 10/10
+06_rist_scenario4_lt phase 2: saved/reproduced MAD 0.10037781; corrected 0.08645374; affected 10/10

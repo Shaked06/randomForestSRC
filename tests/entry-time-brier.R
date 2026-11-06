@@ -9,7 +9,7 @@ make.object <- function(time, status, survival, grid, x = seq_along(time)) {
             predicted = mortality, predicted.oob = mortality,
             survival.oob = survival, time.interest = grid,
             forest = list(yvar = cbind(time, status), xvar = data.frame(x = x)),
-            imputed.indv = NULL)
+            xvar = data.frame(x = x), imputed.indv = NULL)
   class(o) <- c("rfsrc", "grow", "surv")
   o
 }
@@ -31,16 +31,16 @@ no.censor.forest <- get.brier.survival(o, entry.time = entry, cens.model = "rfsr
 stopifnot(same(no.censor.forest$brier.score, b$brier.score))
 
 ## Hand-computed delayed-entry censoring example. At the censoring time 2,
-## the people entering at 3 are excluded: Y_C(2)=2 and G(2)=exp(-1/2).
+## the people entering at 3 are excluded: Y_C(2)=2 and G(2)=1/2.
 ## Their conditional censoring weight is 1 thereafter; the subject entered
-## at 1 has weight exp(1/2). Predictions are 1 before entry and .5 afterward.
+## at 1 has weight 2. Predictions are 1 before entry and .5 afterward.
 grid <- c(2, 3, 4)
 S <- matrix(.5, 4, 3)
 S[3:4, 1] <- 1
 o <- make.object(c(2, 4, 5, 6), c(0, 1, 1, 1), S, grid)
 entry <- c(0, 1, 3, 3)
 b <- get.brier.survival(o, entry.time = entry)
-g <- exp(-.5)
+g <- .5
 expected <- rbind(c(0, 0, 0), rep(.25/g, 3), c(NA, .25, .25), c(NA, .25, .25))
 stopifnot(same(b$brier.matx, expected),
           same(b$brier.score$brier.score, colMeans(expected, na.rm = TRUE)),
@@ -56,11 +56,11 @@ b <- get.brier.survival(o, entry.time = entry)
 stopifnot(same(b$brier.score$brier.score, colMeans(expected[, c(1, 3)], na.rm = TRUE)))
 
 ## Zero entry reduces to the ordinary scorer's censoring estimator and score.
-## Censoring at time 2 has risk size 4, giving G=exp(-1/4) afterward.
+## Censoring at time 2 has risk size 4, giving G=3/4 afterward.
 o <- make.object(c(2, 4, 5, 6), c(0, 1, 1, 1), matrix(.5, 4, 2), grid)
 b <- get.brier.survival(o, entry.time = rep(0, 4))
-stopifnot(same(b$cens.dist, rep(exp(-.25), 2)),
-          same(b$brier.score$brier.score, rep(3/(16*exp(-.25)), 2)),
+stopifnot(same(b$cens.dist, rep(.75, 2)),
+          same(b$brier.score$brier.score, rep(3/(16*.75), 2)),
           same(b$brier.score, get.brier.survival(o)$brier.score))
 
 ## Entry/event ties are permitted by the outline's inclusive risk indicator.
@@ -96,7 +96,7 @@ o <- make.object(c(2, 3), c(1, 1), matrix(0, 2, 2), c(1, 2))
 err <- tryCatch(get.brier.survival(o, entry.time = c(1.5, 1.5)), error = identity)
 stopifnot(inherits(err, "error"), grepl("Survival at entry is zero", conditionMessage(err)))
 
-## Censoring cumulative-hazard reference, independently from survfit.
+## Censoring product-limit reference, independently from survfit.
 ## These times are untied and the entry times do not tie censoring times.
 time <- c(2, 4, 5, 6, 7, 9)
 status <- c(0, 1, 0, 1, 1, 1)
@@ -107,7 +107,7 @@ b <- get.brier.survival(o, entry.time = entry)
 sf <- survival::survfit(survival::Surv(entry, time, 1 - status) ~ 1)
 expected <- vapply(grid, function(tt) {
   k <- which(sf$time <= tt)
-  if (length(k) == 0) 1 else exp(-sf$cumhaz[max(k)])
+  if (length(k) == 0) 1 else sf$surv[max(k)]
 }, numeric(1))
 stopifnot(same(b$cens.dist, expected))
 

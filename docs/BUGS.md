@@ -11,15 +11,15 @@ after review and approval. A local commit does not imply a GitHub push.
 | 3 | P1 | Restored training error and standalone VIMP ignore entry | LT integration | Fixed locally | `a4c890e` |
 | 4 | P1 | Cox time-grid indexing corrupts simulation predictions | Our simulations | Fixed locally; results rerun pending | `820b285` |
 | 5 | P1 | LT Brier construction can favor incorrect survival probabilities | LT metric design | Fixed locally | `539df42` |
-| 6 | P1 | Brier/AUC weights mistake observed entry CDF for source entry CDF | LT metric design | Fixed locally | This commit |
-| 7 | P1 | Prediction-object scoring uses training outcomes | Inherited Brier bug; propagated to our AUC | Open | — |
-| 8 | P2 | Brier subsetting misaligns curves and outcomes | Inherited Brier bug; LT indexing repeats it | LT path covered in fix 5; ordinary Brier open | — |
-| 9 | P2 | Accepted entry/event ties cause infinite weights | LT metrics | Fixed locally by fixes 5 and 6 | `539df42` + this commit |
-| 10 | P2 | NA omission does not subset entry times | LT integration | Open | — |
-| 11 | P2 | Tuning holdouts do not subset entry times | LT integration | Open | — |
-| 12 | P2 | Ordinary forests lose fast concordance scoring | LT integration | Open | — |
-| 13 | P2 | Unsupported splitting rules silently accept entry times | LT integration | Open | — |
-| 14 | P2 | Package fixes do not invalidate simulation caches | Our simulations | Open | — |
+| 6 | P1 | Brier/AUC weights mistake observed entry CDF for source entry CDF | LT metric design | Fixed locally | `42d7a66` |
+| 7 | P1 | Prediction-object scoring uses training outcomes | Inherited from pre-LT snapshot; propagated to our AUC | Fixed locally by upstream integration | This merge; upstream `30d95e2` + LT adaptation |
+| 8 | P2 | Brier subsetting misaligns curves and outcomes | Inherited Brier bug; LT indexing repeats it | Fixed locally by upstream integration | This merge; LT fix `539df42` |
+| 9 | P2 | Accepted entry/event ties cause infinite weights | LT metrics | Fixed locally by fixes 5 and 6 | `539df42` + `42d7a66` |
+| 10 | P2 | NA omission does not subset entry times | LT integration | Open; persists in integration candidate | — |
+| 11 | P2 | Tuning holdouts do not subset entry times | LT integration | Open; persists in integration candidate | — |
+| 12 | P2 | Ordinary forests lose fast concordance scoring | LT integration | Open; persists in integration candidate | — |
+| 13 | P2 | Unsupported splitting rules silently accept entry times | LT integration | Open; persists in integration candidate | — |
+| 14 | P2 | Package fixes do not invalidate simulation caches | Our simulations | Open; persists in integration candidate | — |
 | 15 | P2 | Full-ensemble partial dependence uses an OOB normalization array | Pre-LT source; exposed during fix 1 | Needs dedicated reproduction/test | — |
 
 P1: crash, incorrect results, or invalid statistical interpretation.
@@ -150,7 +150,7 @@ P2: feature failure, compatibility gap, performance, or reproducibility issue.
 
 ### 6 — Remove source-entry weights from entered-cohort AUC
 
-- Approved for a local commit, `Correct entry-conditioned survival AUC`.
+- Commit: `42d7a66`, `Correct entry-conditioned survival AUC`.
   Brier no longer uses the erroneous CDF after fix 5; this correction
   addresses AUC.
 - Cause: the empirical entry CDF among retained subjects is generally not
@@ -189,3 +189,66 @@ P2: feature failure, compatibility gap, performance, or reproducibility issue.
   is retained, including its possible bridging of undefined interior points.
 - Bug 7 (new-data prediction-object outcomes) remains open. Saved simulation
   outputs are not regenerated. No GitHub push authorized.
+
+### 7 — Provenance and tuning scope, verified before implementation
+
+- Resolved by this approved merge: upstream separation is adapted to LT
+  scoring, with independent evaluation-outcome regression tests.
+- Inherited Brier defect reproduced using unchanged source from pre-LT
+  snapshot `145ac2f8692a724fcd451960dd4ef4fbe74ff08a` (2026-04-19).
+  Our shared setup propagated it to the added survival AUC helper.
+- Current `kogalur/randomForestSRC` main, checked on 2026-11-02 at
+  `30d95e206b8e287863afb55970014497e3803a8f` (commit dated 2026-10-27),
+  separates grow and evaluation outcomes. Its unchanged R scorer matches
+  independent Brier losses on real prediction objects and rejects absent
+  evaluation outcomes. Do not describe this defect as present in current
+  upstream or infer current CRAN behavior from the older snapshot.
+- Built-in `tune()` and `tune.nodesize()` use `get.mv.error()` and native
+  prediction errors rather than this Brier helper. Independent no-censoring
+  pair counting matches those native errors on the provenance fixture.
+  Custom tuning that calls the affected local Brier/AUC helpers on new-data
+  prediction objects can still be affected.
+- Full evidence, limitations, and reproduction:
+  `docs/review/BUG7_PROVENANCE.md`.
+
+## Approved upstream integration — 2026-11-06
+
+The user approved this local merge after reviewing the tested integration
+on `integrate-upstream-2026-11-06`. It joins LT parent `42d7a66` and upstream
+parent `30d95e2`, preserving both histories. See
+`docs/review/UPSTREAM_SYNC_REVIEW.md` for the exact parents, changed behavior,
+tests, and review artifacts. No GitHub push is authorized.
+
+- Bugs 1–6 and 9 retain their committed fixes. All existing LT tests pass
+  after reconciliation with upstream's native RNG interface.
+- Bug 7: upstream's grow/evaluation separation now also drives LT scoring.
+  Different-size and equal-size validation sets match independent losses;
+  absent validation outcomes raise a clear error. The censoring distribution
+  uses training outcomes and stored training entry times, while evaluation
+  uses validation outcomes/entries. This is covered for both AUC names.
+- Bug 8: ordinary Brier subset permutations and selected validation rows
+  pass; the upstream subset correction is retained alongside the LT path.
+- The `km` censoring option now follows upstream's product-limit estimator,
+  with delayed-entry risk sets for LT and failures before censoring at ties.
+  This supersedes the exponential Nelson–Aalen choice recorded in fixes 5–6.
+  Uncensored oracle examples retain their expected values; censored values
+  and newly grown forests can change with the estimator/RNG updates.
+- Bugs 10 and 11 still reject un-subsetted entry vectors after NA omission
+  or tuning holdouts. Both were reproduced against the integrated build.
+- Bug 12: the native code still disables Fenwick scoring for non-NULL entry,
+  including an all-zero vector. Numerical zero/NULL equality was checked;
+  this is not a new timing benchmark or a performance fix.
+- Bug 13: both `logrankscore` and `bs.gradient` still accept positive entry
+  without warning. Their LT validity has not been established.
+- Bug 14: the stale simulation-cache reproduction still passes. An upstream
+  version bump does not supply the missing implementation fingerprint for
+  subsequent edits. Full saved simulations remain historical.
+- Bug 15: full-ensemble partial-dependence normalization still needs its
+  dedicated reproduction/test. Default OOB partial regression passes; this
+  does not validate `oob = FALSE`.
+
+Verification: isolated package build/check, status OK (examples/manual/
+vignettes skipped), all eight regression files pass; all six reduced-size
+simulation smoke cases pass; 12 ordinary profiles match pristine upstream
+and explicit-zero integration across two RNG protocols and three families;
+four saved pre-integration forests preserve restored/new-data predictions.

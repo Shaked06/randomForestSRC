@@ -8,7 +8,7 @@ auc.object <- function(time, status, S, grid, x = seq_along(time)) {
             predicted = mortality, predicted.oob = mortality,
             survival.oob = S, time.interest = grid,
             forest = list(yvar = cbind(time, status), xvar = data.frame(x = x)),
-            imputed.indv = NULL)
+            xvar = data.frame(x = x), imputed.indv = NULL)
   class(o) <- c("rfsrc", "grow", "surv")
   o
 }
@@ -54,7 +54,7 @@ permuted <- get.auc.survival(o, subset = 5:1, entry.time = entry)
 stopifnot(same(a$auc, permuted$auc))
 
 ## Censoring at 2 has delayed-entry risk size 3. Early subjects need
-## weight exp(1/3) at t=4, late entrants need weight one. The two case
+## weight 3/2 at t=4, late entrants need weight one. The two case
 ## markers are .8,.4 and the two control markers .6,.2.
 time <- c(2, 4, 6, 4, 6)
 status <- c(0, 1, 1, 1, 1)
@@ -64,7 +64,7 @@ S <- matrix(rep(c(.5, .2, .4, .6, .8), length(grid)), 5)
 S[4:5, 1:2] <- 1
 o <- auc.object(time, status, S, grid)
 a <- get.auc.survival(o, entry.time = entry)
-g <- exp(-1/3)
+g <- 2/3
 G.grid <- matrix(rep(c(1, rep(g, 4)), 5), 5)
 expected <- reference(time, status, entry, S, grid,
                       c(1, 1, 1, g, g), c(1, g, g, g, g), G.grid)
@@ -81,7 +81,7 @@ entry <- rep(0, 4)
 S <- matrix(rep(c(.5, .2, .8, .5), 4), 4)
 o <- auc.object(time, status, S, 1:4)
 a <- get.auc.survival(o, entry.time = entry)
-stopifnot(same(a$auc$auc[3], 1/(1 + exp(.25))))
+stopifnot(same(a$auc$auc[3], 2/5))
 
 ## Inclusive entry/event ties retain the earliest case, rather than losing
 ## it to an infinite entry-CDF weight. All tied markers yield AUC = 1/2.
@@ -110,7 +110,7 @@ o <- auc.object(1:4, rep(1, 4), rbind(c(.4,.3,.2), c(.6,.5,.3),
 a <- get.auc.survival(o, entry.time = rep(0, 4))
 stopifnot(same(a$auc, get.auc.survival(o)$auc))
 
-## Independent cumulative-hazard estimates and explicit pair matrices on
+## Independent product-limit estimates and explicit pair matrices on
 ## small random fixtures check weighted sorting, ties, and off-grid times.
 set.seed(72)
 for (iteration in 1:8) {
@@ -126,7 +126,7 @@ for (iteration in 1:8) {
   sf <- survival::survfit(survival::Surv(entry, time, 1 - status) ~ 1)
   G <- function(query, left = FALSE) vapply(query, function(tt) {
     indices <- which(if (left) sf$time < tt else sf$time <= tt)
-    if (!length(indices)) 1 else exp(-sf$cumhaz[max(indices)])
+    if (!length(indices)) 1 else sf$surv[max(indices)]
   }, numeric(1))
   expected <- reference(time, status, entry, S, grid,
                         G(entry, TRUE), G(time, TRUE),
@@ -148,7 +148,7 @@ a <- get.auc.survival(fit, entry.time = entry)
 sf <- survival::survfit(survival::Surv(entry, time, 1 - status) ~ 1)
 G <- function(query, left = FALSE) vapply(query, function(tt) {
   indices <- which(if (left) sf$time < tt else sf$time <= tt)
-  if (!length(indices)) 1 else exp(-sf$cumhaz[max(indices)])
+  if (!length(indices)) 1 else sf$surv[max(indices)]
 }, numeric(1))
 grid <- fit$time.interest
 expected <- reference(time, status, entry, fit$survival.oob, grid,

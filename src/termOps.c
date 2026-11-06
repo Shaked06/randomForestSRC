@@ -50,21 +50,9 @@ Terminal *makeTerminal(void) {
   parent -> ibgMembrSizeAlloc = 0;
   parent -> ibgMembrSize      = 0;
   parent -> ibgMembrIndx      = NULL;
-  //  if (getTraceFlag(0) & TURN_OFF_TRACE) {
-  //    if (getTraceFlag(0) & FORK_DEF_TRACE) {
-  //      RF_nativePrint("\nmakeTerminal TerminalInfo:  %20x", parent);
-  //      getTerminalInfo(parent);
-  //    }
-  //  }
   return parent;
 }
 void freeTerminal(Terminal        *parent) {
-  //  if (getTraceFlag(0) | TURN_OFF_TRACE) {
-  //    if (getTraceFlag(0) & NODE_DEF_TRACE) {
-  //      RF_nativePrint("\nfreeTerminal TerminalInfo:  %20x", parent);
-  //      getTerminalInfo(parent);
-  //    }
-  //  }
   unstackTermLMIIndex(parent);
   if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
     freeTerminalNodeSurvivalStructuresIntermediate(parent);
@@ -86,18 +74,8 @@ void freeTerminal(Terminal        *parent) {
     }
   }
   free_gblock(parent, (size_t) sizeof(Terminal));
-  //  if (getTraceFlag(0) | TURN_OFF_TRACE) {
-  //    if (getTraceFlag(0) & NODE_DEF_TRACE) {
-  //      RF_nativePrint("\nfreeTerminal() EXIT ... \n");
-  //    }
-  //  }
 }
 void freeTerminalNodeLocalSurvivalStructures(Terminal *tTerm) {
-  //  if (getTraceFlag(0) & FORK_DEF_TRACE) {
-  //    if (getTraceFlag(0) & TURN_OFF_TRACE) {
-  //      RF_nativePrint("\nfreeTerminalNodeLocalSurvivalStructures() info:  %20x", tTerm);
-  //    }
-  //  }
   unstackLocalRatio(tTerm);
   unstackLocalSurvival(tTerm);
   unstackLocalNelsonAalen(tTerm);
@@ -108,30 +86,15 @@ void freeTerminalNodeLocalSurvivalStructures(Terminal *tTerm) {
   unstackEventTimeIndex(tTerm);
 }
 void freeTerminalNodeSurvivalStructuresIntermediate(Terminal *tTerm) {
-  //  if (getTraceFlag(0) & TURN_OFF_TRACE) {
-  //    if (getTraceFlag(0) & FORK_DEF_TRACE) {
-  //      RF_nativePrint("\nfreeTerminalNodeSurvivalStructuresIntermediate() info:  %20x", tTerm);
-  //    }
-  //  }
   unstackSurvival(tTerm);
   unstackNelsonAalen(tTerm);
   unstackCSH(tTerm);
   unstackCIF(tTerm);
 }
 void freeTerminalNodeSurvivalStructuresFinal(Terminal *tTerm) {
-  //  if (getTraceFlag(0) & TURN_OFF_TRACE) {
-  //    if (getTraceFlag(0) & FORK_DEF_TRACE) {
-  //      RF_nativePrint("\nfreeTerminalNodeSurvivalStructuresFinal() info:  %20x", tTerm);
-  //    }
-  //  }
   unstackMortality(tTerm);
 }
 void freeTerminalNodeNonSurvivalStructures(Terminal *tTerm) {
-  //  if (getTraceFlag(0) | TURN_OFF_TRACE) {
-  //   if (getTraceFlag(0) & NODE_DEF_TRACE) {
-  //      RF_nativePrint("\nfreeTerminalNodeNonSurvivalStructures() info:  %20x", tTerm);
-  //    }
-  //  }
   unstackMultiClassProb(tTerm);
   unstackMeanResponse(tTerm);
   unstackMemberStream(tTerm);
@@ -588,12 +551,6 @@ void stackTermLMIIndex(Terminal *tTerm, unsigned int size) {
   }
   tTerm -> lmiIndex = uivector(1, tTerm -> lmiAllocSize);
   tTerm -> lmiValue = dvector(1, tTerm -> lmiAllocSize);
-  //  if (getTraceFlag(0) & TURN_OFF_TRACE) {
-  //    if (getTraceFlag(0) & NODE_DEF_TRACE) {
-  //      RF_nativePrint("\nstackTermLMIIndex() info:  %20x", tTerm);
-  //      RF_nativePrint("\n  tTerm -> lmiAllocSize:  %10d", tTerm -> lmiAllocSize);
-  //    }
-  //  }
 }
 void unstackTermLMIIndex(Terminal *tTerm) {
   if(tTerm -> lmiAllocSize > 0) {
@@ -606,10 +563,4 @@ void unstackTermLMIIndex(Terminal *tTerm) {
       tTerm ->lmiSize = 0;
     }
   }
-  //  if (getTraceFlag(0) | TURN_OFF_TRACE) {
-  //    if (getTraceFlag(0) & NODE_DEF_TRACE) {
-  //      RF_nativePrint("\nunstackTermLMIIndex() info:  %20x", tTerm);
-  //      RF_nativePrint("\n  tTerm -> lmiAllocSize:  %10d", tTerm -> lmiAllocSize);
-  //    }
-  //  }
 }

@@ -21,9 +21,6 @@ void getMeanResponse(uint       treeID,
   uint *membershipIndex;
   uint  membershipSize;
   uint i, j;
-  //  if (getTraceFlag(treeID) & ENSB_LOW_TRACE) {
-  //    RF_nativePrint("\ngetMeanResponse() ENTRY ...\n");
-  //  }
   membershipIndex = repMembrIndx;
   membershipSize = parent -> membrCount = repMembrSize;
   if (RF_optHigh & OPT_MEMB_INCG) {
@@ -91,23 +88,6 @@ void getMeanResponse(uint       treeID,
       (parent -> meanResponse)[j] = RF_TN_REGR_ptr[treeID][parent -> nodeID][j];
     }
   }
-  //  if (getTraceFlag(treeID) & ENSB_LOW_TRACE) {
-  //    if (getTraceFlag(treeID) & !TURN_OFF_TRACE) {
-  //    RF_nativePrint("\nMean response vector for (tree, leaf):  (%10d, %10d) \n", treeID, parent -> nodeID);
-  //    RF_nativePrint("Resp ->  ");
-  //    for (j=1; j <= RF_rNonFactorCount; j++) {
-  //      RF_nativePrint("%20d", RF_rNonFactorIndex[j]);
-  //    }
-  //    RF_nativePrint("\n");
-  //    RF_nativePrint("         ");
-  //    for (j=1; j <= RF_rNonFactorCount; j++) {
-  //      RF_nativePrint("%20.4f", (parent -> meanResponse)[j]);
-  //    }
-  //  }
-  //  }
-  //  if (getTraceFlag(treeID) & ENSB_LOW_TRACE) {
-  //    RF_nativePrint("\ngetMeanResponse() EXIT ...\n");
-  //  }
 }
 void updateEnsembleMean(char     mode,
                         uint     treeID,
@@ -123,9 +103,6 @@ void updateEnsembleMean(char     mode,
 #ifdef _OPENMP
   omp_lock_t   *lockDENptr;
 #endif
-  //  if (getTraceFlag(treeID) & SUMM_MED_TRACE) {
-  //    RF_nativePrint("\nupdateEnsembleMean() ENTRY ...\n");
-  //  }
   ensembleRGRnum = NULL;  
   ensembleDen    = NULL;  
   oobFlag = fullFlag = FALSE;
@@ -188,9 +165,6 @@ void updateEnsembleMean(char     mode,
         if ((parent -> membrCount) > 0) {
         }
         else {
-          //  if (getTraceFlag(treeID) & SUMM_MED_TRACE) {
-          //    RF_nativePrint("\nREGR OUTC_TYPE case no predicted value:  %10d \n", ii);
-          //  }
           selectionFlag = FALSE;
         }
       }
@@ -236,62 +210,6 @@ void updateEnsembleMean(char     mode,
 #endif
       }
     }  
-    //  if (getTraceFlag(treeID) & SUMM_HGH_TRACE) {
-    //    uint obsSize = (mode == RF_PRED) ? RF_fobservationSize : RF_observationSize;
-    //    if (oobFlag == TRUE) {
-    //      RF_nativePrint("\nOOB Ensemble calculations follow: \n");
-    //    }
-    //    else {
-    //      if (fullFlag == TRUE) {
-    //        RF_nativePrint("\nFULL Ensemble calculations follow: \n");
-    //      }
-    //    }
-    //    RF_nativePrint("\nREGR Numerator calculation: \n");
-    //    RF_nativePrint("                    ");
-    //    for (uint i = 1; i <= obsSize; i++) {
-    //      RF_nativePrint("%10d", i);
-    //    }
-    //    for (uint j = 1; j <= RF_rTargetNonFactorCount; j++) {
-    //      RF_nativePrint("\n");
-    //      RF_nativePrint("%20d", j);
-    //      for (uint i = 1; i <= obsSize; i++) {
-    //        RF_nativePrint("%10.4f", ensembleRGRnum[j][i]);
-    //      }
-    //      RF_nativePrint("\n");
-    //    }
-    //    RF_nativePrint("\nREGR Denominator calculation: \n");
-    //    RF_nativePrint("                    ");
-    //    for (uint i = 1; i <= obsSize; i++) {
-    //      RF_nativePrint("%10d", i);
-    //    }
-    //    RF_nativePrint("\n                    ");
-    //    for (uint i = 1; i <= obsSize; i++) {
-    //      RF_nativePrint("%10d", (uint) ensembleDen[i]);
-    //    }
-    //    RF_nativePrint("\n");
-    //    if (outcomeFlag == TRUE) {
-    //      if (RF_optHigh & OPT_CSE) {
-    //        RF_nativePrint("\nREGR CSE Denominator calculation: \n");
-    //        RF_nativePrint("                    ");
-    //        for (uint i = 1; i <= obsSize; i++) {
-    //          RF_nativePrint("%10d", i);
-    //        }
-    //        RF_nativePrint("\n                    ");
-    //        for (uint i = 1; i <= obsSize; i++) {
-    //          RF_nativePrint("%10d", RF_cseDENptr[i]);
-    //        }
-    //        RF_nativePrint("\nREGR CSE Numerator calculation: \n");
-    //        for (uint j = 1; j <= RF_rTargetNonFactorCount; j++) {
-    //          RF_nativePrint("\n");
-    //          RF_nativePrint("%20d", j);
-    //          for (uint i = 1; i <= obsSize; i++) {
-    //            RF_nativePrint("%10.4f", RF_cseNumRGRptr[j][i]);
-    //          }
-    //        }
-    //        RF_nativePrint("\n");
-    //      }
-    //    }
-    //  }
     if (outcomeFlag == TRUE) {
       outcomeFlag = FALSE;
     }
@@ -302,9 +220,6 @@ void updateEnsembleMean(char     mode,
         fullFlag = FALSE;
     }
   }  
-  //  if (getTraceFlag(treeID) & SUMM_MED_TRACE) {
-  //    RF_nativePrint("\nupdateEnsembleMean() EXIT ...\n");
-  //  }
 }
 double getMeanSquareError(uint    size,
                           double *responsePtr,
@@ -313,9 +228,6 @@ double getMeanSquareError(uint    size,
   uint i;
   uint cumDenomCount;
   double result;
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\ngetMeanSquareError() ENTRY ...\n");
-  //  }
   cumDenomCount = 0;
   result = 0.0;
   for (i = 1; i <= size; i++) {
@@ -330,23 +242,6 @@ double getMeanSquareError(uint    size,
   else {
     result = result / (double) cumDenomCount;
   }
-  //  if (getTraceFlag(0) & ENSB_LOW_TRACE) {
-  //    
-  //    RF_nativePrint("\nPredicted Outcome used in Regression Index Calculations:  ");
-  //    RF_nativePrint("\n        index     OOBcount             Response              Outcome");
-  //    for (i=1; i <= size; i++) {
-  //      RF_nativePrint("\n %12d %12.0f %20.4f %20.4f", i, denomCount[i], responsePtr[i], predictedOutcome[i]);
-  //    }
-  //    RF_nativePrint("\n");
-  //    
-  //    RF_nativePrint("\nRegression and error update complete:  ");
-  //    RF_nativePrint("\nCount of cumulative OOB count:         %20d", cumDenomCount);
-  //    RF_nativePrint("\nResult:                                %20.4f", result);
-  //    RF_nativePrint("\n");
-  //  }
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\ngetMeanSquareError() EXIT() ...\n");
-  //  }
   return result;
 }
 char getVarianceClassic(uint    repMembrSize,
@@ -393,11 +288,6 @@ char getVarianceClassic(uint    repMembrSize,
   }    
   if (mean != NULL) *mean = meanResult;
   if (variance != NULL) *variance = varResult;
-  //    if (getTraceFlag(0) & SPLT_LOW_TRACE) {
-  //      RF_nativePrint("\n  Node Specific Rep Cnt:    %20d",    genSize);
-  //      RF_nativePrint("\n  Node Specific Mean:       %20.2f", meanResult);
-  //      RF_nativePrint("\n  Node Specific Variance:   %20.2f", varResult);
-  //    }
   return(result);
 }
 char getVarianceClassicNoMiss(uint    repMembrSize,
@@ -434,11 +324,6 @@ char getVarianceClassicNoMiss(uint    repMembrSize,
   }    
   if (mean != NULL) *mean = meanResult;
   if (variance != NULL) *variance = varResult;
-  //    if (getTraceFlag(0) & SPLT_LOW_TRACE) {
-  //      RF_nativePrint("\n  Node Specific Rep Cnt:    %20d",    repMembrSize);
-  //      RF_nativePrint("\n  Node Specific Mean:       %20.2f", meanResult);
-  //      RF_nativePrint("\n  Node Specific Variance:   %20.2f", varResult);
-  //    }
   return(result);
 }
 char getVarianceDoublePass(uint    repMembrSize,
@@ -492,12 +377,6 @@ char getVarianceDoublePass(uint    repMembrSize,
     result = FALSE;
   }
   if (variance != NULL)  *variance = varResult;
-  //    if (getTraceFlag(0) & SPLT_LOW_TRACE) {
-  //      RF_nativePrint("\n  Node Specific Rep Cnt:    %20d", genSize);
-  //      RF_nativePrint("\n  Node Specific Den Cnt:    %20d", denom);
-  //      RF_nativePrint("\n  Node Specific Mean:       %20.2f", meanResult);
-  //      RF_nativePrint("\n  Node Specific Variance:   %20.2f", varResult);
-  //    }
   return(result);
 }
 char getVarianceSinglePass(uint    repMembrSize,
@@ -532,9 +411,6 @@ void restoreMeanResponse(uint treeID) {
   Terminal *parent;
   uint leaf;
   uint j;
-  //  if (getTraceFlag(treeID) & SUMM_MED_TRACE) {
-  //    RF_nativePrint("\nrestoreMeanResponse() ENTRY ...\n");
-  //  }
   leafLinkedPtr = RF_leafLinkedObjHead[treeID] -> fwdLink;
   while (leafLinkedPtr != NULL) {
     parent = leafLinkedPtr -> termPtr;
@@ -551,22 +427,7 @@ void restoreMeanResponse(uint treeID) {
       RF_nativeExit();
     }
     leafLinkedPtr = leafLinkedPtr -> fwdLink;
-    //  if (getTraceFlag(treeID) & SUMM_HGH_TRACE) {
-    //    RF_nativePrint("\nMean response vector for (tree, leaf):  (%10d, %10d) \n", treeID, leaf);
-    //    RF_nativePrint("Resp ->  ");
-    //    for (j=1; j <= RF_rNonFactorCount; j++) {
-    //      RF_nativePrint("%20d", RF_rNonFactorIndex[j]);
-    //    }
-    //    RF_nativePrint("\n");
-    //    RF_nativePrint("         ");
-    //    for (j=1; j <= RF_rNonFactorCount; j++) {
-    //      RF_nativePrint("%20.4f", (parent -> meanResponse)[j]);
-    //    }
-    //  }
   }
-  //  if (getTraceFlag(treeID) & SUMM_MED_TRACE) {
-  //    RF_nativePrint("\nrestoreMeanResponse() EXIT ...\n");
-  //  }
 }
 void updateQuantileStream(char     mode,
                           uint     treeID) {
@@ -582,9 +443,6 @@ void updateQuantileStream(char     mode,
 #ifdef _OPENMP
   omp_lock_t   *lockQNTptr;
 #endif
-  //  if (getTraceFlag(treeID) & SUMM_MED_TRACE) {
-  //    RF_nativePrint("\nupdateQuantileStream() ENTRY ...\n");
-  //  }
   oobFlag = fullFlag = FALSE;
   switch (mode) {
   case RF_PRED:
@@ -648,9 +506,6 @@ void updateQuantileStream(char     mode,
         if ((parent -> membrCount) > 0) {
         }
         else {
-          //  if (getTraceFlag(treeID) & SUMM_MED_TRACE) {
-          //    RF_nativePrint("\nREGR OUTC_TYPE case no predicted value:  %10d \n", ii);
-          //  }
           selectionFlag = FALSE;
         }
       }
@@ -658,21 +513,8 @@ void updateQuantileStream(char     mode,
 #ifdef _OPENMP
         omp_set_lock(&(lockQNTptr[ii]));
 #endif
-          //  if (getTraceFlag(treeID) & ENSB_HGH_TRACE) {
-          //    if (oobFlag == TRUE) {
-          //      RF_nativePrint("\nOOB Ensemble quantile update: \n");
-          //    }
-          //    else {
-          //      if (fullFlag == TRUE) {
-          //        RF_nativePrint("\nFULL Ensemble quantile update: \n");
-          //      }
-          //    }
-          //  }
         for (j = 1; j <= RF_rTargetNonFactorCount; j++) {
           for (k = 1; k <= parent -> membrCount; k++) { 
-          //  if (getTraceFlag(treeID) & ENSB_HGH_TRACE) {
-          //    RF_nativePrint("\n  indv, targ resp, membrIndx, membr) = (%10d, %10d, %10d, %10d) \n", i, j, k, parent -> membrStream[k]);
-          //  }
             insertQuantileObj(&quantileStreamSize[j][ii],
                               &quantileHead[j][ii],
                               &quantileTail[j][ii],
@@ -693,7 +535,4 @@ void updateQuantileStream(char     mode,
       fullFlag = FALSE;
     }
   }  
-  //  if (getTraceFlag(treeID) & SUMM_MED_TRACE) {
-  //    RF_nativePrint("\nupdateQuantileStream() EXIT ...\n");
-  //  }
 }

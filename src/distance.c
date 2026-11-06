@@ -62,13 +62,6 @@ SEXP rfsrcDistance(SEXP sexp_metricType,
     RF_numThreads = (RF_numThreads < omp_get_max_threads()) ? (RF_numThreads) : (omp_get_max_threads());
   }
 #endif
-  //  setTraceFlag(traceFlag, 0);
-  //  setTraceFlag(traceFlag, 0);
-  //  setMaxMemoryAllocation(0);
-  //  setMinMemoryAllocation(0);
-  //  if (getTraceFlag(0) & SUMM_DEF_TRACE) {
-  //    RF_nativePrint("\n\nNative code rfsrc() nominal entry:  @PROJECT_BUILD@ \n");
-  //  }
   if (sizeIJ > 0) {
     rowI        = (uint*) INTEGER(sexp_rowI); rowI--;
     rowJ        = (uint*) INTEGER(sexp_rowJ); rowJ--;
@@ -96,31 +89,6 @@ SEXP rfsrcDistance(SEXP sexp_metricType,
   for (i = 1; i <= p; i++) {
     xMatrix[i] = (x + ((i-1) * n) - 1);
   }
-  //  if (getTraceFlag(0) & SUMM_LOW_TRACE) {
-  //    RF_nativePrint("\nIncoming matrix:  ");
-  //    RF_nativePrint("\n           p");
-  //    RF_nativePrint("          n->");
-  //    for (i = 1; i <= p - 1; i++) {
-  //      RF_nativePrint(" %12s", " ");
-  //    }
-  //    RF_nativePrint("\n            ");
-  //    for (i = 1; i <= p; i++) {
-  //      RF_nativePrint(" %12d", i);
-  //    }
-  //    RF_nativePrint("\n");
-  //    for (j = 1; j <= n; j++) {
-  //      RF_nativePrint("%12d", j);
-  //      for (i = 1; i <= p; i++) {
-  //        RF_nativePrint(" %12.4f", xMatrix[i][j]);
-  //      }
-  //      RF_nativePrint("\n");
-  //    }
-  //    RF_nativePrint("\nAssumed or Incoming [rowI] [rowJ]:  ");
-  //    RF_nativePrint("\n       index         rowI         rowJ");
-  //    for (k = 1; k <= size; k++) {
-  //      RF_nativePrint("\n  %12d %12d %12d", k, rowI[k], rowJ[k]);
-  //    }
-  //  }
 #ifdef _OPENMP
 #pragma omp parallel for num_threads(RF_numThreads)
 #endif
@@ -135,14 +103,9 @@ SEXP rfsrcDistance(SEXP sexp_metricType,
     free_uivector(rowJ, 1, size);
   }
   unstackAuxiliaryInfoAndList(FALSE, RF_snpAuxiliaryInfoList, RF_stackCount);
-  //  if (getTraceFlag(0) & SUMM_DEF_TRACE) {
-  //    memoryCheck();
-  //  }
   R_ReleaseObject(RF_sexpVector[RF_OUTP_ID]);
   R_ReleaseObject(RF_sexpVector[RF_STRG_ID]);
   //  if (getTraceFlag(0) & SUMM_DEF_TRACE) {
-  //    RF_nativePrint("\n\nNative code rfsrc() nominal exit:  @PROJECT_BUILD@ \n");
-  //    RF_nativePrint("\n");
   //  }
   return RF_sexpVector[RF_OUTP_ID];
 }

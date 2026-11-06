@@ -122,20 +122,11 @@ char getBestSplit(uint       treeID,
                   SplitInfoMax *splitInfoMax,
                   char       multImpFlag) {
   char  result;
-  //  if (getTraceFlag(treeID) & SPLT_LOW_TRACE) {
-  //    RF_nativePrint("\ngetBestSplit() ENTRY ...\n");
-  //  }
-  //  if (getTraceFlag(treeID) & SPLT_LOW_TRACE) {
-  //    RF_nativePrint("\nAttempting to split nodeID:  %10d at depth %10d", parent -> nodeID, parent -> depth);
-  //  }
   result = RF_splitRuleObj -> function(treeID,
                                        parent,
                                        splitInfoMax,
                                        NULL,  
                                        multImpFlag);
-  //  if (getTraceFlag(treeID) & SPLT_LOW_TRACE) {
-  //    RF_nativePrint("\ngetBestSplit(%1d) EXIT ...\n", result);
-  //  }
   return result;
 }
 char randomSplitGeneric(uint       treeID,
@@ -161,9 +152,6 @@ char randomSplitGeneric(uint       treeID,
   char multVarFlag;
   double delta;
   uint j;
-  //  if (getTraceFlag(treeID) & SPLT_MED_TRACE) {
-  //    RF_nativePrint("\nrandomSplitGeneric() ENTRY ...\n");
-  //  }
   mwcpSizeAbsolute       = 0;     
   multVarFlag = TRUE;
   if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
@@ -239,10 +227,6 @@ char randomSplitGeneric(uint       treeID,
                              priorMembrIter,
                              & currentMembrIter);
           rghtSize = nonMissMembrSize - leftSize;
-          //  if (getTraceFlag(treeID) & SPLT_MED_TRACE) {
-          //    rghtSize = nonMissMembrSize - leftSize;
-          //    RF_nativePrint("\nNon-miss Node Size:  %10d, Non-miss Left Size:  %10d, Non-miss Right Size:  %10d", nonMissMembrSize, leftSize, rghtSize);
-          //  }
           if ((leftSize != 0) && (rghtSize != 0)) {
             delta = 0;
           }
@@ -284,9 +268,6 @@ char randomSplitGeneric(uint       treeID,
                   multImpFlag,
                   multVarFlag);
   result = summarizeSplitResult(splitInfoMax);
-  //  if (getTraceFlag(treeID) & SPLT_LOW_TRACE) {
-  //    RF_nativePrint("\nrandomSplitGeneric(%1d) EXIT ...\n", result);
-  //  }
   return result;
 }
 char randomSplitSimple(uint       treeID,
@@ -312,9 +293,6 @@ char randomSplitSimple(uint       treeID,
   char multVarFlag;
   double delta;
   uint j;
-  //  if (getTraceFlag(treeID) & SPLT_MED_TRACE) {
-  //    RF_nativePrint("\nrandomSplitSimple() ENTRY ...\n");
-  //  }
   mwcpSizeAbsolute       = 0;     
   multVarFlag = TRUE;
   if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
@@ -383,10 +361,6 @@ char randomSplitSimple(uint       treeID,
                              priorMembrIter,
                              & currentMembrIter);
           rghtSize = nonMissMembrSize - leftSize;
-          //  if (getTraceFlag(treeID) & SPLT_MED_TRACE) {
-          //    rghtSize = nonMissMembrSize - leftSize;
-          //    RF_nativePrint("\nNon-miss Node Size:  %10d, Non-miss Left Size:  %10d, Non-miss Right Size:  %10d", nonMissMembrSize, leftSize, rghtSize);
-          //  }
           if ((leftSize != 0) && (rghtSize != 0)) {
             delta = 0;
           }
@@ -440,16 +414,10 @@ char randomSplitSimple(uint       treeID,
                   multImpFlag,
                   multVarFlag);
   result = summarizeSplitResult(splitInfoMax);
-  //  if (getTraceFlag(treeID) & SPLT_LOW_TRACE) {
-  //    RF_nativePrint("\nrandomSplitSimple(%1d) EXIT ...\n", result);
-  //  }
   return result;
 }
 void registerThis (customFunction func, unsigned int family, unsigned int slot) {
   if ((slot >= 1) && (slot <= 16)) {
-    //  if (getTraceFlag(0) & SPLT_MED_TRACE) {
-    //    RF_nativePrint("\nRegistering custom %10d at %10d with %20x", family, slot, func);
-    //  }
     customFunctionArray[family][slot-1] = func;
   }
   else {

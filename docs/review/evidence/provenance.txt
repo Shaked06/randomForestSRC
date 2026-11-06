@@ -1,0 +1,6 @@
+Git HEAD: f99b2544767c94f73ebe2dceb20df2a2bd5015a7
+R: R version 4.6.1 (2026-06-24)
+SHA256 of sorted R/*.R, src/**/*.c, src/**/*.h, simulations/_common/*.R path/content concatenation: 13a254b67983cb04f0ccf4618a4bc8366b0e4db205e48c9fab468ac23158be88
+Source files fingerprinted: 171
+Review built a copied package into an isolated temporary R library.
+No production source changes were made.

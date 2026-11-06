@@ -1,0 +1,1 @@
+BUG stale cache: package function changed from 0.111 to 0.999, but the second knit still reports 0.111.

@@ -1,0 +1,5 @@
+BUG NA omission: ordinary fit retains 119 rows; entry-aware fit rejects the original-length entry vector.
+BUG restored scoring: unchanged OOB predictions, grow=0.5990415, predict=0.6052801, vimp=0.6052801; aware=0.5990415, blind=0.6052801.
+BUG tuning holdout: ordinary tuning succeeds; entry-aware tuning fails length validation.
+BUG unsupported split: logrankscore accepted nonzero entry.time without warning.
+BUG unsupported split: bs.gradient accepted nonzero entry.time without warning.
