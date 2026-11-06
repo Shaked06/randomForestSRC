@@ -367,6 +367,16 @@ rfsrc <- function(formula, data, ntree = 500,
   event.info <- get.grow.event.info(yvar, family, ntime = ntime)
   ## Initialize nsplit, noting that it may be been overridden.
   splitinfo <- get.grow.splitinfo(formulaDetail, splitrule, nsplit, event.info)
+  ## Only single-event logrank is fully adapted to LT outcome-based splitting.
+  ## Random splitting uses no outcome-based statistic. Check resolved rules
+  ## and retained entries so abbreviations and omitted rows behave correctly.
+  if (grepl("surv", family) && any(entry.time > 0) &&
+      !(splitinfo$name == "random" ||
+        (splitinfo$name == "logrank" && length(event.info$event.type) == 1L))) {
+    stop("Positive entry.time is not supported with splitrule = \"",
+         splitinfo$name, "\". Use splitrule = \"logrank\" for single-event survival or \"random\".",
+         call. = FALSE)
+  }
   ## Set the cause weights for the split statistic calculation.
   if (family == "surv" || family == "surv-CR") {
     if (length(event.info$event.type) > 1) {

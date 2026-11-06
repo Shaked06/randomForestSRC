@@ -17,8 +17,8 @@ after review and approval. A local commit does not imply a GitHub push.
 | 9 | P2 | Accepted entry/event ties cause infinite weights | LT metrics | Fixed locally by fixes 5 and 6 | `539df42` + `42d7a66` |
 | 10 | P2 | NA omission does not subset entry times | LT integration | Fixed locally | `a62897b` |
 | 11 | P2 | Tuning holdouts do not subset entry times | LT integration | Fixed locally | `ef64356` |
-| 12 | P2 | Ordinary forests lose fast concordance scoring | LT integration | Fixed locally | This commit |
-| 13 | P2 | Unsupported splitting rules silently accept entry times | LT integration | Open after upstream merge | — |
+| 12 | P2 | Ordinary forests lose fast concordance scoring | LT integration | Fixed locally | `107369e` |
+| 13 | P2 | Unsupported splitting rules silently accept entry times | LT integration | Fixed locally | This commit |
 | 14 | P2 | Package fixes do not invalidate simulation caches | Our simulations | Open after upstream merge | — |
 | 15 | P2 | Full-ensemble partial dependence uses an OOB normalization array | Pre-LT source; exposed during fix 1 | Needs dedicated reproduction/test | — |
 
@@ -339,7 +339,7 @@ four saved pre-integration forests preserve restored/new-data predictions.
 
 ### 12 — Restore fast concordance for ordinary survival fits
 
-- Approved for a local commit, `Restore fast concordance for zero entry times`.
+- Commit: `107369e`, `Restore fast concordance for zero entry times`.
 - Origin: LT integration. Native grow/restore calls supply an all-zero
   entry vector even for ordinary survival data. The LT guard treated any
   non-NULL vector as requiring the pairwise algorithm, disabling the
@@ -376,4 +376,48 @@ four saved pre-integration forests preserve restored/new-data predictions.
   `1.5e-11`. Regression fixtures check their reference scores within `1e-12`.
   This fix restores the upstream algorithm choice without redesigning
   either concordance estimator.
+- No GitHub push authorized.
+
+### 13 — Reject splitting rules that have not been adapted to entry times
+
+- Approved for a local commit, `Reject unsupported splitting rules with delayed entry`.
+- Origin: LT integration omitted a guard around the package's existing
+  split-rule choices. On pre-fix build `107369e`, `logrankscore`,
+  `bs.gradient`, `custom`, and `custom1` all accept positive entries without
+  warning. In the reproduction, logrankscore's stored native partition
+  arrays and leaf counts are identical to a zero-entry fit under the same
+  seed, while survival estimates change.
+- Source findings: logrankscore's ranks use exit times and status without
+  entry times (`src/splitSurv.c`). Brier-gradient splitting calls the shared
+  entry-aware risk-count helper, but its gamma/subject-weight calculation
+  still includes subjects before entry (`src/splitUtilSurv.c`). It is
+  partially adapted, not a completely entry-blind calculation. Custom
+  survival callbacks are not supplied an entry vector
+  (`src/splitCustomDriver.c`). These rules do not implement our LT splitting
+  procedure; an entry-aware leaf estimator does not adapt their split score.
+- Change: after original-row entry alignment, NA processing, and split-rule
+  resolution, allow positive retained entries only with single-event
+  `logrank` or `random`. The former has the implemented LT split statistic;
+  the latter uses no outcome-based split statistic. Unsupported choices
+  stop with an error naming the requested rule and supported alternatives.
+  Even one positive entry before every failure triggers this conservative
+  boundary. NULL/all-zero entries retain ordinary rule selection.
+- Rule abbreviations are resolved first. Multiple event types remap
+  `logrank` to a different native statistic, so that request is rejected
+  with positive entries too. Allowing random splitting does not establish
+  general LT validity for competing-risk analyses; that extension remains
+  outside this fix. No split statistic or saved forest is rewritten, and
+  prediction/restoration of previously saved unsupported fits is unchanged.
+- Regression: `tests/entry-time-splitrules.R` fails before and passes after
+  the fix. Covers both alternative built-in rules, custom/custom1,
+  mixed/early positive entries, resolved abbreviations, performance/output
+  disabled, zero-depth requests, the fast wrapper, and multiple-event rule
+  remapping. Checks zero/NULL equivalence of predictions, errors, and stored
+  partitions, with Uno weighting enabled/disabled; verifies supported LT
+  fits/restoration under both memory settings. Entries on omitted rows do
+  not restrict the retained fit, while positive entries on retained or
+  imputed rows still trigger the guard.
+- Verification: isolated source build and `R CMD check`, status OK, with
+  examples/manual/vignettes skipped; all twelve regression files pass.
+  Documentation and NEWS describe the support boundary.
 - No GitHub push authorized.

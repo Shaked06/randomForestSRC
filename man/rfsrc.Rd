@@ -144,7 +144,12 @@ rfsrc.cart(formula, data, ntree = 1, mtry = ncol(data),
     \code{NULL} uses zero entry times. Retained entries must be finite,
     non-negative, non-missing, and no greater than their observed follow-up
     times. A retained subject with positive entry must have a known follow-up
-    time, including when \code{na.action = "na.impute"}.}
+    time, including when \code{na.action = "na.impute"}. Positive entries
+    require \code{splitrule = "logrank"} for single-event survival or
+    \code{splitrule = "random"}. Other splitting rules, including
+    \code{"logrankscore"}, \code{"bs.gradient"}, and custom survival
+    rules, have not been adapted to delayed entry and are rejected.
+    This restriction does not apply to \code{NULL} or all-zero entries.}
 
   \item{nimpute}{Number of iterations for internal imputation. If >1, OOB error rates may be optimistic.}
 
