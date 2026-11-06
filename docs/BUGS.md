@@ -18,8 +18,8 @@ after review and approval. A local commit does not imply a GitHub push.
 | 10 | P2 | NA omission does not subset entry times | LT integration | Fixed locally | `a62897b` |
 | 11 | P2 | Tuning holdouts do not subset entry times | LT integration | Fixed locally | `ef64356` |
 | 12 | P2 | Ordinary forests lose fast concordance scoring | LT integration | Fixed locally | `107369e` |
-| 13 | P2 | Unsupported splitting rules silently accept entry times | LT integration | Fixed locally | This commit |
-| 14 | P2 | Package fixes do not invalidate simulation caches | Our simulations | Open after upstream merge | — |
+| 13 | P2 | Unsupported splitting rules silently accept entry times | LT integration | Fixed locally | `87887c3` |
+| 14 | P2 | Package fixes do not invalidate Stage 1 simulation caches | Our simulations | Fixed locally | This commit |
 | 15 | P2 | Full-ensemble partial dependence uses an OOB normalization array | Pre-LT source; exposed during fix 1 | Needs dedicated reproduction/test | — |
 
 P1: crash, incorrect results, or invalid statistical interpretation.
@@ -380,7 +380,7 @@ four saved pre-integration forests preserve restored/new-data predictions.
 
 ### 13 — Reject splitting rules that have not been adapted to entry times
 
-- Approved for a local commit, `Reject unsupported splitting rules with delayed entry`.
+- Commit: `87887c3`, `Reject unsupported splitting rules with delayed entry`.
 - Origin: LT integration omitted a guard around the package's existing
   split-rule choices. On pre-fix build `107369e`, `logrankscore`,
   `bs.gradient`, `custom`, and `custom1` all accept positive entries without
@@ -420,4 +420,50 @@ four saved pre-integration forests preserve restored/new-data predictions.
 - Verification: isolated source build and `R CMD check`, status OK, with
   examples/manual/vignettes skipped; all twelve regression files pass.
   Documentation and NEWS describe the support boundary.
+- No GitHub push authorized.
+
+### 14 — Invalidate Stage 1 caches after a package implementation change
+
+- Approved for a local commit, `Invalidate simulation caches after package implementation changes`.
+- Origin: our simulation caching design. The replication-loop keys hashed
+  setup/DGP/engine files and replication/test counts but omitted the
+  installed package implementation. A same-version reinstall could leave
+  cached predictions and scores from the previous implementation on screen.
+- Change: fingerprint the installed `randomForestSRC` and `survival`
+  DESCRIPTION/NAMESPACE, R files (including lazy-load databases), and native
+  libraries by content. Include installation paths, R version, and platform.
+  All six Stage 1 documents compute the provenance in their uncached library
+  chunk and include it in the loop key alongside the existing inputs.
+  This represents the installed code, not an uninstalled source checkout.
+- New experiment results retain `package_provenance`, including their
+  saved `results_phases.rds` representation. Workers receive the resolved
+  installation directories and verify matching fingerprints before fitting.
+  A startup mismatch closes the worker cluster and fails; a changed package
+  between key construction and experiment startup also fails explicitly.
+- Regression: `simulations/tests/package_cache.R` uses the actual loop
+  header shared by all six documents and a temporary R/C package. Fresh R
+  processes demonstrate real cache reuse with unchanged code, recomputation
+  after an R-only reinstall, and recomputation after a native-only reinstall.
+  Package version/metadata stay fixed; native artifacts are held fixed for
+  the R-only case and R artifacts for the native-only case. The test fails
+  before this fix because the direct value is .999 while cache returns .111.
+  Setup, DGP, and engine changes still invalidate the cache independently.
+- Worker regression: `simulations/tests/package_provenance.R` checks the
+  chosen installation even without inherited library overrides, mismatch
+  rejection/cluster cleanup, fingerprint stability and RNG preservation,
+  and saved/reloaded provenance. A two-replication, 120-subject real Cox/RSF
+  experiment matches serial replication scores, including independent
+  zero-entry checks. All work uses temporary outputs; no saved run changes.
+- Verification: both new regression scripts pass, all six Stage 1 documents'
+  code chunks parse, and the existing Cox-grid regression passes all 56
+  cases. Only simulation code/docs changed; the R package was not rebuilt
+  for this fix. The prior package check remains the validation for the
+  unchanged package implementation.
+- Scope: protects Stage 1 replication caches. `setup.rds` remains an explicit
+  hashed input; Stage 0 calibration/tuning caches are not changed. Existing
+  saved runs remain historical and are not regenerated or relabeled.
+  Reinstall edited package source and restart R before knitting. Fingerprints
+  do not cover arbitrary in-memory namespace changes, every dependency,
+  external system library, or compiler environment; this is not a complete
+  environment lockfile. Paths/metadata may conservatively trigger extra runs.
 - No GitHub push authorized.

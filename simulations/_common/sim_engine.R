@@ -25,6 +25,28 @@ suppressPackageStartupMessages({
   library(parallel)
 })
 
+## Fingerprint the installed implementation, not the source checkout or
+## version alone. A development reinstall can change R code or native code
+## without changing the version. Restart R after reinstalling a package.
+simulation_package_provenance <- function(packages = c("randomForestSRC", "survival")) {
+  info <- lapply(packages, function(package) {
+    path <- normalizePath(getNamespaceInfo(asNamespace(package), "path"), mustWork = TRUE)
+    files <- sort(unique(c(file.path(path, c("DESCRIPTION", "NAMESPACE")),
+                           list.files(file.path(path, "R"), full.names = TRUE,
+                                      recursive = TRUE, all.files = TRUE),
+                           list.files(file.path(path, "libs"), full.names = TRUE,
+                                      recursive = TRUE, all.files = TRUE))))
+    hashes <- tools::md5sum(files)
+    if (anyNA(hashes)) stop("Cannot fingerprint installed package: ", package)
+    names(hashes) <- substring(files, nchar(path) + 2L)
+    list(version = unname(read.dcf(file.path(path, "DESCRIPTION"), "Version")[1, 1]),
+         path = path, files = hashes)
+  })
+  names(info) <- packages
+  list(schema = 1L, R = R.version.string, platform = R.version$platform,
+       packages = info)
+}
+
 
 ## ---------------------------------------------------------------------
 ##  1. Estimators -> S-hat on the shared grid  (m x M)
@@ -408,26 +430,46 @@ run_replication <- function(rep_id, setup, sim,
 ##  (stopCluster + makeCluster + re-source + reload packages, 9 workers):
 ##  about 1.1 sec -- negligible next to multi-minute batches.
 
-spawn_cluster <- function(srcs, n_cores) {
+spawn_cluster <- function(srcs, n_cores,
+                           package_provenance = simulation_package_provenance()) {
   ## Namespace-qualified so the engine keeps working if `parallel` happens
   ## not to be attached — e.g. when knitr serves the sourcing chunk from
   ## cache, which restores that chunk's objects but not its library() calls.
+  ## Workers must use the implementation represented by the cache key,
+  ## including when the parent loaded it from an isolated library.
+  library_paths <- unique(c(vapply(package_provenance$packages,
+                                   function(p) dirname(p$path), character(1)), .libPaths()))
   cl <- parallel::makeCluster(n_cores)
-  parallel::clusterExport(cl, "srcs", envir = environment())
-  parallel::clusterEvalQ(cl, {
-    for (s in srcs) source(s)
-    options(rf.cores = 1, mc.cores = 1)
-    NULL
+  tryCatch({
+    parallel::clusterExport(cl, c("srcs", "library_paths", "package_provenance"),
+                             envir = environment())
+    parallel::clusterEvalQ(cl, {
+      .libPaths(library_paths)
+      for (s in srcs) source(s)
+      actual <- simulation_package_provenance(names(package_provenance$packages))
+      if (!identical(actual, package_provenance)) {
+        stop("Worker package implementation differs from simulation provenance. Restart R and rerun.")
+      }
+      options(rf.cores = 1, mc.cores = 1)
+      NULL
+    })
+    cl
+  }, error = function(e) {
+    parallel::stopCluster(cl)
+    stop(e)
   })
-  cl
 }
 
 run_experiment <- function(n_rep, setup, sim, sources,
                            scorer = scorer_mad_vs_truth,
                            m_test = 200L,
                            n_cores = max(1L, parallel::detectCores() - 1L),
-                           verify_noop = FALSE) {
+                           verify_noop = FALSE,
+                           package_provenance = simulation_package_provenance()) {
   srcs <- normalizePath(sources, mustWork = TRUE)
+  if (!identical(package_provenance, simulation_package_provenance())) {
+    stop("Installed packages changed since the simulation cache key was computed. Restart R and rerun.")
+  }
 
   batches <- split(seq_len(n_rep), ceiling(seq_len(n_rep) / n_cores))
   res <- vector("list", n_rep)
@@ -438,7 +480,7 @@ run_experiment <- function(n_rep, setup, sim, sources,
   cat(sprintf("running %d reps x %d fits on %d cores (respawned/batch)...\n",
               n_rep, n_fits, n_cores))
   for (b in batches) {
-    cl <- spawn_cluster(srcs, n_cores)
+    cl <- spawn_cluster(srcs, n_cores, package_provenance)
     res[b] <- tryCatch(
       parallel::parLapply(cl, b, run_replication, setup = setup,
                           sim = sim, scorer = scorer, m_test = m_test,
@@ -478,7 +520,8 @@ run_experiment <- function(n_rep, setup, sim, sources,
     cindex_label = "C-index error (1-C, truncation-aware, lower=better) on training sample",
     brier_label  = "CRPS (Brier score integrated over t, truncation-aware, lower=better) on training sample",
     auc_label    = "AUC error (1-AUC, time-averaged, truncation-aware, lower=better) on training sample",
-    sim_name     = sim$name
+    sim_name     = sim$name,
+    package_provenance = package_provenance
   )
 }
 

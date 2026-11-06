@@ -8,6 +8,20 @@ structure (`stage0_setup.Rmd` calibrates and saves `setup.rds`,
 (`_common/sim_engine.R`, `_common/sim_report.R`). Only `dgp.R` differs
 between them.
 
+Stage 1 caches include fingerprints of the installed R code and compiled
+libraries for `randomForestSRC` and `survival`, plus their installation paths,
+R version, and platform. A same-version package reinstall can therefore
+invalidate the cache. New `results_phases.rds` objects record this information
+in `package_provenance`, and workers verify that they use the same packages.
+Editing the source checkout does not update an installed package: reinstall
+the package and restart R before knitting after a code change. Existing saved
+results without this field are historical outputs; this change does not rerun
+or relabel them. Fingerprints cover these two modeling packages, not every
+dependency, system library, compiler setting, or in-memory namespace edit.
+This protects Stage 1 replication caches. Stage 0 calibration/tuning caches
+are unchanged; clear those caches explicitly when retuning after a package
+change. Stage 1 still hashes the selected `setup.rds` as an explicit input.
+
 Left truncation itself is **never** part of any source paper — it is added
 the same way in all six: entry time $R\sim\mathrm{Unif}(c_L,c_U)$
 independent of $(\tilde T,X)$, a subject retained only if it survived to

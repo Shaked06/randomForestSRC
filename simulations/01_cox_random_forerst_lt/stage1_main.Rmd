@@ -94,6 +94,7 @@ with the engine's functions but none of the packages they need.
 source("../_common/sim_engine.R")
 source("../_common/sim_report.R")
 source("dgp.R")
+PACKAGE_PROVENANCE <- simulation_package_provenance()
 
 stopifnot("entry.time" %in% names(formals(rfsrc)))
 cat(sprintf("randomForestSRC %s loaded from %s\n",
@@ -136,13 +137,19 @@ dependencies across chunks by default, so without this a cached loop would
 survive a change to `N_REP` and quietly report the previous run's replication
 count.
 
-```{r loop, cache.extra = list(N_REP, M_TEST, tools::md5sum(c("setup.rds", "dgp.R", "../_common/sim_engine.R")))}
+The cache also checks the installed R code and compiled libraries for
+`randomForestSRC` and `survival`, even when their versions stay the same.
+This provenance is saved in `res$package_provenance`. After reinstalling a
+package, restart R before knitting; source edits take effect after reinstalling.
+
+```{r loop, cache.extra = list(N_REP, M_TEST, tools::md5sum(c("setup.rds", "dgp.R", "../_common/sim_engine.R")), PACKAGE_PROVENANCE)}
 res <- run_experiment(
   n_rep   = N_REP,
   setup   = setup,
   sim     = sim,
   sources = c("../_common/sim_engine.R", "dgp.R"),
-  m_test  = M_TEST
+  m_test  = M_TEST,
+  package_provenance = PACKAGE_PROVENANCE
 )
 
 saveRDS(res, "results_phases.rds")
