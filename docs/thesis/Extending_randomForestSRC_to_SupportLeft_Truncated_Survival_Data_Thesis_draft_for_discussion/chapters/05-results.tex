@@ -1,0 +1,84 @@
+\chapter{Results}
+\section{Implementation and compatibility checks}
+The evaluated package was built from isolated source and passed
+\texttt{R CMD check}, with examples, manual, and vignettes skipped.
+All thirteen package regression files passed. They cover stored entry
+times and fresh-process prediction, input validation and retained-row
+alignment, restoration and VIMP, tuning, supported splitting rules,
+concordance selection, Brier/AUC reference calculations, validation-outcome
+alignment, and partial-dependence normalization.
+
+Separate research-code checks compare the Cox prediction-grid helper with
+\texttt{survival::survfit}, test cache invalidation after same-version
+R-only and native-only package changes, and check worker provenance and
+serial/worker agreement. Numerical reference tests and successful package
+checks do not establish every statistical modeling assumption.
+
+All 600 simulation replications independently passed the ordinary versus
+zero-entry check. The largest RSF survival-curve difference was exactly
+zero in every scenario. The largest Cox difference was below
+$4\times10^{-14}$. All saved scalar scores were finite and all six result
+objects recorded the same package fingerprints. These results replace the
+earlier ten-replication summaries as the numerical basis of this draft.
+
+\section{Survival-curve accuracy}
+\input{tables/mad-results}
+Entry-aware fitting lowered mean truth-based curve error for both model
+families in all six scenarios. Relative MAD reductions were
+16.66--91.39\% for Cox and 31.05--66.01\% for RSF. Every RSF replication
+improved on this measure. Cox improved in all replications except one in
+Scenario 2, giving 599 improvements out of 600 Cox comparisons.
+Table~\ref{tab:mad} reports absolute paired gains and their MCSEs rather
+than relying on percentage changes alone.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.95\textwidth]{figures/mad-improvement.png}
+\caption{Relative reduction in truth-based MAD after supplying entry times.
+Positive values indicate lower error. The figure summarizes 100 paired
+replications per scenario; Table~\ref{tab:mad} gives absolute values and
+Monte Carlo uncertainty.}
+\label{fig:mad}
+\end{figure}
+
+For a fixed node, including not-yet-entered subjects inflates the risk
+denominator and reduces its event-to-risk hazard increment. Correcting
+entry can therefore change the level of a survival curve substantially.
+Forest splits and node memberships may also change, so this fixed-node
+argument does not determine the final empirical effect by itself.
+
+\section{Outcome-based scores and the mixed concordance finding}
+\input{tables/metric-reductions}
+Entered-cohort CRPS and time-averaged AUC error decreased in both model
+families in all six scenarios. CRPS reductions ranged from 3.29--7.00\%
+for Cox and 1.74--5.48\% for RSF. AUC-error reductions were smaller:
+0.58--1.51\% for Cox and 0.30--2.45\% for RSF.
+These statements concern the specified entered-cohort scores under the
+pooled censoring model, not source-population prediction error.
+
+Concordance changes were smaller and did not uniformly favor entry-aware
+RSF. RSF concordance error increased by 0.38\% and 1.03\% in Scenarios 1
+and 2, respectively. In Scenario 2, error rose from 0.240740 to 0.243223;
+all 100 paired replications showed deterioration on this measure.
+The small RSF changes in Scenarios 3 and 4 have descriptive paired
+normal-approximation intervals that include zero. Scenarios 5 and 6
+show lower RSF concordance error.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.95\textwidth]{figures/concordance-improvement.png}
+\caption{Relative reduction in entry-aware concordance error.
+Negative RSF values show the observed deterioration in some scenarios.
+These are relative changes in error, not percentage-point changes in C.}
+\label{fig:concordance}
+\end{figure}
+
+Improved curve accuracy can coexist with little change or a deterioration
+in ranking. The concordance marker sums raw survival-curve event risks;
+the AUC marker conditions on each subject's entry. The metrics also use
+different time and subject comparisons. Their empirical differences
+therefore require interpretation, rather than an expectation that every
+metric must move in the same direction.
+
+\section{Historical results and reproducibility}
+TBD

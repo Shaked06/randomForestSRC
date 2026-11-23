@@ -1,0 +1,25 @@
+% Generated from the completed 100-replication run; do not edit by hand.
+\begin{table}[htbp]
+\centering\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{clrrrr}
+\toprule
+Scenario & Model & Entry-blind & Entry-aware & Gain & MCSE \\
+\midrule
+1 & Cox & 0.322435 & 0.319376 & 0.003059 & 0.000186 \\
+1 & RSF & 0.357855 & 0.352684 & 0.005172 & 0.000393 \\
+2 & Cox & 0.179232 & 0.178192 & 0.001040 & 0.000073 \\
+2 & RSF & 0.143254 & 0.142818 & 0.000436 & 0.000102 \\
+3 & Cox & 0.205595 & 0.202684 & 0.002911 & 0.000077 \\
+3 & RSF & 0.223372 & 0.220682 & 0.002689 & 0.000137 \\
+4 & Cox & 0.345875 & 0.340654 & 0.005221 & 0.000187 \\
+4 & RSF & 0.335086 & 0.328505 & 0.006580 & 0.000250 \\
+5 & Cox & 0.360994 & 0.356226 & 0.004768 & 0.000206 \\
+5 & RSF & 0.281014 & 0.276952 & 0.004063 & 0.000246 \\
+6 & Cox & 0.338597 & 0.335142 & 0.003455 & 0.000204 \\
+6 & RSF & 0.330326 & 0.322244 & 0.008082 & 0.000404 \\
+\bottomrule
+\end{tabular}
+\caption{Error $1-\overline{\mathrm{AUC}}$ for the descriptive time average of entered-cohort AUC. Gain is mean entry-blind minus entry-aware error; positive values favor entry-aware fitting. MCSE is the Monte Carlo standard error of the paired mean gain. There are \SimReplications{} replications per scenario.}
+\label{tab:auc}
+\end{table}

@@ -1,0 +1,64 @@
+\chapter{Implementation Details and Supplementary Results}\label{app:code}
+\section{Implementation map}
+\begin{description}
+\item[Grow interface and entry validation:] \path{R/rfsrc.R} and
+\path{R/utilities_entry_time.R}.
+\item[Native interfaces and indexing:] \path{src/entry.c},
+\path{src/impute.c}, and \path{src/stack.c}.
+\item[Splitting and terminal risk sets:] \path{src/splitUtilSurv.c},
+\path{src/splitSurv.c}, and \path{src/survival.c}.
+\item[Concordance:] \path{src/cindex.c}, \path{src/survivalE.c},
+and \path{R/utilities_performance.R}.
+\item[Brier and AUC:] \path{R/utilities_brier_lt.R},
+\path{R/utilities_auc_lt.R}, and \path{R/utilities_survival_lt.R}.
+\item[Tuning and refits:] \path{R/tune.rfsrc.R},
+\path{R/tune.nodesize.rfsrc.R}, and resampling helpers.
+\item[Partial normalization:] \path{src/partial.c}.
+\item[Simulation and reporting:] \path{simulations/_common/sim_engine.R}
+and \path{simulations/_common/sim_report.R}.
+\end{description}
+
+The live tracker \path{docs/BUGS.md} records fifteen resolved issues and
+their commits. They include LT integration defects, inherited package
+defects, and simulation-code defects; they are not all newly introduced
+LT errors. All fixes are local. The validated package source for this
+study is commit \RunCommit{}.
+
+\section{Numerical provenance}
+Results are read from the isolated run directory
+\begin{center}
+\path{simulations/reruns/2026-11-06-1802cc3/}
+\end{center}
+Its manifest records source hashes and installed-package fingerprints.
+The six saved result objects contain 100 replications each. The
+generator \path{docs/thesis/generate_results_tables.R} reads these
+objects, checks their run size, finite scores, zero-entry agreement,
+and package provenance, then generates the LaTeX tables. Figures are
+copied from the same refreshed summary. Original historical result
+objects are not used by the current table generator.
+
+\section{Absolute outcome-based scores}
+Tables~\ref{tab:concordance}--\ref{tab:auc} report the absolute score
+scales and paired MCSEs behind the relative reductions in Chapter 5.
+The Brier integral is unnormalized and horizons differ, so its raw
+values should be compared within scenarios. Gain is entry-blind minus
+entry-aware error throughout.
+
+\input{tables/concordance-results}
+\input{tables/brier-results}
+\input{tables/auc-results}
+\clearpage
+\section{Questions for the supervisor meeting}
+\begin{enumerate}
+\item Does the expanded Brier estimator match the intended observation
+conditioning in Section 9.2 of the project outline?
+\item Should the retained average product-limit survival curves be the
+primary output, or should the final analysis also use
+$\exp\{-\widehat H_e\}$?
+\item Should entered-cohort Brier and the additional AUC be primary
+outcomes, given the censoring mechanisms and working pooled model?
+\item Which fixed-time calibration and covariate-stratum analyses are
+required to complete the evaluation?
+\item Is a real-data illustration or variable-selection study required?
+\item What university template, language, and length are required?
+\end{enumerate}

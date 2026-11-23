@@ -9,7 +9,7 @@ after review and approval. A local commit does not imply a GitHub push.
 | 1 | P1 | Saved-model prediction crashes or uses entry times from another fit | LT integration | Fixed locally | `4127a1a` |
 | 2 | P1 | Missing follow-up imputation can place exit before entry and return negative survival | LT integration | Fixed locally | `d057c9e` |
 | 3 | P1 | Restored training error and standalone VIMP ignore entry | LT integration | Fixed locally | `a4c890e` |
-| 4 | P1 | Cox time-grid indexing corrupts simulation predictions | Our simulations | Fixed locally; results rerun pending | `820b285` |
+| 4 | P1 | Cox time-grid indexing corrupts simulation predictions | Our simulations | Fixed locally; isolated 100-replication refresh complete | `820b285` |
 | 5 | P1 | LT Brier construction can favor incorrect survival probabilities | LT metric design | Fixed locally | `539df42` |
 | 6 | P1 | Brier/AUC weights mistake observed entry CDF for source entry CDF | LT metric design | Fixed locally | `42d7a66` |
 | 7 | P1 | Prediction-object scoring uses training outcomes | Inherited from pre-LT snapshot; propagated to our AUC | Fixed locally by upstream integration | `cb60a6e`; upstream `30d95e2` + LT adaptation |
@@ -20,7 +20,7 @@ after review and approval. A local commit does not imply a GitHub push.
 | 12 | P2 | Ordinary forests lose fast concordance scoring | LT integration | Fixed locally | `107369e` |
 | 13 | P2 | Unsupported splitting rules silently accept entry times | LT integration | Fixed locally | `87887c3` |
 | 14 | P2 | Package fixes do not invalidate Stage 1 simulation caches | Our simulations | Fixed locally | `cb9ff39` |
-| 15 | P1 | Full-ensemble partial dependence uses an OOB normalization array | Inherited pre-LT source; also in merged upstream snapshot | Fixed locally | This commit |
+| 15 | P1 | Full-ensemble partial dependence uses an OOB normalization array | Inherited pre-LT source; also in merged upstream snapshot | Fixed locally | `1802cc3` |
 
 P1: crash, incorrect results, or invalid statistical interpretation.
 P2: feature failure, compatibility gap, performance, or reproducibility issue.
@@ -337,6 +337,28 @@ four saved pre-integration forests preserve restored/new-data predictions.
   examples/manual/vignettes skipped; all ten regression files pass.
 - No GitHub push authorized.
 
+## Completed simulation refresh — 2026-11-07
+
+All six experiments completed 100 replications each (600 total) using the
+tested package from commit `1802cc3`, their preserved setup files/seeds,
+5,000 training subjects, 500 trees per forest, and 200 test covariates.
+All saved results pass finite-score and independent zero-entry checks;
+RSF's zero-entry differences are exactly zero, and Cox differences are
+below `1e-8`. All six results record matching package fingerprints.
+
+The separate overview, six scenario reports, result objects, comparisons,
+and provenance are under
+`simulations/reruns/2026-11-06-1802cc3/`; begin with `REPORT.md`.
+Report rendering completed at 2026-11-07 04:24:27 UTC. All report images
+exist and the generated Markdown contains no embedded execution errors.
+The original saved RDS results and pending research edits remain untouched.
+The six original Stage 1 HTML reports were subsequently regenerated from
+the completed 100-replication reports, with all figures embedded and their
+previous HTML copies preserved under the isolated run's source directory.
+No additional fits were performed. These refreshed artifacts have not been
+committed or pushed. The run includes both our fixes and upstream changes, so historical
+versus refreshed differences do not isolate individual fixes.
+
 ### 12 — Restore fast concordance for ordinary survival fits
 
 - Commit: `107369e`, `Restore fast concordance for zero entry times`.
@@ -470,7 +492,7 @@ four saved pre-integration forests preserve restored/new-data predictions.
 
 ### 15 — Normalize partial predictions with the requested ensemble's counts
 
-- Approved for a local commit, `Normalize partial predictions with the requested ensemble counts`.
+- Commit: `1802cc3`, `Normalize partial predictions with the requested ensemble counts`.
 - Origin: inherited from the original package. The unconditional
   `ensembleDen = RF_oobEnsembleDen` assignment exists in pre-LT snapshot
   `145ac2f8692a724fcd451960dd4ef4fbe74ff08a` and unchanged upstream

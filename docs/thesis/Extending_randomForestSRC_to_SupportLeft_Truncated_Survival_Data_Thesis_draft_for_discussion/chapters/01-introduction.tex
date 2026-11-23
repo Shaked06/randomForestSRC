@@ -1,0 +1,58 @@
+\chapter{Introduction}
+\section{Motivation}
+Survival analysis studies the time until an event of interest, such as death,
+disease recurrence, or equipment failure. In many studies, observation does not
+begin at the origin of the relevant time scale. An individual may enter a study
+several years after diagnosis while follow-up is measured from diagnosis.
+Such an individual can appear in the study only if the event has not occurred
+before entry. This observation mechanism is called left truncation, or delayed
+entry.
+
+Left truncation differs from right censoring. With right censoring, an
+individual is observed but the event time is known only to exceed the end of
+follow-up. With left truncation, individuals whose event precedes entry are
+absent from the observed sample. Accounting for delayed entry therefore
+requires attention both to sample selection and to who is under observation
+at each event time.
+
+For example, consider two individuals with observed follow-up ending at years
+three and six. The second individual enters at year four. At an event at year
+three, the second individual should not contribute to the risk set: they were
+not yet under observation. An analysis using only the end of follow-up would
+incorrectly count both individuals as at risk. This changes the denominators
+used to estimate hazard increments and can change the splits chosen by a
+survival tree.
+
+Random survival forests combine survival trees to estimate outcomes from
+covariates. The original formulation addresses right-censored outcomes
+\citep{ishwaran2008}. Tree methods have also been developed specifically for
+left-truncated, right-censored data \citep{fu2017}. This thesis focuses on
+bringing delayed-entry support into the main fitting interface and
+computational core of \pkg{}. The contribution is an applied software
+extension and its evaluation, rather than a claim to introduce the first
+tree-based method for left truncation.
+
+\section{Objectives and research questions}
+The primary objective is to extend the package so that the default survival
+forest uses subject-specific entry times in tree construction and terminal-node
+estimation. A second objective is to establish how this correction affects
+prediction under controlled simulation conditions. A third is to document a
+reproducible implementation suitable for a future upstream contribution.
+
+The study addresses three questions:
+\begin{enumerate}
+\item Can delayed entry be incorporated into the existing R and C architecture
+while preserving the ordinary fitting path when all entry times are zero?
+\item How does supplying the true entry times affect estimated survival curves
+and risk discrimination under different data-generating mechanisms?
+\item Which package features and evaluation procedures require additional work
+before delayed-entry support can be considered complete?
+\item ... TBD ...
+\end{enumerate}
+
+\section{Scope and organization}
+The current implementation concerns single-event survival outcomes and the
+default log-rank splitting rule. Competing risks, time-varying covariates, and
+alternative splitting rules are outside the validated scope of this draft.
+
+... TBD ... 

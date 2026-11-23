@@ -1,0 +1,21 @@
+% Generated from the completed run; percentage changes are on error scales.
+\begin{table}[htbp]
+\centering\small
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{crrrrrrrr}
+\toprule
+ & \multicolumn{2}{c}{MAD} & \multicolumn{2}{c}{Concordance error} & \multicolumn{2}{c}{CRPS} & \multicolumn{2}{c}{AUC error} \\
+\cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(lr){6-7}\cmidrule(lr){8-9}
+Scenario & Cox & RSF & Cox & RSF & Cox & RSF & Cox & RSF \\
+\midrule
+1 & 91.39\% & 66.01\% & 0.03\% & -0.38\% & 5.96\% & 5.48\% & 0.95\% & 1.45\% \\
+2 & 16.66\% & 36.23\% & 0.01\% & -1.03\% & 3.84\% & 2.93\% & 0.58\% & 0.30\% \\
+3 & 81.53\% & 36.42\% & 0.03\% & -0.02\% & 3.29\% & 1.74\% & 1.42\% & 1.20\% \\
+4 & 46.30\% & 41.45\% & 0.03\% & 0.04\% & 4.20\% & 2.51\% & 1.51\% & 1.96\% \\
+5 & 24.46\% & 31.05\% & 0.15\% & 0.46\% & 4.20\% & 2.49\% & 1.32\% & 1.45\% \\
+6 & 48.43\% & 44.11\% & 0.27\% & 0.66\% & 7.00\% & 4.29\% & 1.02\% & 2.45\% \\
+\bottomrule
+\end{tabular}
+\caption{Percentage reduction in mean error after supplying entry times, $100(\overline E_0-\overline E_L)/\overline E_0$. Positive values favor entry-aware fitting; negative values indicate a higher error. Concordance and AUC columns use $1-C$ and $1-\overline{\mathrm{AUC}}$, respectively. These are relative error changes, not percentage-point changes in C or AUC.}
+\label{tab:metric-reductions}
+\end{table}

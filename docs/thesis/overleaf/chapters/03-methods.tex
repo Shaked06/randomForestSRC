@@ -1,0 +1,180 @@
+\chapter{Methods and Software Implementation}
+\section{Entry-aware splitting}
+For a candidate split at a node, let $t_1,\ldots,t_K$ be its distinct event
+times. Let $d_k$ and $d_{1k}$ denote event counts in the parent and left
+daughter, and let $Y_k$ and $Y_{1k}$ denote their risk-set sizes. The
+delayed-entry log-rank numerator and variance term are
+\begin{align}
+ U&=\sum_{k:Y_k>0}\left(d_{1k}-d_k\frac{Y_{1k}}{Y_k}\right),\\
+ V&=\sum_{k:Y_k>1}
+ \frac{Y_{1k}(Y_k-Y_{1k})d_k(Y_k-d_k)}{Y_k^2(Y_k-1)}.
+\end{align}
+Candidate splits are compared using the magnitude of the standardized
+statistic when its variance is positive. Entry awareness changes the
+risk-set counts through Equation~\eqref{eq:risk}; observed event counts are
+unchanged. These are the risk-set modifications specified in the
+professor-provided project outline \citep{projectoutline}.
+
+\section{Terminal-node estimates and returned predictions}
+For terminal node $h$, let $d_h(t_k)$ be its event count and $Y_h(t_k)$ its
+entry-aware risk-set size. The node estimates are
+\begin{align}
+ \widehat H_h(t)&=\sum_{t_k\leq t}\frac{d_h(t_k)}{Y_h(t_k)},\\
+ \widehat S_h(t)&=\prod_{t_k\leq t}
+       \left(1-\frac{d_h(t_k)}{Y_h(t_k)}\right).
+\end{align}
+Only node event times with a nonzero risk set contribute. A new subject is
+routed to node $h_b(x)$ in tree $b$ using its covariates. The package returns
+averages of the tree-specific cumulative hazards and product-limit curves:
+\begin{align}
+ \widehat H_e(t\mid x)&=\frac{1}{B}\sum_{b=1}^{B}\widehat H_{h_b(x)}(t),\\
+ \widehat S_e(t\mid x)&=\frac{1}{B}\sum_{b=1}^{B}\widehat S_{h_b(x)}(t).
+\end{align}
+OOB predictions average over the trees that excluded the training subject.
+
+The outline also describes $\exp\{-\widehat H_e(t\mid x)\}$ as a possible
+survival construction. This is not generally identical to the average
+product-limit curve returned by the package. The experiments retain the
+package's returned survival curves; they do not silently replace them by
+the exponential of the averaged cumulative hazard. This construction should
+be confirmed when finalizing the thesis specification.
+
+A test subject's entry time is not needed to route it through the trees.
+Entry becomes relevant when conditioning a prediction on observation or
+evaluating it against an outcome.
+
+\section{Integration, validation, and supported scope}
+The user supplies one entry time per original input row through
+\texttt{rfsrc(..., entry.time = L)}. The interface aligns entries with rows
+retained after missing-data processing and checks that retained entries are
+finite, nonnegative, and no later than follow-up. Positive entry with a
+missing follow-up time is rejected; missing predictors remain imputable.
+The C implementation uses a lower-bound lookup to map entries onto the
+master time grid, without requiring entries to coincide with exit times.
+
+Entry times are stored on the grow object and saved forest, and are passed
+explicitly during restoration and prediction. Refitting on subsets or
+bootstrap samples subsets entries with the observations. Tuning aligns
+training and holdout entries and uses holdout subjects' entries for the LT
+concordance comparison. Training outcomes used to estimate nuisance
+distributions are kept separate from evaluation outcomes.
+
+Positive entries are supported with the single-event default log-rank rule
+and with outcome-independent random splitting. Other rules, including
+log-rank-score, Brier-gradient, and custom survival rules, are rejected with
+positive entries because their split statistics have not been fully adapted.
+Allowing random splits does not establish general LT validity for every
+outcome family. The thesis evaluates single-event log-rank forests.
+
+For nonnegative follow-up, setting all entries to zero reduces
+Equation~\eqref{eq:risk} to the ordinary risk indicator. Ordinary calls can
+then use the existing fast concordance algorithms. Positive-entry
+concordance currently uses pairwise enumeration. Zero-entry agreement is a
+necessary compatibility check, not a proof of correctness for positive entry.
+
+\section{Evaluation targets}
+Truth-based curve error evaluates $\widehat S(t\mid X)$ against the
+source-population survival function. Outcome-based evaluation instead uses
+observed training subjects. In the experiments, RSF uses OOB curves and Cox
+uses in-sample fitted curves. Therefore, outcome-score differences between
+the two model families are not comparisons under identical validation designs.
+
+\subsection{Concordance}
+For an observed event at $U_i<U_j$, the implemented LT comparison requires
+$L_j\leq U_i$. The simulation risk marker is
+\[
+ r_i=\sum_{g=1}^{G}\{1-\widehat S(t_g\mid X_i)\}.
+\]
+The reported concordance error is $1-C$ using the package's pair and
+tie conventions, with the delayed-entry restriction. The simulation calls
+the unweighted helper. The package's native performance machinery also
+supports its existing Uno-weighted option; that is not the weighting used
+for the simulation C-index tables.
+
+\subsection{Observation-conditioned Brier score}
+Section 9.2 of the outline \citep{projectoutline} requires censoring adjustment, restriction to
+$L_i\leq t$, and conditioning on observation. It does not supply an expanded
+estimator. The following construction is our interpretation of that
+instruction and remains subject to the professor's scientific review.
+
+Related methodological references consulted during development were the
+\texttt{JMbayes2} documentation for dynamic Brier scoring
+\citep{jmbayes2brier} and the supplement to the Fu--Simonoff survival-tree
+study \citep[Section~4.1]{fuSimonoffSupplement}.
+The former documents prediction from a specified starting time to a later
+horizon, with IPCW and left-truncation support. Our score instead averages
+subject-specific entry-conditioned predictions over subjects entered by $t$.
+The latter presents the ordinary censoring-adjusted Brier formula, but its
+reported test-set evaluation uses uncensored event times.
+These references provide context; neither supplies the exact estimator below.
+
+With the implemented inclusive-entry convention, the prediction after
+entry is
+\[
+ q_i(t)=\frac{\widehat S(t\mid X_i)}
+                  {\widehat S(L_i^-\mid X_i)},\qquad t\geq L_i,
+\]
+when the denominator is positive. Let $G_i$ denote censoring survival under
+the chosen censoring model. Let $\mathcal E_t$ contain the selected subjects with $L_i\leq t$ and a
+finite conditional prediction, and write $n_t=|\mathcal E_t|$. The score is
+\begin{align}
+ \widehat{\mathrm{BS}}_{\mathrm{entry}}(t)
+ =\frac{1}{n_t}\sum_{i\in\mathcal E_t}
+ \Bigg[&
+ \delta_i\ind(U_i\leq t)q_i(t)^2
+        \frac{\widehat G_i(L_i^-)}{\widehat G_i(U_i^-)}
+ \nonumber\\
+ &+\ind(U_i>t)\{1-q_i(t)\}^2
+        \frac{\widehat G_i(L_i^-)}{\widehat G_i(t)}
+ \Bigg].
+\end{align}
+Here $n_t$ counts those entered subjects with finite predictions. Censoring
+by $t$ gives a zero contribution while retaining the subject in this
+denominator. Subjects not yet entered are excluded. No empirical entry-CDF
+weight is used: the entry distribution among retained subjects generally
+differs from its source-population distribution.
+
+The experiments use a pooled product-limit censoring estimate with
+delayed-entry risk sets. Failures are removed before censoring at tied exit
+times. Valid IPCW interpretation requires independent censoring given the
+information in the censoring model and positive observation probabilities.
+A pooled model additionally assumes a common censoring hazard. Covariate-
+or entry-dependent censoring in some scenarios does not automatically
+satisfy that stronger assumption; those scores are descriptive under this
+working censoring model.
+
+The scalar reported as Brier/CRPS is the trapezoidal approximation to
+\[
+ \mathrm{CRPS}=\int_{t_{\min}}^{t_{\max}}
+                  \widehat{\mathrm{BS}}_{\mathrm{entry}}(t)\,dt.
+\]
+It is an unnormalized time integral, not an average bounded by one.
+Horizon lengths vary across scenarios. A grid with no entrants yields an
+undefined score; it is not filled with zero.
+
+\subsection{Additional time-dependent AUC metric}
+The professor's outline does not prescribe an AUC estimator. Our added
+cumulative/dynamic AUC uses entered observed failures as cases and entered
+subjects with $U_j>t$ as controls. Its marker is $M_i(t)=1-q_i(t)$, with
+weights
+\[
+ w_i^{\mathrm{case}}(t)=
+ \frac{\widehat G_i(L_i^-)}{\widehat G_i(U_i^-)},\qquad
+ w_j^{\mathrm{control}}(t)=
+ \frac{\widehat G_j(L_j^-)}{\widehat G_j(t)}.
+\]
+AUC is the weighted case--control fraction for which the case has a larger
+marker, with half credit for ties. The reported error is
+$1-\overline{\mathrm{AUC}}$, where the bar denotes trapezoidal time
+averaging over defined grid points. This is a descriptive time average,
+not an event-distribution-weighted population integrated AUC, and the
+current averaging can bridge undefined interior points. The censoring
+assumptions are the same as for Brier scoring.
+
+These entered-cohort scores do not estimate time-zero prediction error
+for unobserved source-population subjects. Their targets differ from
+truth-based MAD. External scoring requires evaluation outcomes and entries;
+unlabeled predictions cannot be assigned an outcome-based score. The
+native new-data prediction interface has no test-entry channel, so its
+built-in error output should not be substituted for explicit LT test-set
+scoring.

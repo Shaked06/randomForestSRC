@@ -1,0 +1,25 @@
+% Generated from the completed 100-replication run; do not edit by hand.
+\begin{table}[htbp]
+\centering\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{clrrrr}
+\toprule
+Scenario & Model & Entry-blind & Entry-aware & Gain & MCSE \\
+\midrule
+1 & Cox & 0.425853 & 0.425731 & 0.000122 & 0.000018 \\
+1 & RSF & 0.438474 & 0.440161 & -0.001687 & 0.000163 \\
+2 & Cox & 0.295459 & 0.295418 & 0.000041 & 0.000009 \\
+2 & RSF & 0.240740 & 0.243223 & -0.002483 & 0.000071 \\
+3 & Cox & 0.309973 & 0.309894 & 0.000079 & 0.000011 \\
+3 & RSF & 0.318269 & 0.318325 & -0.000055 & 0.000082 \\
+4 & Cox & 0.450997 & 0.450857 & 0.000140 & 0.000023 \\
+4 & RSF & 0.421078 & 0.420891 & 0.000187 & 0.000178 \\
+5 & Cox & 0.478467 & 0.477746 & 0.000720 & 0.000072 \\
+5 & RSF & 0.384823 & 0.383060 & 0.001763 & 0.000119 \\
+6 & Cox & 0.476976 & 0.475688 & 0.001288 & 0.000082 \\
+6 & RSF & 0.439728 & 0.436822 & 0.002906 & 0.000238 \\
+\bottomrule
+\end{tabular}
+\caption{Entry-aware concordance error, $1-C$. Gain is mean entry-blind minus entry-aware error; positive values favor entry-aware fitting. MCSE is the Monte Carlo standard error of the paired mean gain. There are \SimReplications{} replications per scenario.}
+\label{tab:concordance}
+\end{table}

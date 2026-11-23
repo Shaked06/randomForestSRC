@@ -1,0 +1,67 @@
+\chapter{Background and Related Work}
+\section{Observed data and risk sets}
+Let $T_i$ denote the event time, $C_i$ the censoring time, $L_i$ the entry time,
+and $X_i$ a vector of baseline covariates. Write
+\[
+ U_i=\min(T_i,C_i),\qquad \delta_i=\ind(T_i\leq C_i).
+\]
+The observed record is $(L_i,U_i,\delta_i,X_i)$ for individuals whose follow-up
+extends to entry. The simulations described below generate censoring after
+entry; their exact sampling sequence must be distinguished from a design
+that draws an absolute censoring time before selecting individuals.
+
+For ordinary right-censored data, the risk indicator is
+\[
+ Y_i^{\mathrm{RC}}(t)=\ind(t\leq U_i).
+\]
+The current package extension instead implements
+\begin{equation}\label{eq:risk}
+ Y_i^{\mathrm{LT}}(t)=\ind(L_i\leq t\leq U_i).
+\end{equation}
+Only individuals who have entered can contribute to the risk set.
+
+Equation~\eqref{eq:risk} uses the inclusive convention specified in the
+project outline \citep{projectoutline}. The implementation and LT scoring
+helpers follow this convention, including left-limit conditioning at entry.
+The Cox start--stop comparison uses a strict entry boundary, $L_i<t$.
+Continuously generated times avoid exact ties that would distinguish the
+conventions in these experiments; this does not establish equivalence for
+discrete-time applications.
+
+Estimating survival in a population from truncated observations requires
+assumptions about the observation process and its support. Independence or
+appropriate conditional independence assumptions for entry and event times,
+as well as censoring assumptions, must be stated for each target of inference.
+Altering a risk indicator by itself does not establish identification under
+arbitrary informative truncation.
+
+\section{Cox regression and survival forests}
+Cox regression models the conditional hazard as
+\[
+ \lambda(t\mid X)=\lambda_0(t)\exp(\beta^\top X).
+\]
+Its proportional-hazards structure separates a baseline hazard from a
+covariate-dependent relative risk. Delayed entry can be represented through
+start--stop observations. In this study, Cox regression provides a comparator
+under both correctly specified and misspecified settings.
+
+A random survival forest aggregates survival trees fitted on resampled
+observations. At each node, a subset of candidate variables is considered and
+a survival splitting statistic selects a partition. Terminal-node estimates
+are combined across trees to obtain predictions. The original random survival
+forest method was developed for right-censored data \citep{ishwaran2008}.
+For delayed entry, both the splitting calculation and the terminal-node
+estimator must use entry-aware risk sets.
+
+\section{Position within existing work}
+\citet{fu2017} developed survival tree methods for left-truncated,
+right-censored data, including applications to time-varying covariates.
+This establishes that delayed-entry tree methods predate the present project.
+The thesis therefore focuses on integration into an existing package,
+compatibility with its standard workflow, and empirical assessment.
+
+\draftnote{This is a starting literature review. It needs additional work on
+delayed-entry forest methods, truncation assumptions, and prediction evaluation.
+Foundational references for Cox regression, Kaplan--Meier estimation, and
+Nelson--Aalen estimation will also be added. No comprehensive novelty claim is
+made in this draft.}

@@ -1,17 +1,25 @@
 ---
 title: "Results at a glance"
-output: github_document
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    theme: readable
+    self_contained: true
+  github_document:
+    html_preview: false
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, cache = FALSE, error = FALSE)
 source("_common/sim_report.R")
 ```
 
-Thin summary of all six simulations' knitted results. For the DGP math, true
-`S`/hazard, and PH verdicts, see `README.md` — this file is just the numbers,
-computed directly from each sim's `results_phases.rds` (nothing here is
-hand-typed).
+Summary of the completed six-experiment refresh, matching the updated
+`stage1_main.html` reports. Numerical values are read from the same saved
+100-replication results used by those HTML files, before display rounding.
+No models are fitted while generating this summary. For the DGP definitions,
+see [the simulation overview](README.md).
 
 ## What "phase 1 → phase 2" means
 
@@ -22,13 +30,11 @@ the *same* replication twice:
   "pretend nothing is truncated."
 - **Phase 2**: that same model is given the real, observed entry times.
 
-So every number below is a **paired before/after comparison on one model**,
-not a comparison against a different (standard) model. It happens that phase
-1 (entry = 0) is mathematically proven identical to the plain/standard
-model's own score (the "noop" check each sim's report also shows), so in
-practice this also tells you standard-vs-entry-aware — but the actual
-quantity being computed is: *does giving this model the real entry time
-improve it, relative to giving it no truncation information at all?*
+Each comparison is **paired within a model family**: the same observed
+sample, seeds, and hyperparameters, with entry information changed at fitting.
+Both phases use left-truncated data; setting entry to zero does not recover
+subjects excluded before observation. Ordinary and zero-entry fits were also
+fitted independently to check their survival-curve agreement in every replication.
 
 ```{r load}
 sims <- c(
@@ -47,21 +53,32 @@ dgp_label <- c(
   "05" = "RIST Sc.3 (Gamma, PH violation)",
   "06" = "RIST Sc.4 (Lognormal, PH violation)"
 )
-metrics <- c(overall = "MAD", cindex = "C-idx", brier = "Brier", auc = "AUC")
+metrics <- c(overall = "MAD", cindex = "C-idx", brier = "CRPS", auc = "AUC err")
+## Pin the completed run used for the current HTML reports and thesis.
+## The original per-scenario RDS files are historical; do not silently use them.
+results_run <- file.path("reruns", "2026-11-06-1802cc3")
+run_manifest <- jsonlite::read_json(file.path(results_run, "manifest.json"),
+                                    simplifyVector = TRUE)
+stopifnot(run_manifest$state == "complete")
+expected_provenance <- readRDS(file.path(results_run, "package-provenance.rds"))
 
 res_list <- lapply(sims, function(d) {
-  readRDS(file.path(d, "results_phases.rds"))
+  result <- readRDS(file.path(results_run, "results", d, "results_phases.rds"))
+  stopifnot(result$n_rep == run_manifest$n_rep,
+            result$m_test == run_manifest$test_subjects_per_replication,
+            identical(result$package_provenance, expected_provenance),
+            identical(result$run_provenance$source_commit, run_manifest$source_commit),
+            all(result$noop$rsf == 0), all(result$noop$cox < 1e-8))
+  for (field in names(metrics)) {
+    stopifnot(!is.null(result[[field]]),
+              nrow(result[[field]]) == result$n_rep,
+              all(is.finite(as.matrix(result[[field]]))))
+  }
+  result
 })
 names(res_list) <- names(sims)
 
-## Keep only the scorers every simulation actually carries. A saved run
-## predates any scorer added after it was produced, so this report has to
-## work on a mixed set: it shows what is there today and picks up a new
-## column on its own once every sim has been re-run. Requiring *all* sims to
-## have the field keeps every row of the table comparable.
-metrics <- metrics[vapply(names(metrics), function(f) {
-  all(vapply(res_list, function(r) !is.null(r[[f]]), logical(1)))
-}, logical(1))]
+## A completed run must supply every declared metric; missing fields stop rendering.
 has_auc <- "auc" %in% names(metrics)
 
 ## % improvement from phase 1 -> phase 2, lower-is-better for every metric
@@ -89,21 +106,76 @@ summary_tbl <- do.call(rbind, lapply(names(sims), function(nm) {
 ## describes -- same rule as everything else in this file.
 n_rep_all  <- vapply(res_list, function(r) as.integer(r$n_rep),  integer(1))
 m_test_all <- vapply(res_list, function(r) as.integer(r$m_test), integer(1))
+zero_rsf <- max(vapply(res_list, function(r) max(r$noop$rsf), numeric(1)))
+zero_cox <- max(vapply(res_list, function(r) max(r$noop$cox), numeric(1)))
+scenario_reports <- data.frame(
+  Scenario = names(sims), DGP = unname(dgp_label),
+  Report = if (knitr::is_html_output()) {
+    sprintf('<a href="%s/stage1_main.html">HTML</a>', unname(sims))
+  } else {
+    paste0("[HTML](", unname(sims), "/stage1_main.html)")
+  }
+)
 fmt_range <- function(v) if (length(unique(v)) == 1) as.character(v[1]) else
   paste0(min(v), "-", max(v), " (varies by sim)")
 ```
 
-> **Run size:** `r fmt_range(n_rep_all)` replications per simulation,
-> `r fmt_range(m_test_all)` test subjects each.
-> `r if (max(n_rep_all) < 100) "This is a smoke-test run — enough to confirm the pipeline works end to end, not to pin down the numbers. Treat the percentages as provisional: the near-zero C-index entries in particular cannot be told apart from Monte Carlo noise at this replication count. The production run is 100 replications." else ""`
+> **Run size:** `r fmt_range(n_rep_all)` replications per experiment,
+> **`r sum(n_rep_all)` total**, with `r fmt_range(m_test_all)` population test
+> covariates per replication. Each fit uses
+> `r run_manifest$training_subjects_per_replication` retained training subjects
+> and `r run_manifest$trees_per_forest` trees.
+>
+> **Provenance:** package/source commit
+> `r substr(run_manifest$source_commit, 1, 7)`, completed
+> `r substr(run_manifest$completed_utc, 1, 10)`.
+> All completed results passed independent zero-entry checks: maximum RSF
+> survival-curve difference `r zero_rsf`, maximum Cox difference
+> `r format(zero_cox, scientific = TRUE, digits = 3)`.
+
+The summary reads only this completed, fingerprinted run. Historical saved
+results and earlier HTML copies are preserved under its source archive.
+Differences from historical numbers combine our fixes and upstream changes;
+they do not isolate the effect of an individual fix.
 
 Every column is **% improvement from supplying the real entry time**
-(`(phase1 - phase2) / phase1 * 100`). All three metrics are lower-is-better,
-so positive = entry time helped; negative = it made that arm/metric worse.
+(`(phase1 - phase2) / phase1 * 100`), computed on each metric's *error*
+scale. So for every column alike, positive = entry time helped, negative =
+it made that arm/metric worse.
+
+MAD and Brier are lower-is-better as they stand. The two ranking metrics are
+converted to errors first so they sit on that same scale: the C-index column
+is computed on `1 - C`, and the AUC column on `1 - AUC`. Read an AUC entry
+of `2.9%` as *"the AUC error shrank by 2.9%"* — not as an AUC rising by 2.9
+points.
 
 ```{r table}
 knitr::kable(as.data.frame(summary_tbl, row.names = FALSE))
 ```
+
+Curve accuracy improves in all six scenarios for both model families.
+The concordance result is mixed: RSF concordance error increases in Scenarios
+1–3; the small changes in Scenarios 3–4 have paired descriptive intervals
+that include zero. In Scenario 2, the RSF concordance deterioration occurs
+in every replication. A smaller ranking change does not imply a smaller
+survival-curve improvement.
+
+MAD compares unconditioned predictions with source-population survival truth
+on independent test covariates. Concordance, CRPS, and AUC use training
+outcomes: RSF contributes OOB curves, whereas Cox contributes in-sample curves.
+Brier/CRPS and AUC describe entered subjects using pooled delayed-entry
+Kaplan–Meier censoring weights. These scores assess different targets, and the
+pooled model's common-censoring-hazard assumption is stronger than conditional
+independence given covariates and entry. The AUC construction is our project
+extension, rather than an estimator prescribed by the professor's outline.
+
+CRPS is the **unnormalized time integral** of the Brier curve; its raw values
+depend on the scenario's evaluation horizon. Absolute paired phase shifts,
+descriptive intervals, and replication counts are in
+[the numerical summary](reruns/2026-11-06-1802cc3/summary.csv).
+There, `paired_shift` is phase 2 minus phase 1 (negative favors entry-aware
+fitting); the percentage-reduction table above uses the opposite direction
+so positive means improvement.
 
 ## By metric
 
@@ -159,16 +231,27 @@ plot_metric_bars("overall", "MAD vs true S")
 ```
 
 ```{r plot-cindex, fig.width=7, fig.height=4}
-plot_metric_bars("cindex", "C-index (ranking)")
+plot_metric_bars("cindex", "Concordance error (1-C)")
 ```
 
 ```{r plot-brier, fig.width=7, fig.height=4}
-plot_metric_bars("brier", "Brier / CRPS (calibration)")
+plot_metric_bars("brier", "Integrated Brier / CRPS")
 ```
 
 ```{r plot-auc, fig.width=7, fig.height=4, eval=has_auc}
-plot_metric_bars("auc", "Time-dependent AUC (ranking at each t)")
+plot_metric_bars("auc", "Time-averaged AUC error")
 ```
 
-Raw phase-table numbers (all three metrics, all six sims) are in each sim's
-`results_phases.rds` / knitted `stage1_main.html`.
+## Detailed reports
+
+```{r report-links}
+knitr::kable(scenario_reports, escape = !knitr::is_html_output())
+```
+
+These HTML reports use the same completed result objects as this summary.
+The result objects are stored under
+`reruns/2026-11-06-1802cc3/results/<scenario>/results_phases.rds`.
+Each report also shows AUC over time; a single time average can flatten
+differences concentrated in one interval of follow-up.
+The [Hebrew summary](../docs/summary_hebrew.md) gives a short explanation
+of the results and remaining scope.

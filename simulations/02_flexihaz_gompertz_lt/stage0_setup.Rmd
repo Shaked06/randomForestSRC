@@ -225,10 +225,20 @@ which is what actually drives this simulation's RAM use (measured at
 
 So `RUN_TUNE <- FALSE` here on purpose, not as a placeholder for a
 future re-run: `rsf_hp` falls back to a manually chosen `ntree=500,
-mtry=1, nodesize=16` — the package's own default tree count, and a
-nodesize deliberately larger than sim 01's, trading a little accuracy
+mtry=3, nodesize=16` — the package's own default tree count, and a
+nodesize deliberately larger than tune()'s pick, trading a little accuracy
 tune() would have squeezed out for a forest that is roughly 4x smaller
 in memory and proportionally faster to fit.
+
+`mtry=3` is the package's survival default, `ceiling(sqrt(p))` with $p=5$
+covariates here (`get.grow.mtry()` in `R/utilities_data.R`). Earlier runs
+used `mtry=1` — one candidate variable per node, so the split variable is
+drawn at random and never compared against an alternative, which is what
+`splitrule="random"` forces. Unlike the nodesize choice above, that had no
+memory justification: `mtry` affects how many candidate splits are
+*evaluated*, not how large the fitted forest is, so raising it costs a
+little fit time and nothing in RAM. Simulations 03-06 already sit at the
+default via RIST's `floor(sqrt(p))`, so this puts all six on one rule.
 
 ```{r rsf-tune-setup}
 xn <- c("x1", "x2", "x3", "z1", "z2")
@@ -250,7 +260,7 @@ rsf_hp <- if (RUN_TUNE) {
        mtry     = as.integer(rsf_tune$optimal["mtry"]),
        nodesize = as.integer(rsf_tune$optimal["nodesize"]))
 } else {
-  list(ntree = 500L, mtry = 1L, nodesize = 16L)   # memory/speed, see above
+  list(ntree = 500L, mtry = 3L, nodesize = 16L)   # see prose above
 }
 
 cat(sprintf("RSF hyperparameters (%s): mtry=%d, nodesize=%d, ntree=%d\n",

@@ -1,0 +1,96 @@
+{
+  "measured_utc": "2026-11-06 17:31:16 UTC",
+  "target_per_experiment": 100,
+  "workers": 2,
+  "completed_total": 66,
+  "sample": [
+    {
+      "scenario": "01_cox_random_forerst_lt",
+      "rep": 11,
+      "cpu_seconds": 101.917,
+      "elapsed_seconds": 103.312
+    },
+    {
+      "scenario": "01_cox_random_forerst_lt",
+      "rep": 12,
+      "cpu_seconds": 98.909,
+      "elapsed_seconds": 100.125
+    },
+    {
+      "scenario": "01_cox_random_forerst_lt",
+      "rep": 13,
+      "cpu_seconds": 99.067,
+      "elapsed_seconds": 100.178
+    },
+    {
+      "scenario": "01_cox_random_forerst_lt",
+      "rep": 14,
+      "cpu_seconds": 99.317,
+      "elapsed_seconds": 100.43
+    },
+    {
+      "scenario": "01_cox_random_forerst_lt",
+      "rep": 15,
+      "cpu_seconds": 103.66,
+      "elapsed_seconds": 104.707
+    },
+    {
+      "scenario": "01_cox_random_forerst_lt",
+      "rep": 16,
+      "cpu_seconds": 101.399,
+      "elapsed_seconds": 102.372
+    }
+  ],
+  "per_scenario": [
+    {
+      "scenario": "01_cox_random_forerst_lt",
+      "completed": 16,
+      "remaining": 84,
+      "seconds_per_rep": 100.7115,
+      "basis": "CPU seconds measured in the new five-minute sample",
+      "_row": "01_cox_random_forerst_lt"
+    },
+    {
+      "scenario": "02_flexihaz_gompertz_lt",
+      "completed": 10,
+      "remaining": 90,
+      "seconds_per_rep": 207.3685,
+      "basis": "Earlier low-delay elapsed samples; excludes batches over 1.5 times the minimum",
+      "_row": "02_flexihaz_gompertz_lt"
+    },
+    {
+      "scenario": "03_rist_scenario1_lt",
+      "completed": 10,
+      "remaining": 90,
+      "seconds_per_rep": 197.455,
+      "basis": "Earlier low-delay elapsed samples; excludes batches over 1.5 times the minimum",
+      "_row": "03_rist_scenario1_lt"
+    },
+    {
+      "scenario": "04_rist_scenario2_lt",
+      "completed": 10,
+      "remaining": 90,
+      "seconds_per_rep": 188.9125,
+      "basis": "Earlier low-delay elapsed samples; excludes batches over 1.5 times the minimum",
+      "_row": "04_rist_scenario2_lt"
+    },
+    {
+      "scenario": "05_rist_scenario3_lt",
+      "completed": 10,
+      "remaining": 90,
+      "seconds_per_rep": 282.959,
+      "basis": "Earlier low-delay elapsed samples; excludes batches over 1.5 times the minimum",
+      "_row": "05_rist_scenario3_lt"
+    },
+    {
+      "scenario": "06_rist_scenario4_lt",
+      "completed": 10,
+      "remaining": 90,
+      "seconds_per_rep": 216.539,
+      "basis": "Earlier low-delay elapsed samples; excludes batches over 1.5 times the minimum",
+      "_row": "06_rist_scenario4_lt"
+    }
+  ],
+  "estimated_remaining_hours": 14.8403925,
+  "limitations": "Only the first scenario has new CPU measurements. Other scenarios use earlier low-delay wall times. Forecast assumes the same settings, two workers, and continuous execution; it excludes Codex waiting delays."
+}

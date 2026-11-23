@@ -1,0 +1,99 @@
+\chapter{Simulation Study}
+\section{Design and comparisons}
+The completed study contains six data-generating processes and
+\SimReplications{} paired replications per scenario, giving 600 replications
+in total. Each replication fits Cox regression and a log-rank random survival
+forest twice to the same retained sample: once with entry times zeroed and
+once with observed entry times supplied. Both phases use left-truncated
+data; zeroing entry does not restore subjects excluded by truncation.
+
+Each replication also independently fits the ordinary versions of Cox and
+RSF to verify agreement with their zero-entry counterparts. Thus, six fits
+are performed per replication. The comparison of interest remains the
+within-family change from entry-blind to entry-aware fitting.
+
+\begin{table}[htbp]
+\centering\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{cll}
+\toprule
+Scenario & Event-time family & Linear Cox specification\\
+\midrule
+1 & Weibull & Correctly specified PH\\
+2 & Covariate-dependent Gompertz shape & Non-proportional hazards\\
+3 & Exponential & Correctly specified PH\\
+4 & Exponential with nonlinear mean & Misspecified link; PH holds\\
+5 & Covariate-dependent Gamma shape & Non-proportional hazards\\
+6 & Lognormal & Non-proportional hazards\\
+\bottomrule
+\end{tabular}
+\caption{Overview of the six scenarios. PH denotes proportional hazards.
+Scenario 4 illustrates a nonlinear log-hazard rather than a failure of
+proportional hazards. Complete DGP formulas and source-paper comparisons
+remain part of the final methods write-up.}
+\label{tab:dgp}
+\end{table}
+
+Entry is drawn independently of the initial event-time and covariate
+draws. A subject is retained only if it survives to entry. Censoring is
+generated as a residual duration after entry, using scenario-specific
+distributions and administrative cutoffs. This sampling sequence differs
+from drawing an absolute censoring time before selection. Source-population
+independence does not imply independence within the selected cohort.
+
+\section{Run size and model settings}
+Each replication uses \SimTrainN{} retained training subjects from a
+candidate pool of 50,000, \SimTrees{} trees per forest, and
+\SimTestN{} independently drawn population test covariates. Survival curves
+are evaluated on the preserved 100-point scenario-specific grid.
+Table~\ref{tab:hyperparameters} gives the forest settings. The existing
+setup files and master seeds were preserved; no retuning was performed.
+The two phases use matching seeds and hyperparameters.
+
+\input{tables/hyperparameters}
+
+The refreshed run uses package version \texttt{3.9.7} with the LT changes
+at commit \RunCommit{}. It includes the upstream updates merged into the
+project and the subsequent bug fixes. Installed R and native-library
+fingerprints are recorded with every result, and workers verify that they
+use the matching installation. Completed replications are checkpointed
+individually. The six 100-replication result objects were completed on
+7 November 2026.
+
+\section{Evaluation samples and curve accuracy}
+For $m=\SimTestN$ population test covariates and $G=100$ grid times,
+\[
+ \operatorname{MAD}=\frac{1}{Gm}\sum_{g=1}^{G}\sum_{i=1}^{m}
+ \left|\widehat S(t_g\mid X_i)-S(t_g\mid X_i)\right|.
+\]
+This is an equally weighted grid average, not an interval-length-weighted
+time integral. The test sample supplies covariates and analytic survival
+truth; it does not supply simulated validation outcomes.
+
+Concordance, Brier/CRPS, and AUC use observed training outcomes and real
+entry times in both fitting phases. RSF contributes OOB curves, while Cox
+contributes in-sample curves. Within a model family this holds the scoring
+target fixed while varying the entry information used in fitting.
+Across families the evaluation procedures differ, limiting direct
+interpretation of outcome-score rankings. The pooled censoring model and
+its limitations are described in Chapter 3.
+
+\section{Paired differences and Monte Carlo uncertainty}
+For replication-level errors $E_{0r}$ and $E_{Lr}$, define
+\[
+ D_r=E_{0r}-E_{Lr},\qquad
+ \overline D=\frac{1}{R}\sum_{r=1}^R D_r,\qquad
+ \operatorname{MCSE}(\overline D)=\frac{s_D}{\sqrt R}.
+\]
+All four reported metrics use error scales, so positive gains favor
+entry-aware fitting. The tables report paired MCSEs. Descriptive
+normal-approximation intervals can be formed as
+$\overline D\pm1.96\operatorname{MCSE}(\overline D)$; they quantify
+Monte Carlo uncertainty in the mean paired difference and are not
+individual prediction intervals.
+
+Percentage reduction is
+$100(\overline E_0-\overline E_L)/\overline E_0$, a ratio of mean errors.
+It is not the mean of replication-specific percentage changes.
+For concordance and AUC, this is a relative change in $1-C$ or
+$1-\overline{\mathrm{AUC}}$, not a percentage-point increase in C or AUC.

@@ -1,0 +1,66 @@
+\chapter{Discussion and Conclusions}
+\section{Contribution and interpretation}
+The project integrates subject-specific delayed entry into the main
+single-event survival fitting path of \pkg{}. The default log-rank
+statistic and terminal-node estimates consistently use entry-aware risk
+sets. Entry information is retained through supported storage, restoration,
+resampling, and tuning paths, with explicit errors for unsupported
+combinations. The implementation is accompanied by numerical reference
+checks and a reproducible simulation framework.
+
+The completed 100-replication study shows lower truth-based survival-curve
+error after supplying entry times in all six scenarios for both model
+families. Entered-cohort CRPS and AUC error also improve under the chosen
+scoring model. Concordance changes are smaller and include reproducible
+deterioration for RSF in some settings. Thus, the findings support a
+curve-estimation benefit under the studied designs, not a general claim
+that delayed-entry adjustment improves every discrimination measure.
+
+\section{Statistical limitations}
+The Brier construction is an explicit interpretation of the outline's
+observation conditioning, not an equation supplied by the professor.
+The added AUC definition also requires scientific review. Their
+entered-cohort targets differ from the source-population truth used for
+MAD. Pooled censoring weights assume a common censoring hazard; some
+simulation mechanisms allow censoring to depend on covariates or entry.
+Accordingly, these empirical Brier/AUC comparisons do not prove unbiased
+estimation under every simulated censoring mechanism.
+
+Cox uses in-sample curves for outcome-based scores, while RSF uses OOB
+curves. That limits cross-family comparisons. All models share preserved
+hyperparameters within each fitting comparison, but forests were not
+retuned after the package changes. The fixed grids, finite training sample,
+and selected DGPs limit generalization. Monte Carlo precision across
+100 replications does not remove model misspecification or censoring bias.
+
+The outline also requests fixed-time calibration and survival-curve bias
+and variance within selected covariate strata. Those analyses, a real-data
+example, and variable-selection performance are not completed by the
+present four-metric summary. The literature review and full DGP/source
+descriptions also remain to be expanded.
+
+\section{Software scope and computational limitations}
+The thesis evaluates single-event log-rank forests with baseline
+covariates. Competing-risk LT estimation, time-dependent covariates,
+alternative outcome-based split statistics, LT score confidence
+intervals, and test-entry-aware native prediction/VIMP remain outside
+the established scope. Inclusive entry is deliberate; exact entry/event
+ties need explicit interpretation when comparing with strict start--stop
+implementations.
+
+All-zero entry times retain the existing fast concordance calculation.
+Positive-entry concordance currently compares subject pairs and has
+quadratic cost. A fast LT-aware algorithm is a separate future
+implementation task; slow pairwise enumeration is not an intrinsic
+statistical requirement of left truncation. The local package checks used
+the serial configuration, with no sanitizer or OpenMP runtime validation.
+
+\section{Next steps}
+The next stage is to review the scoring targets and survival-curve
+construction with the professor, complete the requested calibration and
+stratum analyses, and expand the literature and DGP descriptions.
+Broader external validation and performance work can then support a
+future upstream contribution. Upstream code has been integrated locally,
+but submission of the LT extension to the original repository has not
+been completed. University formatting, authorship details, and final
+thesis scope remain to be confirmed.

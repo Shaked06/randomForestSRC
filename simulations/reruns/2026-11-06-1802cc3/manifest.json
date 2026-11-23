@@ -1,0 +1,222 @@
+{
+  "created_utc": "2026-11-06T12:55:48.768818+00:00",
+  "source_commit": "1802cc34d44b323b713c96247d851b18e693b27c",
+  "package_library": "/var/folders/4v/ydm4_m3n3yb12w3jmtncgx4r0000gn/T/rfsrc-fix15-96ttm768/library",
+  "requested_run_size": "pending preference; first full-size replication common to either option",
+  "training_subjects_per_replication": 5000,
+  "trees_per_forest": 500,
+  "test_subjects_per_replication": 200,
+  "input_md5": {
+    "simulations/_common/sim_engine.R": "2339249de44e976bbca5af44f7893385",
+    "simulations/_common/sim_report.R": "ca102f9d3a7e23de9aab92e2aeab3bfa",
+    "simulations/RESULTS.Rmd": "91cb2a973c26167384036340344fa563",
+    "simulations/01_cox_random_forerst_lt/setup.rds": "a0699f3c11da8e7f940b5d4a9a1aafe6",
+    "simulations/01_cox_random_forerst_lt/dgp.R": "af940136ab85be86f3b414c9700ada91",
+    "simulations/01_cox_random_forerst_lt/stage1_main.Rmd": "0f799cb11ba05faa9c2ac601502ce5c2",
+    "simulations/01_cox_random_forerst_lt/results_phases.rds": "d3ba3ef33798e6810b48b800f66d3c6d",
+    "simulations/02_flexihaz_gompertz_lt/setup.rds": "98b04dae4a7e063c0e246fa2c5080235",
+    "simulations/02_flexihaz_gompertz_lt/dgp.R": "52cab2307a8bfaf054e2efcf5a7cc802",
+    "simulations/02_flexihaz_gompertz_lt/stage1_main.Rmd": "e9b88a211cb76f6687150348b114aa0f",
+    "simulations/02_flexihaz_gompertz_lt/results_phases.rds": "127a7ed2505ab4c2d8b6beb956d2e451",
+    "simulations/03_rist_scenario1_lt/setup.rds": "2d080b8ae4afcd40c5fb338bc37a44ed",
+    "simulations/03_rist_scenario1_lt/dgp.R": "ed78e818366e4c80856bc26ef7987d6c",
+    "simulations/03_rist_scenario1_lt/stage1_main.Rmd": "defb1c5e5ba13ad2a7470d62dc654faf",
+    "simulations/03_rist_scenario1_lt/results_phases.rds": "7db6d56553713d4e7983b121c6c03669",
+    "simulations/04_rist_scenario2_lt/setup.rds": "e670ae3207ec59acb4a3abfda4c9cbf8",
+    "simulations/04_rist_scenario2_lt/dgp.R": "531cfed55fc6d5b61724427c9e80ad7f",
+    "simulations/04_rist_scenario2_lt/stage1_main.Rmd": "09debafde35808c14589b636620cffec",
+    "simulations/04_rist_scenario2_lt/results_phases.rds": "0058718bda56bc15373b6c944cb0b7ab",
+    "simulations/05_rist_scenario3_lt/setup.rds": "6d73afb57ba334dcdbe57d85a27c648c",
+    "simulations/05_rist_scenario3_lt/dgp.R": "fceeb5cf91fd9ae99404c05a24ca757c",
+    "simulations/05_rist_scenario3_lt/stage1_main.Rmd": "ba5fe1fd2e72a2badc9584ad5e952329",
+    "simulations/05_rist_scenario3_lt/results_phases.rds": "31b27850547510b998e0805a537c8b1a",
+    "simulations/06_rist_scenario4_lt/setup.rds": "0b6366f287eabb63688f8a1fa12350a1",
+    "simulations/06_rist_scenario4_lt/dgp.R": "1f760890f0f7981956fc3f842d1ca24e",
+    "simulations/06_rist_scenario4_lt/stage1_main.Rmd": "99c5c6b44f7ed16bf80b1a7543e59894",
+    "simulations/06_rist_scenario4_lt/results_phases.rds": "a9b3579ad225c1a47ad9987d9785a820"
+  },
+  "n_rep": 100,
+  "n_cores": 2,
+  "verify_noop": true,
+  "state": "complete",
+  "pilot_elapsed_seconds": 96.642,
+  "runner_md5": {
+    "run_all.R": "bc07a7048452f1a1e1dce18df983f56b",
+    "checkpoint_worker.R": "f08027f89b707e8fcccfa4c3d95e3da9"
+  },
+  "started_utc": "2026-11-06T13:07:44.352065+00:00",
+  "instrumentation_history": [
+    {
+      "utc": "2026-11-06T17:24:36.562169+00:00",
+      "previous_runner_md5": {
+        "checkpoint_worker.R": "31e4225d3731871452735ec4a1812c32",
+        "run_all.R": "f300ff0a9eda6d44bb2ec622f0855741"
+      },
+      "change": "Add per-replication CPU timing and invocation logging; model code, seeds, inputs, and checkpoint validation unchanged."
+    }
+  ],
+  "package_provenance": {
+    "schema": 1,
+    "R": "R version 4.6.1 (2026-06-24)",
+    "platform": "aarch64-apple-darwin23",
+    "packages": {
+      "randomForestSRC": {
+        "version": "3.9.7",
+        "path": "/private/var/folders/4v/ydm4_m3n3yb12w3jmtncgx4r0000gn/T/rfsrc-fix15-96ttm768/library/randomForestSRC",
+        "files": {
+          "DESCRIPTION": "5edb822da6ba5535b845044524d3a321",
+          "libs/randomForestSRC.so": "67b034839de69cdfefab776d29d8b492",
+          "libs/symbols.rds": "36a5008ff4bdbb34faefb3347e939a57",
+          "NAMESPACE": "f7922384e5bba2caed39298a73404b8b",
+          "R/randomForestSRC": "d6c68f1fe41ced6e98a766a3757313da",
+          "R/randomForestSRC.rdb": "d1b5573bcebde6718116886d9a0a4eb6",
+          "R/randomForestSRC.rdx": "d7427afea4d6d1300c2475c50069969c"
+        }
+      },
+      "survival": {
+        "version": "3.8-6",
+        "path": "/Library/Frameworks/R.framework/Versions/4.6/Resources/library/survival",
+        "files": {
+          "DESCRIPTION": "308e44ff5d00ccaf02b42ca7f23e7855",
+          "libs/survival.so": "03ecfcee961a1460f936caadfbf380d1",
+          "NAMESPACE": "bdccea6a769366627703f9ec81bff188",
+          "R/survival": "d6c68f1fe41ced6e98a766a3757313da",
+          "R/survival.rdb": "b4018f5b62c7fcea17221c9cc2feab19",
+          "R/survival.rdx": "a29ac3baad35d6a55ba5557d3cbb24ec"
+        }
+      }
+    }
+  },
+  "report_n_rep": 100,
+  "report_created_utc": "2026-11-07 04:24:27 UTC",
+  "completed_utc": "2026-11-07 04:24:27 UTC",
+  "html_refresh": {
+    "completed_utc": "2026-11-08T21:29:07.600750+00:00",
+    "method": "Direct rmarkdown::render of all six original stage1_main.Rmd documents, loading validated completed results with recompute=false; no model fitting.",
+    "reports": [
+      {
+        "scenario": "01_cox_random_forerst_lt",
+        "previous_sha256": "95f367db84397b74554054d0be687cf2195b8b24b0d096dfdfff71f97fea5ed5",
+        "current_sha256": "59d55f8b57669ba1319829cd1c3a89da29ff597c3b63b98e89c6a8d678a8b60f",
+        "rmd_sha256": "8ad4f7f24bd646ccff2aea2cf0bce3cd5e74d6215de9e3bbaba1b0978f59d985",
+        "embedded_images": 6,
+        "paged_tables": 9
+      },
+      {
+        "scenario": "02_flexihaz_gompertz_lt",
+        "previous_sha256": "a1159d76b2577083214c782e9898a91fb5831c0b57235e18c5a0bda8921a69aa",
+        "current_sha256": "1b741420fec3af9ec5884fa6f167ec82a3535044c81beaa0cbf2e119eecca14f",
+        "rmd_sha256": "7c4b7a401779ac21cf47682e81886e1f6bf6d6efa26b0147fd98a6f42be79a0f",
+        "embedded_images": 6,
+        "paged_tables": 9
+      },
+      {
+        "scenario": "03_rist_scenario1_lt",
+        "previous_sha256": "082ea23b39c5161e1af11ddc1302c92403f3a27e625e20dccb13c7e7c28fc843",
+        "current_sha256": "0117087ebdc5528291ecd7eaaa44bdd7f2550736f8b841f5fe4ef149e91c36fd",
+        "rmd_sha256": "1f5d7997cbc9eb789f6874b1b654471d5fa0f85ba7e997286e98944157521bf2",
+        "embedded_images": 6,
+        "paged_tables": 9
+      },
+      {
+        "scenario": "04_rist_scenario2_lt",
+        "previous_sha256": "d16eb782c2506c510afdf6ab954dbc7593b3ed4e7b1c29f751a68ef743f4523a",
+        "current_sha256": "db49441498af153060353653938925b7654b612d83ec593ba7f9ae80e8dcfe13",
+        "rmd_sha256": "a24abf378ec863c4048bf5df38bbbdae5c81014e96aa6b7263d299a803cd7d6e",
+        "embedded_images": 6,
+        "paged_tables": 9
+      },
+      {
+        "scenario": "05_rist_scenario3_lt",
+        "previous_sha256": "b7d7a2f542f5c9ed5dcc2cb11ee2f12fad2a62dcc6852c37e97a38fb840bf93b",
+        "current_sha256": "558dd06f1283c5ceb8ac9cc19c38cf147e6e3760523f32b240ff0db3aef36cf8",
+        "rmd_sha256": "eb373af784915836452f36e43a730b49f9f0c56e747690858940ffd3bda30632",
+        "embedded_images": 6,
+        "paged_tables": 9
+      },
+      {
+        "scenario": "06_rist_scenario4_lt",
+        "previous_sha256": "6c72c67d93291de1dcd67397cf6f6c51f966ccff86b7ecd9ea2f05386296f41e",
+        "current_sha256": "aea1e541a042394a32b9afef00cbbc6b80870b1566a60900c3affc0a91b42fd2",
+        "rmd_sha256": "6fdbe350fefc441c9837d8dbc13469d9f7acff398d475dc390b375e6a811c81d",
+        "embedded_images": 6,
+        "paged_tables": 9
+      }
+    ],
+    "validated_numeric_table_cells": 528,
+    "unchanged_checkpoint_files": 600,
+    "unchanged_combined_result_files": 12
+  },
+  "summary_refresh": {
+    "updated_utc": "2026-11-08T21:29:07.600750+00:00",
+    "data_source": "Completed 100-replication result objects used by the six refreshed HTML reports.",
+    "files_sha256": {
+      "simulations/RESULTS.Rmd": "52cd0f250bbda75f06a8a8c8bb7b68c93fe53cf717f1fa89c6c11acd0a023d5d",
+      "simulations/RESULTS.md": "74e2fbd54dda932d146b020c32ea87e218d389c7d0e6f0757dda9d0bd4397a26",
+      "simulations/RESULTS.html": "1f1b1cc5f6748e0cbb5079a4f6a1691f7a799564c8078cd396bf1cd5d67e1aff",
+      "docs/summary_hebrew.md": "21273b5db96bfd7e7378b6e0918fb83fa3c39ad91e11e8f7a8f8cafadeaa42af"
+    },
+    "method": "Direct rmarkdown::render of RESULTS.Rmd to html_document and github_document; HTML is the default Knit format.",
+    "validated_percentage_cells": 48,
+    "embedded_images": 4
+  },
+  "html_refresh_history": [
+    {
+      "completed_utc": "2026-11-07T16:45:59.763192+00:00",
+      "method": "Rendered the completed 100-replication Markdown reports as self-contained HTML; no model fitting.",
+      "reports": [
+        {
+          "scenario": "01_cox_random_forerst_lt",
+          "previous_sha256": "ba985a0f5cd1cee3d0f29636f255c2384c84d08bc5f9785497152b32aa351b2e",
+          "current_sha256": "95f367db84397b74554054d0be687cf2195b8b24b0d096dfdfff71f97fea5ed5",
+          "embedded_images": 6
+        },
+        {
+          "scenario": "02_flexihaz_gompertz_lt",
+          "previous_sha256": "a741a509ef7f5ac014db2765b7862abf6a466c19162c7145d59f164640e695d0",
+          "current_sha256": "a1159d76b2577083214c782e9898a91fb5831c0b57235e18c5a0bda8921a69aa",
+          "embedded_images": 6
+        },
+        {
+          "scenario": "03_rist_scenario1_lt",
+          "previous_sha256": "abdb5cc06d6280c4bd51992515acc4876e44018ca1987666ab780097edf834de",
+          "current_sha256": "082ea23b39c5161e1af11ddc1302c92403f3a27e625e20dccb13c7e7c28fc843",
+          "embedded_images": 6
+        },
+        {
+          "scenario": "04_rist_scenario2_lt",
+          "previous_sha256": "b878a1478fe0b506b41f0f1fec4c3ce7b7141c3cc520d00a030edfd1e9d82903",
+          "current_sha256": "d16eb782c2506c510afdf6ab954dbc7593b3ed4e7b1c29f751a68ef743f4523a",
+          "embedded_images": 6
+        },
+        {
+          "scenario": "05_rist_scenario3_lt",
+          "previous_sha256": "6babc90862a551287f6205b4af428c11ca58d3a4ad7cf72c6c493060f359f99a",
+          "current_sha256": "b7d7a2f542f5c9ed5dcc2cb11ee2f12fad2a62dcc6852c37e97a38fb840bf93b",
+          "embedded_images": 6
+        },
+        {
+          "scenario": "06_rist_scenario4_lt",
+          "previous_sha256": "bdf6946ca2b1fbb98475940ac9278ab3399d3073ef39ae93018bd718cac24b3d",
+          "current_sha256": "6c72c67d93291de1dcd67397cf6f6c51f966ccff86b7ecd9ea2f05386296f41e",
+          "embedded_images": 6
+        }
+      ]
+    }
+  ],
+  "summary_refresh_history": [
+    {
+      "updated_utc": "2026-11-08T21:29:07.600750+00:00",
+      "data_source": "Completed 100-replication result objects used by the six refreshed HTML reports.",
+      "files_sha256": {
+        "simulations/RESULTS.Rmd": "52cd0f250bbda75f06a8a8c8bb7b68c93fe53cf717f1fa89c6c11acd0a023d5d",
+        "simulations/RESULTS.md": "74e2fbd54dda932d146b020c32ea87e218d389c7d0e6f0757dda9d0bd4397a26",
+        "simulations/RESULTS.html": "1f1b1cc5f6748e0cbb5079a4f6a1691f7a799564c8078cd396bf1cd5d67e1aff",
+        "docs/summary_hebrew.md": "21273b5db96bfd7e7378b6e0918fb83fa3c39ad91e11e8f7a8f8cafadeaa42af"
+      },
+      "method": "Direct rmarkdown::render of RESULTS.Rmd to html_document and github_document; HTML is the default Knit format.",
+      "validated_percentage_cells": 48,
+      "embedded_images": 4
+    }
+  ]
+}

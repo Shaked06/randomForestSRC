@@ -1,0 +1,32 @@
+\chapter*{Abstract}
+\addcontentsline{toc}{chapter}{Abstract}
+Left truncation occurs when individuals enter observation after the origin of
+the survival time scale and are observed only if they survive to entry. This
+thesis extends the \pkg{} R package to left-truncated, right-censored,
+single-event survival data. Subject-specific entry times are passed through
+the R and C interfaces and used in default log-rank splitting, terminal-node
+estimation, and selected performance calculations. Regression checks address
+ordinary-data compatibility, saved-forest restoration, row alignment, tuning,
+and delayed-entry scoring.
+
+The completed simulation study uses six data-generating processes and
+\SimReplications{} paired replications per scenario. Each replication contains
+\SimTrainN{} retained training subjects, \SimTrees{} trees per forest, and
+\SimTestN{} independently drawn population test covariates. Entry-aware fitting
+reduces mean absolute survival-curve error in every scenario: by
+16.66--91.39\% for Cox regression and 31.05--66.01\% for random survival forests.
+Entered-cohort Brier/CRPS and time-averaged AUC error also decrease in all six
+scenarios. Concordance changes are much smaller and include deterioration for
+RSF in some scenarios. These metrics address different prediction targets and
+use different evaluation samples across model families, so the findings do
+not establish universal superiority of one method or one scoring procedure.
+
+The contribution is an applied package extension with reproducible numerical
+evaluation. Remaining work includes review of the observation-conditioned
+Brier interpretation, the added AUC definition, censoring-model assumptions,
+and the scope of a future upstream contribution.
+
+\draftnote{Updated discussion draft using the completed 100-replication study.
+The literature review, additional evaluation requested in the project outline,
+and institutional formatting remain unfinished. Numerical results use package
+commit \RunCommit{}; no upstream submission is claimed.}

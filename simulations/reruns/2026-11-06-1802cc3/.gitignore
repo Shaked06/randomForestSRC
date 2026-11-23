@@ -1,0 +1,14 @@
+*
+!.gitignore
+!README.md
+!manifest.json
+!summary.csv
+!comparison.csv
+!REPORT.md
+!run_configuration.csv
+!run_all.R
+!checkpoint_worker.R
+!render_reports.R
+!render_rmd.R
+!finish_reports.R
+!five-minute-estimate.json

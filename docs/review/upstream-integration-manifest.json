@@ -1,0 +1,30 @@
+{
+  "date": "2026-11-06",
+  "candidate_checkout": "/var/folders/4v/ydm4_m3n3yb12w3jmtncgx4r0000gn/T/rfsrc-upstream-integration-lrkerrxk/repo",
+  "candidate_branch": "integrate-upstream-2026-11-06",
+  "local_parent": "42d7a66b93816edb05d483857cb215b6a2f66c52",
+  "upstream_parent": "30d95e206b8e287863afb55970014497e3803a8f",
+  "staged_tree": "cbc7ca3e2e7e127e8ee47652f46395e69655952d",
+  "patch": "/Users/shakedcaspi/Documents/tau/randomForestSRC/docs/review/upstream-integration.patch",
+  "patch_sha256": "b06a21712bc9570acb83cf6d9aed672032d6bcd4a25f114541345ef958a839d6",
+  "patch_bytes": 4246717,
+  "commit_created": true,
+  "pushed": false,
+  "package_version": "3.9.7",
+  "check_status": "OK",
+  "package_test_files": 8,
+  "simulation_smoke_cases": 6,
+  "ordinary_profiles_per_variant": 12,
+  "old_forest_compatibility_cases": 4,
+  "reviewed_tree": "cbc7ca3e2e7e127e8ee47652f46395e69655952d",
+  "approved_commit": "cb60a6ead0cbd4e9c07926a3832aacc809944d0b",
+  "committed_tree": "f068c52b6b784ddd9526199f40dde1a618de2107",
+  "applied_branch": "ltrc-rsf",
+  "applied_workspace": "/Users/shakedcaspi/Documents/tau/randomForestSRC",
+  "pending_work_backup": "/var/folders/4v/ydm4_m3n3yb12w3jmtncgx4r0000gn/T/rfsrc-approved-merge-backup-o4chr9e8",
+  "pending_files_verified": 68,
+  "approval_metadata_updates": [
+    "docs/BUGS.md",
+    "docs/review/UPSTREAM_SYNC_REVIEW.md"
+  ]
+}

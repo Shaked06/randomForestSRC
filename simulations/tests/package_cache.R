@@ -57,6 +57,7 @@ local({
     "setwd(args[2])",
     'source("../_common/sim_engine.R")',
     "N_REP <- 10L; M_TEST <- 200L",
+    "RECOMPUTE <- TRUE",
     ## The NULL fallback lets the same regression reproduce stale caching
     ## on the previous engine, before the fingerprint function existed.
     'PACKAGE_PROVENANCE <- if (exists("simulation_package_provenance")) simulation_package_provenance("cacheFixture") else NULL',

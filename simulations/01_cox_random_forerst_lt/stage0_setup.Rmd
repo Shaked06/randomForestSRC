@@ -237,8 +237,22 @@ the deepest, most expensive tree available. It has no notion of memory or
 runtime cost, which is what actually explodes with small nodesize
 (`ntree x (N/nodesize) x ntime` terminal-node survival curves stored per
 forest). `RUN_TUNE <- FALSE` here on purpose: `rsf_hp` falls back to a
-manually chosen `ntree=500, mtry=1, nodesize=16` (see simulation 02 for the
+manually chosen `ntree=500, mtry=3, nodesize=16` (see simulation 02 for the
 measured memory/speed numbers this trades against tune()'s pick).
+
+`mtry=3` is the package's own survival default, `ceiling(sqrt(p))` with
+$p=6$ (`get.grow.mtry()` in `R/utilities_data.R`). Earlier runs of this
+simulation used `mtry=1`, which is the most extreme randomization the
+forest allows: with one candidate per node the split variable is drawn at
+random and never compared against an alternative — the same behaviour
+`splitrule="random"` forces. That weakens every individual tree for no
+stated reason, and it left simulations 01 and 02 on a different rule from
+03-06, which follow RIST's `floor(sqrt(p))` and happen to coincide with the
+package default because their $p$ is a perfect square. Using the default
+here puts all six simulations on one principled rule.
+
+`nodesize` is left at 16, close to the package default of 15 and chosen
+deliberately for memory (see simulation 02). Only `mtry` was off-default.
 
 ```{r rsf-tune, eval=RUN_TUNE}
 rsf_tune <- tune(
@@ -257,7 +271,7 @@ rsf_hp <- if (RUN_TUNE) {
        mtry     = as.integer(rsf_tune$optimal["mtry"]),
        nodesize = as.integer(rsf_tune$optimal["nodesize"]))
 } else {
-  list(ntree = 500L, mtry = 1L, nodesize = 16L)   # memory/speed, see sim02
+  list(ntree = 500L, mtry = 3L, nodesize = 16L)   # see prose above
 }
 
 cat(sprintf("RSF hyperparameters (%s): mtry=%d, nodesize=%d, ntree=%d\n",
